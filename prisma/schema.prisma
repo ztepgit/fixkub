@@ -1,0 +1,153 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. AGENT (ระบบเซลส์/นักศึกษา/คนแนะนำ)
+// ==========================================
+model Agent {
+  id          String   @id @default(cuid())
+  code        String   @unique 
+  name        String   
+  phone       String?
+  bankDetails String?  
+  isActive    Boolean  @default(true) 
+  
+  createdAt   DateTime @default(now())
+  
+  shops       Shop[]   
+}
+
+// ==========================================
+// 2. SHOP (ตารางหลักของร้านค้า และ Subdomain)
+// ==========================================
+model Shop {
+  id                 String    @id @default(cuid())
+  slug               String    @unique 
+  name               String
+  logoUrl            String?
+  themeColor         String    @default("#10b981")
+
+  // --- Billing & Subscription ---
+  plan               PlanType  @default(FREE_TRIAL)
+  trialEndsAt        DateTime?
+  subscriptionEndsAt DateTime?
+  isActive           Boolean   @default(true)
+
+  // --- Agent & Commission Tracking ---
+  agentId            String?   
+  agent              Agent?    @relation(fields: [agentId], references: [id])
+  isCommissionPaid   Boolean   @default(false) 
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // --- Relationships (ต้องมีให้ครบไม่งั้น Error) ---
+  owners             ShopOwner[]
+  services           Service[]
+  queues             Queue[]
+  payments           PaymentTransaction[] // << เพิ่มบรรทัดนี้เพื่อรับ Relation จาก Payment
+}
+
+// ==========================================
+// 3. SHOP OWNER (ระบบจัดการสิทธิ์เจ้าของร้าน)
+// ==========================================
+model ShopOwner {
+  id        String   @id @default(cuid())
+  userId    String   
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  role      Role     @default(OWNER) 
+
+  @@unique([userId, shopId]) 
+}
+
+// ==========================================
+// 4. SERVICE (บริการของร้าน)
+// ==========================================
+model Service {
+  id           String  @id @default(cuid())
+  shopId       String
+  shop         Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  name         String
+  price        Float?
+  estimatedMin Int?
+  isActive     Boolean @default(true)
+}
+
+// ==========================================
+// 5. QUEUE (หัวใจหลักของ Core Business)
+// ==========================================
+model Queue {
+  id            String      @id @default(cuid())
+  shopId        String
+  shop          Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  queueNumber   String?
+  customerName  String
+  phoneNumber   String?     
+  isManualEntry Boolean     @default(false) 
+  
+  serviceName   String      
+
+  status        QueueStatus @default(PENDING)
+
+  createdAt     DateTime    @default(now())
+  acceptedAt    DateTime?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+}
+
+// ==========================================
+// 6. PAYMENT TRANSACTION (ประวัติการชำระเงิน)
+// ==========================================
+model PaymentTransaction {
+  id            String   @id @default(cuid())
+  shopId        String
+  shop          Shop     @relation(fields: [shopId], references: [id])
+  
+  amount        Float    
+  plan          PlanType 
+  slipUrl       String?  
+  
+  status        PaymentStatus @default(PENDING) 
+  
+  createdAt     DateTime @default(now())
+  approvedAt    DateTime? 
+}
+
+// ==========================================
+// ENUMS (ตัวแปรสถานะต่างๆ)
+// ==========================================
+enum PlanType {
+  FREE_TRIAL
+  LIFETIME
+  YEARLY
+  MONTHLY
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+enum QueueStatus {
+  PENDING
+  WAITING
+  PROCESSING
+  FINISHED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}

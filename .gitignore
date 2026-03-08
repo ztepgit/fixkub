@@ -1,10 +1,59 @@
-# v0 runtime files
+# =========================================
+# 🔒 SECURITY & ENV VARS (ห้ามหลุดเด็ดขาด!)
+# =========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# =========================================
+# 📦 DEPENDENCIES
+# =========================================
+node_modules/
+.pnp/
+.pnp.js
+
+# =========================================
+# 🚀 NEXT.JS BUILD & VERCEL
+# =========================================
+.next/
+out/
+build/
+.vercel/
+next-env.d.ts
+
+# =========================================
+# 🛠️ V0 RUNTIME FILES (จากโค้ดเดิมของคุณ)
+# =========================================
 __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
 
-# Common ignores
-node_modules/
-.next/
-.env*.local
+# =========================================
+# 🗄️ PRISMA & DATABASE
+# =========================================
+/lib/generated/prisma
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# =========================================
+# 🗑️ OS & MISC (ไฟล์ขยะระบบ)
+# =========================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================================
+# 📝 LOGS (ไฟล์ Log ตอนรันพัง)
+# =========================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
