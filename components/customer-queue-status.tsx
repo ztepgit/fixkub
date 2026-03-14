@@ -1,205 +1,126 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, Users, Clock, User, Scissors, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
+import {
+  Smartphone,
+  Wrench,
+  RefreshCw,
+  XCircle,
+  CheckCircle2,
+  Clock,
+  PackageCheck,
+  ClipboardList
+} from "lucide-react"
 
-interface QueueData {
-  ticketNumber: string
-  name: string
-  service: string
-  status: "waiting" | "called" | "processing"
-  position: number
-  estimatedWait: number
+// จำลองข้อมูลจาก Database (ตาราง Queue)
+const MOCK_TICKET = {
+  jobRef: "REP-0105",
+  customerName: "คุณปิ๊ก",
+  deviceModel: "iPhone 13 Pro",
+  deviceColor: "Sierra Blue",
+  serviceName: "เปลี่ยนจอ / ทัชสกรีน",
+  issue: "ทำตกจอแตก ทัชไม่ได้ฝั่งขวา",
+  // ลองเปลี่ยนค่า status ตรงนี้ดูครับ: PENDING, WAITING, PROCESSING, REPAIRED
+  status: "PROCESSING",
+  estimatedWait: "ประมาณ 1-2 ชั่วโมง",
 }
 
-interface CustomerQueueStatusProps {
-  shopName: string
-  queueData: QueueData
-  isLoading: boolean
-  onRefresh: () => void
-  onCancel: () => void
-}
-
-function Skeleton({ className }: { className?: string }) {
-  return (
-    <div className={cn("animate-pulse rounded-md bg-muted", className)} />
-  )
-}
-
-const statusConfig = {
-  waiting: {
-    label: "Waiting",
-    bgClass: "bg-amber-100 text-amber-800",
-  },
-  called: {
-    label: "You're Up!",
-    bgClass: "bg-emerald-100 text-emerald-800",
-  },
-  processing: {
-    label: "Being Served",
-    bgClass: "bg-blue-100 text-blue-800",
-  },
-}
-
-export function CustomerQueueStatus({
-  shopName,
-  queueData,
-  isLoading,
-  onRefresh,
-  onCancel,
-}: CustomerQueueStatusProps) {
-  const status = statusConfig[queueData.status]
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        {/* Header Skeleton */}
-        <header className="px-6 py-6 flex items-center justify-between">
-          <Skeleton className="w-32 h-6" />
-          <Skeleton className="w-10 h-10 rounded-full" />
-        </header>
-
-        {/* Main Content Skeleton */}
-        <main className="flex-1 px-4 pb-8 flex flex-col">
-          <div className="text-center mb-6">
-            <Skeleton className="w-20 h-6 mx-auto mb-4" />
-            <Skeleton className="w-40 h-24 mx-auto rounded-2xl mb-4" />
-            <Skeleton className="w-24 h-8 mx-auto rounded-full" />
-          </div>
-
-          <Card className="border-0 shadow-lg flex-1">
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="w-full h-14 rounded-xl" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    )
+export function CustomerQueueStatus() {
+  // ฟังก์ชันช่วยกำหนดสีและไอคอนตามสถานะ
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return { text: "รอยืนยันคิว", color: "bg-slate-500", icon: <ClipboardList className="h-6 w-6" /> }
+      case "WAITING":
+        return { text: "รอคิวซ่อม", color: "bg-orange-500", icon: <Clock className="h-6 w-6" /> }
+      case "PROCESSING":
+        return { text: "ช่างกำลังซ่อม", color: "bg-blue-500", icon: <Wrench className="h-6 w-6" /> }
+      case "REPAIRED":
+        return { text: "ซ่อมเสร็จแล้ว! (รอรับเครื่อง)", color: "bg-emerald-500", icon: <PackageCheck className="h-6 w-6" /> }
+      case "COMPLETED":
+        return { text: "ส่งมอบเรียบร้อย", color: "bg-emerald-700", icon: <CheckCircle2 className="h-6 w-6" /> }
+      default:
+        return { text: "ไม่ทราบสถานะ", color: "bg-slate-500", icon: <Clock className="h-6 w-6" /> }
+    }
   }
 
+  const currentStatus = getStatusDisplay(MOCK_TICKET.status)
+
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="px-6 py-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">{shopName}</h1>
-        <button
-          onClick={onRefresh}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-          aria-label="Refresh status"
-        >
-          <RefreshCw className={cn("w-5 h-5", isLoading && "animate-spin")} />
-        </button>
-      </header>
+    <div className="mx-auto w-full max-w-md space-y-4 pt-4">
+      <Card className="border-emerald-100 shadow-lg overflow-hidden relative">
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 pb-8 flex flex-col">
-        {/* Queue Number Display */}
-        <div className="text-center mb-6">
-          <p className="text-sm text-muted-foreground uppercase tracking-wider mb-3">
-            Your Queue Number
-          </p>
-          <div
-            className="inline-block px-8 py-6 rounded-2xl mb-4"
-            style={{ backgroundColor: "var(--shop-primary)" }}
-          >
-            <span className="text-5xl font-bold text-white tracking-tight">
-              {queueData.ticketNumber}
-            </span>
+        {/* แถบสีด้านบนสุดเพื่อบอกสถานะคร่าวๆ */}
+        <div className={`h-2 w-full ${currentStatus.color}`} />
+
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            รหัสใบแจ้งซ่อม
+          </CardTitle>
+          <div className="text-4xl font-black text-emerald-950 tracking-tight mt-1">
+            {MOCK_TICKET.jobRef}
           </div>
-          <div className="flex justify-center">
-            <Badge className={cn("text-sm px-4 py-1.5 rounded-full font-medium", status.bgClass)}>
-              {status.label}
-            </Badge>
+        </CardHeader>
+
+        <CardContent className="space-y-6 pt-4">
+
+          {/* ป้ายสถานะ (Status Badge) เบิ้มๆ */}
+          <div className={`mx-auto flex flex-col items-center justify-center p-4 rounded-2xl text-white ${currentStatus.color} shadow-sm transition-all duration-500`}>
+            <div className="mb-2 bg-white/20 p-3 rounded-full animate-pulse">
+              {currentStatus.icon}
+            </div>
+            <h3 className="text-xl font-bold">{currentStatus.text}</h3>
+            {MOCK_TICKET.status === "PROCESSING" && (
+              <p className="text-sm text-white/90 mt-1">เวลาประเมิน: {MOCK_TICKET.estimatedWait}</p>
+            )}
           </div>
-        </div>
 
-        {/* Info Card */}
-        <Card className="border-0 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              {/* Customer Info */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0"
-                  style={{ backgroundColor: "var(--shop-primary)" }}
-                >
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Customer</p>
-                  <p className="font-medium text-foreground">{queueData.name}</p>
-                </div>
-              </div>
-
-              {/* Service */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary text-foreground shrink-0">
-                  <Scissors className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Service</p>
-                  <p className="font-medium text-foreground">{queueData.service}</p>
-                </div>
-              </div>
-
-              {/* Position - Highlighted */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0"
-                  style={{ backgroundColor: "var(--shop-primary)" }}
-                >
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-emerald-700">Position</p>
-                  <p className="font-semibold text-foreground">
-                    {queueData.position === 0 ? (
-                      "You're next!"
-                    ) : (
-                      <span>
-                        <span className="text-lg">{queueData.position}</span>{" "}
-                        {queueData.position === 1 ? "queue" : "queues"} ahead of you
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Estimated Wait */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary text-foreground shrink-0">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Estimated Wait</p>
-                  <p className="font-medium text-foreground">
-                    ~{queueData.estimatedWait} mins
-                  </p>
-                </div>
+          {/* ข้อมูลเครื่องและอาการ (สรุป) */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3 text-sm">
+            <div className="flex justify-between items-start">
+              <div className="text-slate-500">รุ่นมือถือ:</div>
+              <div className="font-semibold text-right flex items-center gap-1">
+                <Smartphone className="h-4 w-4 text-emerald-600" />
+                {MOCK_TICKET.deviceModel} ({MOCK_TICKET.deviceColor})
               </div>
             </div>
-          </CardContent>
-        </Card>
+            <Separator className="bg-slate-200" />
+            <div className="flex justify-between items-start">
+              <div className="text-slate-500">บริการ:</div>
+              <div className="font-semibold text-right">{MOCK_TICKET.serviceName}</div>
+            </div>
+            <Separator className="bg-slate-200" />
+            <div className="flex justify-between items-start">
+              <div className="text-slate-500 w-1/3">อาการเสีย:</div>
+              <div className="font-medium text-right text-slate-700 w-2/3 break-words">
+                {MOCK_TICKET.issue}
+              </div>
+            </div>
+            <Separator className="bg-slate-200" />
+            <div className="flex justify-between items-start">
+              <div className="text-slate-500">ชื่อลูกค้า:</div>
+              <div className="font-medium text-right">{MOCK_TICKET.customerName}</div>
+            </div>
+          </div>
 
-        {/* Cancel Button - Danger Zone */}
-        <div className="mt-auto pt-8">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="w-full h-12 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive rounded-xl"
-          >
-            <X className="w-4 h-4 mr-2" />
-            Cancel My Queue
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-3 bg-slate-50 border-t pt-4">
+          <Button variant="outline" className="w-full h-12 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+            <RefreshCw className="mr-2 h-4 w-4" /> อัปเดตสถานะ
           </Button>
-        </div>
-      </main>
+
+          {/* โชว์ปุ่มยกเลิก เฉพาะตอนที่ยังไม่เริ่มซ่อม */}
+          {(MOCK_TICKET.status === "PENDING" || MOCK_TICKET.status === "WAITING") && (
+            <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50">
+              <XCircle className="mr-2 h-4 w-4" /> ยกเลิกรายการซ่อม
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   )
 }
