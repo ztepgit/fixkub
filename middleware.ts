@@ -26,7 +26,7 @@ export default function middleware(req: NextRequest) {
   // ถ้า URL เป็น Subdomain (เช่น barber) ให้ Rewrite เข้าไปในโฟลเดอร์ app/[shopSlug]
   if (subdomain && subdomain !== hostname && subdomain !== rootDomain) {
     return NextResponse.rewrite(
-      new URL(`/${subdomain}${url.pathname}`, req.url)
+      new URL(`/shop/${subdomain}${url.pathname}`, req.url)
     );
   }
 
