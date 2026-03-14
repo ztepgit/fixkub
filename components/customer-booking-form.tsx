@@ -164,7 +164,7 @@ export function CustomerBookingForm({
                   </FieldLabel>
                   <Input
                     type="tel"
-                    placeholder="For SMS notifications"
+                    placeholder="เบอร์โทรศัพท์ (ไม่บังคับ)"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="h-12 text-base rounded-xl border-border"

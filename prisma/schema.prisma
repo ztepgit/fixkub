@@ -34,10 +34,17 @@ model Shop {
   logoUrl            String?
   themeColor         String    @default("#10b981")
 
+  // --- Repair Shop Settings ---
+  maxActiveJobs      Int       @default(10)
+
   // --- Billing & Subscription ---
   plan               PlanType  @default(FREE_TRIAL)
   trialEndsAt        DateTime?
-  subscriptionEndsAt DateTime?
+  
+  // 🌟 [เพิ่มใหม่] ต้องมี "วันที่เริ่มรอบบิล" เพื่อเอาไปคำนวณหักลบเวลาที่ใช้ไป (Prorate)
+  subscriptionStartsAt DateTime? 
+  subscriptionEndsAt   DateTime?
+  
   isActive           Boolean   @default(true)
 
   // --- Agent & Commission Tracking ---
@@ -48,72 +55,82 @@ model Shop {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  // --- Relationships (ต้องมีให้ครบไม่งั้น Error) ---
   owners             ShopOwner[]
   services           Service[]
   queues             Queue[]
-  payments           PaymentTransaction[] // << เพิ่มบรรทัดนี้เพื่อรับ Relation จาก Payment
+  payments           PaymentTransaction[]
 }
 
 // ==========================================
-// 3. SHOP OWNER (ระบบจัดการสิทธิ์เจ้าของร้าน)
+// 3. SHOP OWNER (ระบบจัดการสิทธิ์ VIP Onboarding)
 // ==========================================
 model ShopOwner {
   id        String   @id @default(cuid())
-  userId    String   
+  userId    String?  
+  email     String   
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   role      Role     @default(OWNER) 
 
-  @@unique([userId, shopId]) 
+  @@unique([email, shopId]) 
 }
 
 // ==========================================
-// 4. SERVICE (บริการของร้าน)
+// 4. SERVICE (บริการ/หมวดหมู่อาการเสีย)
 // ==========================================
 model Service {
   id           String  @id @default(cuid())
   shopId       String
   shop         Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
   
-  name         String
+  name         String  
   price        Float?
   estimatedMin Int?
   isActive     Boolean @default(true)
 }
 
 // ==========================================
-// 5. QUEUE (หัวใจหลักของ Core Business)
+// 5. QUEUE (ใบสั่งซ่อม / Job Ticket)
 // ==========================================
 model Queue {
   id            String      @id @default(cuid())
   shopId        String
   shop          Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  queueNumber   String?
-  customerName  String
+  jobRef        String?     
+  customerName  String      
   phoneNumber   String?     
-  isManualEntry Boolean     @default(false) 
+  deviceModel   String?     
+  deviceColor   String?     
+  issue         String?     
   
-  serviceName   String      
+  repairCost    Float?      
+  serviceName   String?     
+  isManualEntry Boolean     @default(false) 
 
   status        QueueStatus @default(PENDING)
 
-  createdAt     DateTime    @default(now())
-  acceptedAt    DateTime?
-  startedAt     DateTime?
-  finishedAt    DateTime?
+  createdAt     DateTime    @default(now()) 
+  acceptedAt    DateTime?   
+  startedAt     DateTime?   
+  repairedAt    DateTime?   
+  completedAt   DateTime?   
 }
 
 // ==========================================
-// 6. PAYMENT TRANSACTION (ประวัติการชำระเงิน)
+// 6. PAYMENT TRANSACTION (ประวัติการชำระเงินของร้านค้า)
 // ==========================================
 model PaymentTransaction {
   id            String   @id @default(cuid())
   shopId        String
   shop          Shop     @relation(fields: [shopId], references: [id])
   
-  amount        Float    
+  // 🌟 [ปรับปรุง] แตก Field เพื่อเก็บประวัติการหักส่วนลด Prorate แบบโปร่งใส
+  amount        Float    // ยอดสุทธิที่ลูกค้าโอนจริง (เช่น 2645)
+  baseAmount    Float?   // ราคาเต็มของแพ็กเกจที่เลือก (เช่น 3490)
+  prorateCredit Float?   // เครดิตที่หักลบให้จากแพ็กเกจเดิม (เช่น 845)
+  isUpgrade     Boolean  @default(false) // เป็นบิลอัปเกรดหรือไม่
+  
   plan          PlanType 
   slipUrl       String?  
   
@@ -124,13 +141,17 @@ model PaymentTransaction {
 }
 
 // ==========================================
-// ENUMS (ตัวแปรสถานะต่างๆ)
+// ENUMS
 // ==========================================
+
+// 🌟 [ปรับปรุง] แยก Basic กับ Pro ให้ชัดเจน
 enum PlanType {
   FREE_TRIAL
+  BASIC_MONTHLY  // เปลี่ยนชื่อจาก MONTHLY ให้ชัดเจน
+  BASIC_YEARLY   // เปลี่ยนชื่อจาก YEARLY ให้ชัดเจน
+  PRO_MONTHLY    // เผื่ออนาคต
+  PRO_YEARLY     // แพ็กเกจที่แจ้งเตือน LINE
   LIFETIME
-  YEARLY
-  MONTHLY
 }
 
 enum Role {
@@ -139,11 +160,12 @@ enum Role {
 }
 
 enum QueueStatus {
-  PENDING
-  WAITING
-  PROCESSING
-  FINISHED
-  CANCELLED
+  PENDING     
+  WAITING     
+  PROCESSING  
+  REPAIRED    
+  COMPLETED   
+  CANCELLED   
 }
 
 enum PaymentStatus {
