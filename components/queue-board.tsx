@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -17,6 +18,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Sheet,
@@ -42,8 +44,12 @@ import {
   Trash2,
   RotateCcw,
   AlertCircle,
-  Archive
+  Archive,
+  Banknote,
+  Barcode,
+  Hash
 } from "lucide-react"
+import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue" // นำเข้าฟอร์มที่คุณสร้างไว้
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS"
 
@@ -51,6 +57,7 @@ type RepairJob = {
   id: string
   jobRef: string
   customerName: string
+  phone?: string
   deviceModel: string
   deviceColor: string
   issue: string
@@ -59,12 +66,16 @@ type RepairJob = {
   timeElapsed?: string
   cancelReason?: CancelReason
   cancelledAt?: Date
+  // เพิ่มฟิลด์สำหรับข้อมูลช่าง
+  estimatedPrice?: string
+  serialNumber?: string
+  imei?: string
 }
 
 const INITIAL_JOBS: RepairJob[] = [
-  { id: "1", jobRef: "REP-0105", customerName: "คุณปิ๊ก", deviceModel: "iPhone 13 Pro", deviceColor: "Blue", issue: "จอแตก ทัชไม่ได้", serviceName: "เปลี่ยนจอ", status: "PENDING" },
+  { id: "1", jobRef: "REP-0105", customerName: "คุณเอก", phone: "081-234-5678", deviceModel: "iPhone 13 Pro", deviceColor: "Blue", issue: "จอแตก ทัชไม่ได้", serviceName: "เปลี่ยนจอ", status: "PENDING" },
   { id: "2", jobRef: "REP-0106", customerName: "น้องเอ", deviceModel: "Samsung S23", deviceColor: "Black", issue: "ชาร์จแบตไม่เข้า", serviceName: "เปลี่ยนตูดชาร์จ", status: "WAITING", timeElapsed: "15 นาที" },
-  { id: "3", jobRef: "REP-0103", customerName: "เฮียหมู", deviceModel: "iPad Air 5", deviceColor: "Pink", issue: "เปิดไม่ติดเลย โดนน้ำ", serviceName: "ซ่อมบอร์ด", status: "PROCESSING", timeElapsed: "2 ชม." },
+  { id: "3", jobRef: "REP-0103", customerName: "เฮียหมู", phone: "089-999-9999", deviceModel: "iPad Air 5", deviceColor: "Pink", issue: "เปิดไม่ติดเลย โดนน้ำ", serviceName: "ซ่อมบอร์ด", status: "PROCESSING", timeElapsed: "2 ชม." },
   { id: "4", jobRef: "REP-0101", customerName: "เจ๊น้ำ", deviceModel: "iPhone 11", deviceColor: "White", issue: "แบตเสื่อม", serviceName: "เปลี่ยนแบต", status: "REPAIRED", timeElapsed: "รอรับ" },
 ]
 
@@ -78,14 +89,32 @@ const COLUMNS = [
 export function QueueBoard() {
   const [jobs, setJobs] = useState<RepairJob[]>(INITIAL_JOBS)
   const [trashedJobs, setTrashedJobs] = useState<RepairJob[]>([])
+  // 💎 เพิ่ม State สำหรับเปิด/ปิดฟอร์มสร้างคิว
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   
+  // State สำหรับการจัดการสถานะต่างๆ
   const [jobToCancel, setJobToCancel] = useState<RepairJob | null>(null)
   const [cancelReason, setCancelReason] = useState<CancelReason | "">("")
   
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
+
+  // 💎 State สำหรับดูรายละเอียดคิว
+  const [jobToView, setJobToView] = useState<RepairJob | null>(null)
+  const [editPrice, setEditPrice] = useState("")
+  const [editSn, setEditSn] = useState("")
+  const [editImei, setEditImei] = useState("")
   
   const { toast } = useToast()
+
+  // เมื่อเปิด Dialog ดูรายละเอียด ให้ตั้งค่า Form State ตามข้อมูลที่มีอยู่
+  useEffect(() => {
+    if (jobToView) {
+      setEditPrice(jobToView.estimatedPrice || "")
+      setEditSn(jobToView.serialNumber || "")
+      setEditImei(jobToView.imei || "")
+    }
+  }, [jobToView])
 
   const moveJob = (jobId: string, currentStatus: string) => {
     const statusFlow: Record<string, RepairJob["status"] | "COMPLETED"> = {
@@ -102,6 +131,23 @@ export function QueueBoard() {
     } else {
       setJobs(jobs.map(j => j.id === jobId ? { ...j, status: nextStatus as RepairJob["status"] } : j))
     }
+  }
+
+  // ฟังก์ชันบันทึกข้อมูลของช่าง
+  const handleSaveDetails = () => {
+    if (!jobToView) return
+
+    setJobs(jobs.map(j => 
+      j.id === jobToView.id 
+        ? { ...j, estimatedPrice: editPrice, serialNumber: editSn, imei: editImei } 
+        : j
+    ))
+    
+    toast({
+      title: "💾 บันทึกข้อมูลสำเร็จ",
+      description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว`,
+    })
+    setJobToView(null)
   }
 
   const confirmCancelJob = () => {
@@ -173,6 +219,16 @@ export function QueueBoard() {
       description: `เตรียมย้ายรายการ ${jobRef} ไปยังคลังเครื่องค้าง`,
       duration: 3000,
     })
+  }
+
+  const translateStatus = (status: string) => {
+    switch(status) {
+      case "PENDING": return "รอยืนยัน"
+      case "WAITING": return "รอคิวซ่อม"
+      case "PROCESSING": return "กำลังซ่อม"
+      case "REPAIRED": return "ซ่อมเสร็จแล้ว"
+      default: return status
+    }
   }
 
   return (
@@ -259,9 +315,26 @@ export function QueueBoard() {
             </SheetContent>
           </Sheet>
 
-          <Button className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 shadow-sm">
-            <Plus className="mr-2 h-4 w-4" /> สร้างใบสั่งซ่อม
-          </Button>
+         {/* 💎 ตรงนี้คือส่วนที่เปลี่ยนจาก Button ธรรมดา เป็น Dialog */}
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 shadow-sm">
+                <Plus className="mr-2 h-4 w-4" /> สร้างใบสั่งซ่อม
+              </Button>
+            </DialogTrigger>
+
+            {/* เอา Card ของฟอร์มมาแสดงตรงนี้ */}
+            <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
+              <ShopOwnerCreateQueue 
+                onCancel={() => setIsCreateOpen(false)} 
+                onSuccess={() => {
+                  setIsCreateOpen(false)
+                  // ถ้าระบบจริงต่อ Database แล้ว อาจจะสั่ง fetch ข้อมูลใหม่ตรงนี้
+                }} 
+              />
+            </DialogContent>
+          </Dialog>
+          {/* 💎 จบส่วนที่เพิ่มใหม่ */}
         </div>
       </div>
 
@@ -309,7 +382,16 @@ export function QueueBoard() {
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuContent align="end" className="w-52">
+                                {/* 💎 เมนูใหม่: รายละเอียด / ประเมินราคา */}
+                                <DropdownMenuItem 
+                                  className="cursor-pointer"
+                                  onClick={() => setJobToView(job)}
+                                >
+                                  <ClipboardList className="mr-2 h-4 w-4 text-blue-600" />
+                                  รายละเอียด / ประเมินราคา
+                                </DropdownMenuItem>
+
                                 {col.id !== "REPAIRED" ? (
                                   <DropdownMenuItem 
                                     className="text-rose-600 focus:bg-rose-50 focus:text-rose-700 cursor-pointer" 
@@ -336,8 +418,12 @@ export function QueueBoard() {
                               <span className="font-medium">{job.customerName}</span>
                               <span className="text-xs">{job.timeElapsed}</span>
                             </div>
-                            <div className="bg-slate-50 p-2 rounded border border-slate-100 text-xs text-slate-600">
-                              <span className="font-semibold text-emerald-700">[{job.serviceName}]</span> {job.issue}
+                            <div className="bg-slate-50 p-2 rounded border border-slate-100 text-xs text-slate-600 flex flex-col gap-1">
+                              <div><span className="font-semibold text-emerald-700">[{job.serviceName}]</span> {job.issue}</div>
+                              {/* 💎 ถ้ามีราคาประเมินโชว์บนการ์ดด้วย (Optional) */}
+                              {job.estimatedPrice && (
+                                <div className="text-blue-600 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
+                              )}
                             </div>
                           </CardContent>
                           
@@ -363,7 +449,108 @@ export function QueueBoard() {
         </div>
       </div>
 
-      {/* 💎 Modal 1: เลือกเหตุผลการยกเลิกงาน */}
+      {/* 💎 Modal 4: รายละเอียดคิวและฟอร์มข้อมูลช่าง */}
+      <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-xl">
+                รายละเอียดคิว <span className="text-blue-600">{jobToView?.jobRef}</span>
+              </DialogTitle>
+              <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+                {jobToView ? translateStatus(jobToView.status) : ""}
+              </span>
+            </div>
+            <DialogDescription>
+              ตรวจสอบข้อมูลลูกค้าและบันทึกรายละเอียดเชิงลึกสำหรับงานซ่อม
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-2">
+            {/* Section 1: ข้อมูลเบื้องต้น (Read-only) */}
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                <div>
+                  <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
+                  <p className="font-medium text-slate-900">
+                    {jobToView?.customerName} {jobToView?.phone && <span className="text-slate-500 font-normal">({jobToView.phone})</span>}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1 text-xs">บริการ / อาการ</span>
+                  <p className="font-medium text-emerald-700">{jobToView?.serviceName}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1 text-xs">รุ่นเครื่อง</span>
+                  <p className="font-medium text-slate-900">
+                    {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
+                  <p className="font-medium text-slate-900">{jobToView?.issue || "-"}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: ฟอร์มสำหรับช่าง (Editable) */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-slate-800 flex items-center gap-2 border-b pb-2">
+                <Wrench className="h-4 w-4 text-slate-500" /> ข้อมูลสำหรับช่าง (ไม่บังคับ)
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
+                    <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
+                  </Label>
+                  <Input
+                    id="estimatedPrice"
+                    type="number"
+                    placeholder="เช่น 1500"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="max-w-[200px]"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
+                    <Barcode className="h-3.5 w-3.5" /> Serial Number
+                  </Label>
+                  <Input
+                    id="serialNumber"
+                    placeholder="กรอก S/N เครื่อง"
+                    value={editSn}
+                    onChange={(e) => setEditSn(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
+                    <Hash className="h-3.5 w-3.5" /> IMEI
+                  </Label>
+                  <Input
+                    id="imei"
+                    placeholder="กรอกเลข IMEI 15 หลัก"
+                    value={editImei}
+                    onChange={(e) => setEditImei(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button variant="outline" onClick={() => setJobToView(null)}>ปิดหน้าต่าง</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails}>
+              บันทึกข้อมูลช่าง
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal อื่นๆ ที่มีอยู่แล้ว... */}
       <Dialog open={!!jobToCancel} onOpenChange={(open) => { if (!open) setJobToCancel(null) }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -406,7 +593,6 @@ export function QueueBoard() {
               )}
             </RadioGroup>
           </div>
-          {/* 💎 แก้ไขระยะห่างปุ่มตรงนี้ */}
           <DialogFooter className="gap-3 sm:space-x-3 mt-4">
             <Button variant="outline" onClick={() => setJobToCancel(null)}>ยกเลิก</Button>
             <Button variant="destructive" disabled={!cancelReason} onClick={confirmCancelJob}>ยืนยันการยกเลิก</Button>
@@ -414,7 +600,6 @@ export function QueueBoard() {
         </DialogContent>
       </Dialog>
 
-      {/* 💎 Modal 2: ยืนยันการ "ลบถาวร" (ทีละรายการ) */}
       <Dialog open={!!jobToDelete} onOpenChange={(open) => { if (!open) setJobToDelete(null) }}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -427,7 +612,6 @@ export function QueueBoard() {
               <span className="text-rose-500 font-medium">การกระทำนี้ไม่สามารถกู้คืนได้</span>
             </DialogDescription>
           </DialogHeader>
-          {/* 💎 แก้ไขระยะห่างปุ่มตรงนี้ */}
           <DialogFooter className="gap-3 sm:space-x-3 mt-4">
             <Button variant="outline" onClick={() => setJobToDelete(null)}>ยกเลิก</Button>
             <Button variant="destructive" onClick={confirmDeletePermanently}>ลบข้อมูลถาวร</Button>
@@ -435,7 +619,6 @@ export function QueueBoard() {
         </DialogContent>
       </Dialog>
 
-      {/* 💎 Modal 3: ยืนยันการ "ล้างถังขยะทั้งหมด" */}
       <Dialog open={isConfirmEmptyOpen} onOpenChange={setIsConfirmEmptyOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -448,7 +631,6 @@ export function QueueBoard() {
               <span className="text-rose-500 font-medium">การกระทำนี้ไม่สามารถกู้คืนได้</span>
             </DialogDescription>
           </DialogHeader>
-          {/* 💎 แก้ไขระยะห่างปุ่มตรงนี้ */}
           <DialogFooter className="gap-3 sm:space-x-3 mt-4">
             <Button variant="outline" onClick={() => setIsConfirmEmptyOpen(false)}>ยกเลิก</Button>
             <Button variant="destructive" onClick={confirmEmptyTrash}>ล้างถังขยะทั้งหมด</Button>

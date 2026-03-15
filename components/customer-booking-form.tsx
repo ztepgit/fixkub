@@ -107,7 +107,7 @@ export function CustomerBookingForm() {
               <Label htmlFor="issue">รายละเอียดอาการเพิ่มเติม</Label>
               <Textarea 
                 id="issue" 
-                placeholder="อธิบายอาการเพิ่มเติม (ถ้ามี) เช่น ทำตกจอแตก ทัชไม่ได้ฝั่งขวา" 
+                placeholder="อธิบายอาการเพิ่มเติม (ถ้ามี) เช่น ทำตกจอแตก ทัชไม่ได้ฝั่งขวา"
                 className="resize-none"
                 rows={2}
                 value={issue}
@@ -131,7 +131,7 @@ export function CustomerBookingForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">เบอร์โทรศัพท์ (สำหรับแจ้งรับเครื่อง)</Label>
+              <Label htmlFor="phone">เบอร์โทรศัพท์ (ถ้ามี)</Label>
               <Input 
                 id="phone" 
                 type="tel" 

@@ -103,9 +103,14 @@ model Queue {
   phoneNumber   String?     
   deviceModel   String?     
   deviceColor   String?     
-  issue         String?     
+  issue         String?
+
+  // 🌟 [ปรับปรุง] เรื่องราคาและข้อมูลเฉพาะเครื่องของช่าง
+  estimatedPrice Float?     // ราคาประเมินเบื้องต้น (ตรงกับ UI)
+  repairCost     Float?     // ราคาซ่อมจริง (เผื่อเอาไว้สรุปยอดตอนจบงาน)
+  serialNumber   String?    // 🌟 เพิ่ม S/N
+  imei           String?    // 🌟 เพิ่ม IMEI     
   
-  repairCost    Float?      
   serviceName   String?     
   isManualEntry Boolean     @default(false) 
 
@@ -116,7 +121,7 @@ model Queue {
   cancelledAt   DateTime?     // เก็บ Timestamp ที่กดยกเลิก (cancel_at)
 
   createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt      // 🌟 แนะนำให้เติม: อัปเดตเวลาอัตโนมัติเมื่อมีการแก้ไขข้อมูลใดๆ
+  updatedAt     DateTime    @updatedAt       // 🌟 แนะนำให้เติม: อัปเดตเวลาอัตโนมัติเมื่อมีการแก้ไขข้อมูลใดๆ
   acceptedAt    DateTime?
   startedAt     DateTime?   
   repairedAt    DateTime?   
