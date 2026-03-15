@@ -87,6 +87,7 @@ model Service {
   price        Float?
   estimatedMin Int?
   isActive     Boolean @default(true)
+  @@index([shopId]) // 🌟 แนะนำให้เติม
 }
 
 // ==========================================
@@ -110,11 +111,17 @@ model Queue {
 
   status        QueueStatus @default(PENDING)
 
-  createdAt     DateTime    @default(now()) 
-  acceptedAt    DateTime?   
+  // 🌟 [เพิ่มใหม่] สำหรับระบบยกเลิกงานและถังขยะ (Recycle Bin)
+  cancelReason  CancelReason? // เก็บเหตุผลที่ยกเลิก
+  cancelledAt   DateTime?     // เก็บ Timestamp ที่กดยกเลิก (cancel_at)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt      // 🌟 แนะนำให้เติม: อัปเดตเวลาอัตโนมัติเมื่อมีการแก้ไขข้อมูลใดๆ
+  acceptedAt    DateTime?
   startedAt     DateTime?   
   repairedAt    DateTime?   
-  completedAt   DateTime?   
+  completedAt   DateTime?
+  @@index([shopId]) // 🌟 แนะนำให้เติม
 }
 
 // ==========================================
@@ -137,12 +144,22 @@ model PaymentTransaction {
   status        PaymentStatus @default(PENDING) 
   
   createdAt     DateTime @default(now())
-  approvedAt    DateTime? 
+  updatedAt     DateTime    @updatedAt      // 🌟 แนะนำให้เติม: เวลาที่มีการแก้ไขบิล (เช่น admin กด approve)
+  approvedAt    DateTime?
+  @@index([shopId]) // 🌟 แนะนำให้เติม
 }
 
 // ==========================================
 // ENUMS
 // ==========================================
+
+// 🌟 [เพิ่มใหม่] เหตุผลการยกเลิกงาน (Cancel Reason)
+enum CancelReason {
+  NO_SHOW             // ลูกค้าไม่มา (ใช้ใน Board 1, 2)
+  CUSTOMER_CANCEL     // ลูกค้าไม่ซ่อมแล้ว (ใช้ใน Board 1, 2, 3)
+  UNREPAIRABLE        // ซ่อมไม่ได้ (ใช้ใน Board 3)
+  NO_PARTS            // ไม่มีอะไหล่ (ใช้ใน Board 3)
+}
 
 // 🌟 [ปรับปรุง] แยก Basic กับ Pro ให้ชัดเจน
 enum PlanType {
