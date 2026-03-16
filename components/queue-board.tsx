@@ -121,35 +121,36 @@ export function QueueBoard() {
     setIsLoading(false)
   }
 
-  // 🌟 จุดที่มีการเปลี่ยนแปลง: เพิ่มระบบ Supabase Realtime ไว้ใน useEffect
+  // 🌟 จุดที่มีการเปลี่ยนแปลง: เพิ่ม Console.log ดูสถานะการเชื่อมต่อ และปิด Filter ไว้ทดสอบก่อน
   useEffect(() => {
     // 1. โหลดข้อมูลตอนเปิดหน้าจอครั้งแรก
     loadQueues()
 
-    // 2. เปิดท่อ WebSocket ดักฟัง Database ตาราง Queue
+    // 2. เปิดท่อ WebSocket ดักฟัง Database
     const channel = supabase
       .channel('queue_changes')
       .on(
         'postgres_changes',
         {
-          event: '*', // ดักจับทุก Event (INSERT, UPDATE, DELETE)
+          event: '*', 
           schema: 'public',
-          table: 'Queue',
-          filter: 'shopId=eq.shop_test_001', // 🔴 ดักฟังแค่ของร้านตัวเองเท่านั้น
+          table: 'Queue', // ⚠️ เช็คให้ชัวร์ว่าในเว็บ Supabase เป็น Q ใหญ่หรือ q เล็กนะครับ
+          // filter: 'shopId=eq.shop_test_001', // 🔴 ปิดบรรทัดนี้ไว้ชั่วคราว เพื่อเทสว่าสัญญาณวิ่งมาไหม
         },
         (payload) => {
           console.log('🔄 ระบบ Realtime ตรวจพบการเปลี่ยนแปลง!', payload)
-          // 3. พอมีคนเซฟข้อมูล โหลดคิวมาเรียงใหม่แบบเงียบๆ เลย
           loadQueues()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        // 🌟 ให้ Console บอกเลยว่าต่อติดไหม!
+        console.log('📡 สถานะท่อ Realtime:', status) 
+      })
 
-    // 4. คืน Memory เวลาปิดหน้าเว็บ
     return () => {
       supabase.removeChannel(channel)
     }
-  }, []) 
+  }, [])
 
   useEffect(() => {
     if (jobToView) {
