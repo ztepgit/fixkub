@@ -164,6 +164,7 @@ enum CancelReason {
   CUSTOMER_CANCEL     // ลูกค้าไม่ซ่อมแล้ว (ใช้ใน Board 1, 2, 3)
   UNREPAIRABLE        // ซ่อมไม่ได้ (ใช้ใน Board 3)
   NO_PARTS            // ไม่มีอะไหล่ (ใช้ใน Board 3)
+  UNCONTACTABLE
 }
 
 // 🌟 [ปรับปรุง] แยก Basic กับ Pro ให้ชัดเจน
@@ -182,12 +183,13 @@ enum Role {
 }
 
 enum QueueStatus {
-  PENDING     
-  WAITING     
-  PROCESSING  
-  REPAIRED    
-  COMPLETED   
-  CANCELLED   
+  PENDING
+  WAITING
+  PROCESSING
+  REPAIRED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
 }
 
 enum PaymentStatus {

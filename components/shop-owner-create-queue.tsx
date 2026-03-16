@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Smartphone, Wrench, User, PenLine } from "lucide-react"
+// 🌟 1. นำเข้า Server Action และ Toast
+import { createQueue } from "@/actions/queue"
+import { useToast } from "@/hooks/use-toast"
 
 const COMMON_SERVICES = [
     "เปลี่ยนจอ",
@@ -19,14 +22,15 @@ const COMMON_SERVICES = [
     "เช็คอาการ",
 ]
 
-// 💎 เพิ่ม Interface สำหรับ Props
 interface ShopOwnerCreateQueueProps {
     onCancel?: () => void;
     onSuccess?: () => void;
 }
 
-// 💎 รับ Props เข้ามาใน Component
 export function ShopOwnerCreateQueue({ onCancel, onSuccess }: ShopOwnerCreateQueueProps) {
+    const { toast } = useToast() // 🌟 เรียกใช้ Toast
+    const [isSubmitting, setIsSubmitting] = useState(false) // 🌟 State กันกดเบิ้ล
+
     const [serviceName, setServiceName] = useState<string>("")
     const [deviceModel, setDeviceModel] = useState<string>("")
     const [deviceColor, setDeviceColor] = useState<string>("")
@@ -38,16 +42,47 @@ export function ShopOwnerCreateQueue({ onCancel, onSuccess }: ShopOwnerCreateQue
         setServiceName(service)
     }
 
-    const handleSubmit = () => {
-        console.log({
-            serviceName, deviceModel, deviceColor, issue, customerName, phone
-        })
+    // 🌟 2. อัปเดตฟังก์ชัน Submit ให้ยิงเข้า Database
+    const handleSubmit = async () => {
+        setIsSubmitting(true)
         
-        // TODO: ส่งข้อมูลแล้ว Redirect กลับไปหน้า Queue Board (หรืออัปเดต State)
-        
-        // 💎 เรียกใช้ onSuccess เมื่อกดสร้างคิวเสร็จ เพื่อให้ Dialog ปิดตัวลง
-        if (onSuccess) {
-            onSuccess()
+        try {
+            const response = await createQueue({
+                shopId: "shop_test_001", // 🔴 ID ร้านทดสอบ (เดี๋ยวอนาคตเราดึงจาก Session)
+                customerName: customerName,
+                phoneNumber: phone,
+                deviceModel: deviceModel,
+                deviceColor: deviceColor,
+                issue: issue,
+                serviceName: serviceName,
+                isManualEntry: true, // 🌟 บอก Database ว่าบิลนี้ "ช่างเป็นคนคีย์เอง"
+            })
+
+            if (response.success) {
+                toast({
+                    title: "✅ สร้างคิวสำเร็จ",
+                    description: "เพิ่มคิวใหม่ลงในกระดานเรียบร้อยแล้ว",
+                })
+                
+                // เรียกใช้ onSuccess เพื่อให้ Modal ปิดตัวลง
+                if (onSuccess) {
+                    onSuccess()
+                }
+            } else {
+                toast({
+                    title: "❌ เกิดข้อผิดพลาด",
+                    description: response.error,
+                    variant: "destructive",
+                })
+            }
+        } catch (error) {
+            toast({
+                title: "❌ ระบบขัดข้อง",
+                description: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้",
+                variant: "destructive",
+            })
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
@@ -168,16 +203,15 @@ export function ShopOwnerCreateQueue({ onCancel, onSuccess }: ShopOwnerCreateQue
                 </CardContent>
 
                 <CardFooter className="bg-slate-50 border-t pt-4 pb-4 flex justify-end gap-3 rounded-b-xl">
-                    {/* 💎 ผูก onClick เข้ากับ onCancel เพื่อให้ปุ่มยกเลิกทำงานปิดหน้าต่างได้ */}
-                    <Button variant="outline" type="button" onClick={onCancel}>
+                    <Button variant="outline" type="button" onClick={onCancel} disabled={isSubmitting}>
                         ยกเลิก
                     </Button>
                     <Button
                         onClick={handleSubmit}
                         className="bg-blue-600 hover:bg-blue-700 px-8"
-                        disabled={!serviceName || !deviceModel || !customerName}
+                        disabled={!serviceName || !deviceModel || !customerName || isSubmitting}
                     >
-                        สร้างคิว
+                        {isSubmitting ? "กำลังบันทึก..." : "สร้างคิว"}
                     </Button>
                 </CardFooter>
             </Card>

@@ -69,12 +69,15 @@ export async function getQueues(shopId: string) {
   }
 }
 
-// 2. ฟังก์ชันอัปเดตสถานะคิว (ตอนช่างกดย้ายการ์ด)
-export async function updateQueueStatus(queueId: string, newStatus: any) {
+// 🌟 เปลี่ยนให้รับข้อมูลอื่นๆ เพิ่มเติมได้ เช่น เหตุผลการยกเลิก หรือ เวลาที่ปิดจ๊อบ
+export async function updateQueueStatus(queueId: string, newStatus: any, additionalData?: any) {
   try {
     const updatedQueue = await db.queue.update({
       where: { id: queueId },
-      data: { status: newStatus },
+      data: { 
+        status: newStatus,
+        ...additionalData // 🌟 ใส่จุดสามจุดตรงนี้ เพื่อให้มันเอาข้อมูลอื่นมาบันทึกด้วย
+      },
     });
     return { success: true, data: updatedQueue };
   } catch (error) {
