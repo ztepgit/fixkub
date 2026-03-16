@@ -8,6 +8,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Smartphone, Wrench, User, PenLine } from "lucide-react"
 
+// 🌟 1. นำเข้า Server Action และ Toast
+import { createQueue } from "@/actions/queue"
+import { useToast } from "@/hooks/use-toast"
+
 // รายการคำค้นหายอดฮิต (Suggestion Chips)
 const COMMON_SERVICES = [
   "เปลี่ยนจอ",
@@ -21,6 +25,9 @@ const COMMON_SERVICES = [
 ]
 
 export function CustomerBookingForm() {
+  const { toast } = useToast() // 🌟 เรียกใช้ระบบแจ้งเตือน
+  const [isSubmitting, setIsSubmitting] = useState(false) // 🌟 State กันคนกดปุ่มเบิ้ล
+
   const [serviceName, setServiceName] = useState<string>("")
   const [deviceModel, setDeviceModel] = useState<string>("")
   const [deviceColor, setDeviceColor] = useState<string>("")
@@ -31,6 +38,53 @@ export function CustomerBookingForm() {
   // ฟังก์ชันเมื่อลูกค้ากดปุ่มคำค้นหายอดฮิต
   const handleChipClick = (service: string) => {
     setServiceName(service)
+  }
+
+  // 🌟 2. ฟังก์ชันส่งข้อมูลเข้า Database
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    
+    try {
+      const response = await createQueue({
+        shopId: "shop_test_001", // 🔴 ID ร้านทดสอบ
+        customerName: customerName,
+        phoneNumber: phone,
+        deviceModel: deviceModel,
+        deviceColor: deviceColor,
+        issue: issue,
+        serviceName: serviceName, // ส่งบริการไปด้วย
+        isManualEntry: false, 
+      })
+
+      if (response.success) {
+        toast({
+          title: "✅ จองคิวสำเร็จ!",
+          description: "ส่งข้อมูลให้ทางร้านเรียบร้อยแล้ว",
+        })
+        
+        // เคลียร์ฟอร์มให้ว่างหลังส่งเสร็จ
+        setServiceName("")
+        setDeviceModel("")
+        setDeviceColor("")
+        setIssue("")
+        setCustomerName("")
+        setPhone("")
+      } else {
+        toast({
+          title: "❌ เกิดข้อผิดพลาด",
+          description: response.error,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "❌ เกิดข้อผิดพลาด",
+        description: "ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -144,11 +198,13 @@ export function CustomerBookingForm() {
         </CardContent>
 
         <CardFooter className="bg-slate-50 border-t rounded-b-xl pt-4 pb-6">
+          {/* 🌟 3. ผูกปุ่มเข้ากับฟังก์ชัน handleSubmit */}
           <Button 
+            onClick={handleSubmit} 
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-lg py-6 shadow-lg shadow-emerald-200" 
-            disabled={!serviceName || !deviceModel || !customerName} // ล็อคปุ่มถ้ากรอกข้อมูลบังคับไม่ครบ
+            disabled={!serviceName || !deviceModel || !customerName || isSubmitting}
           >
-            รับคิวแจ้งซ่อม
+            {isSubmitting ? "กำลังส่งข้อมูล..." : "รับคิวแจ้งซ่อม"}
           </Button>
         </CardFooter>
       </Card>

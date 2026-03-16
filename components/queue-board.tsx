@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase" // 🌟 Import Supabase Client
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,12 +52,10 @@ import {
   Loader2
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue" 
-// 🌟 Import Action สำหรับดึงและอัปเดตข้อมูล
 import { getQueues, updateQueueStatus } from "@/actions/queue"
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS"
 
-// อิง Type ให้ตรงกับที่รับมาจาก Database
 type RepairJob = {
   id: string
   jobRef: string
@@ -102,16 +101,13 @@ export function QueueBoard() {
   
   const { toast } = useToast()
 
-  // ดึงข้อมูลตอนเปิดหน้าเว็บครั้งแรก
   const loadQueues = async () => {
     setIsLoading(true)
     const response = await getQueues("shop_test_001") 
     if (response.success && response.data) {
-      
-      // แมปข้อมูลจาก DB ป้องกันค่า null
       const formattedData = response.data.map((job: any) => ({
         ...job,
-        jobRef: job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`, // ถ้ายังไม่มีเลข Ref ให้ดึง ID มาใช้ก่อน
+        jobRef: job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`,
       }))
 
       const activeJobs = formattedData.filter((j: any) => j.status !== "CANCELLED" && j.status !== "COMPLETED")
@@ -125,11 +121,36 @@ export function QueueBoard() {
     setIsLoading(false)
   }
 
+  // 🌟 จุดที่มีการเปลี่ยนแปลง: เพิ่มระบบ Supabase Realtime ไว้ใน useEffect
   useEffect(() => {
+    // 1. โหลดข้อมูลตอนเปิดหน้าจอครั้งแรก
     loadQueues()
+
+    // 2. เปิดท่อ WebSocket ดักฟัง Database ตาราง Queue
+    const channel = supabase
+      .channel('queue_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // ดักจับทุก Event (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'Queue',
+          filter: 'shopId=eq.shop_test_001', // 🔴 ดักฟังแค่ของร้านตัวเองเท่านั้น
+        },
+        (payload) => {
+          console.log('🔄 ระบบ Realtime ตรวจพบการเปลี่ยนแปลง!', payload)
+          // 3. พอมีคนเซฟข้อมูล โหลดคิวมาเรียงใหม่แบบเงียบๆ เลย
+          loadQueues()
+        }
+      )
+      .subscribe()
+
+    // 4. คืน Memory เวลาปิดหน้าเว็บ
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, []) 
 
-  // เมื่อเปิด Dialog ดูรายละเอียด ให้ตั้งค่า Form State ตามข้อมูลที่มีอยู่
   useEffect(() => {
     if (jobToView) {
       setEditPrice(jobToView.estimatedPrice || "")
@@ -147,7 +168,6 @@ export function QueueBoard() {
     }
     const nextStatus = statusFlow[currentStatus]
     
-    // อัปเดตหน้าจอให้เปลี่ยนทันที (Optimistic UI) 
     if (nextStatus === "COMPLETED") {
       setJobs(jobs.filter(j => j.id !== jobId))
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องเรียบร้อยแล้ว" })
@@ -155,11 +175,10 @@ export function QueueBoard() {
       setJobs(jobs.map(j => j.id === jobId ? { ...j, status: nextStatus as any } : j))
     }
 
-    // แอบส่งข้อมูลไปบันทึกหลังบ้านแบบเงียบๆ
     const res = await updateQueueStatus(jobId, nextStatus)
     if (!res.success) {
       toast({ title: "Error", description: "บันทึกข้อมูลไม่สำเร็จ กรุณารีเฟรชหน้าจอ", variant: "destructive" })
-      loadQueues() // โหลดใหม่ถ้าพัง
+      loadQueues()
     }
   }
 
@@ -195,7 +214,6 @@ export function QueueBoard() {
     setJobToCancel(null)
     setCancelReason("")
 
-    // อัปเดตลง Database จริง (แก้ไขประยุกต์ใช้ updateQueueStatus)
     await updateQueueStatus(jobToCancel.id, "CANCELLED")
 
     toast({

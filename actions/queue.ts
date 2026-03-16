@@ -11,6 +11,7 @@ interface CreateQueueInput {
   deviceModel?: string;
   deviceColor?: string;
   issue?: string;
+  serviceName?: string; // 🌟 1. เพิ่มบรรทัดนี้เข้าไปครับ
   isManualEntry?: boolean; // บอกว่าช่างคีย์เอง หรือลูกค้าสแกนมา
 }
 
@@ -25,6 +26,7 @@ export async function createQueue(data: CreateQueueInput) {
         deviceModel: data.deviceModel,
         deviceColor: data.deviceColor,
         issue: data.issue,
+        serviceName: data.serviceName, // 🌟 2. เพิ่มบรรทัดนี้เข้าไปเพื่อให้เซฟลง Database
         isManualEntry: data.isManualEntry || false,
         status: "PENDING", // ค่าเริ่มต้น (ตั้งเป็น PENDING เสมอเวลาสร้างใหม่)
       },
