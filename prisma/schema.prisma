@@ -53,7 +53,7 @@ model Shop {
   isCommissionPaid   Boolean   @default(false) 
 
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  updatedAt          DateTime  @default(now()) @updatedAt // 🌟 แก้บรรทัดนี้
 
   owners             ShopOwner[]
   services           Service[]
@@ -121,7 +121,7 @@ model Queue {
   cancelledAt   DateTime?     // เก็บ Timestamp ที่กดยกเลิก (cancel_at)
 
   createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt       // 🌟 แนะนำให้เติม: อัปเดตเวลาอัตโนมัติเมื่อมีการแก้ไขข้อมูลใดๆ
+  updatedAt     DateTime    @default(now()) @updatedAt // 🌟 อัพเดทเวลาอัตโนมัติเมื่อมีการแก้ไขข้อมูลใดๆ
   acceptedAt    DateTime?
   startedAt     DateTime?   
   repairedAt    DateTime?   
@@ -149,7 +149,7 @@ model PaymentTransaction {
   status        PaymentStatus @default(PENDING) 
   
   createdAt     DateTime @default(now())
-  updatedAt     DateTime    @updatedAt      // 🌟 แนะนำให้เติม: เวลาที่มีการแก้ไขบิล (เช่น admin กด approve)
+  updatedAt     DateTime @default(now()) @updatedAt // 🌟 แนะนำให้เติม: เวลาที่มีการแก้ไขบิล (เช่น admin กด approve)
   approvedAt    DateTime?
   @@index([shopId]) // 🌟 แนะนำให้เติม
 }
