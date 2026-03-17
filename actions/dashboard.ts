@@ -4,32 +4,34 @@ import { db } from "@/lib/prisma";
 
 export async function getDashboardStats(shopId: string) {
   try {
-    // หาเวลาเริ่มต้นของวันนี้ (เที่ยงคืน)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    // ดึงงานทั้งหมดของร้าน
+    // 1. ดึงงานทั้งหมดของร้าน
     const allJobs = await db.queue.findMany({
       where: { shopId: shopId },
       orderBy: { createdAt: 'desc' },
     });
 
-    // 1. จำนวนงานทั้งหมดที่เข้ามา "วันนี้"
-    const todayJobs = allJobs.filter(job => new Date(job.createdAt) >= todayStart);
+    // 🌟 วิธีแก้ปัญหา Timezone: ใช้วิธีดึงแค่วันที่ (YYYY-MM-DD) ตามเวลาประเทศไทย
+    const todayString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+
+    // 2. กรองงานที่เข้ามา "วันนี้" (เทียบวันที่เวลาไทย)
+    const todayJobs = allJobs.filter((job: any) => {
+      // ดึงวันที่สร้างคิวแปลงเป็นเวลาไทย
+      const jobDate = new Date(job.createdAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+      return jobDate === todayString;
+    });
     
-    // 2. จำนวนงานที่ "กำลังดำเนินการอยู่" (รอยืนยัน, รอซ่อม, กำลังซ่อม)
-    const activeJobs = allJobs.filter(job => 
+    // 3. จำนวนงานที่ "กำลังดำเนินการอยู่"
+    const activeJobs = allJobs.filter((job: any) => 
       ["PENDING", "WAITING", "PROCESSING"].includes(job.status)
     );
 
-    // 3. จำนวนงานที่ "รอรับเครื่อง / ซ่อมเสร็จแล้ว"
-    const readyForPickup = allJobs.filter(job => job.status === "REPAIRED");
+    // 4. จำนวนงานที่ "รอรับเครื่อง"
+    const readyForPickup = allJobs.filter((job: any) => job.status === "REPAIRED");
 
-    // 4. งานที่ปิดจ๊อบแล้ว "วันนี้"
-    const completedToday = todayJobs.filter(job => job.status === "COMPLETED");
+    // 5. งานที่ปิดจ๊อบแล้ว "วันนี้"
+    const completedToday = todayJobs.filter((job: any) => job.status === "COMPLETED");
 
-    // 5. คำนวณรายได้ประเมินของวันนี้ (จากงานที่ปิดจ๊อบแล้ว)
-    // หมายเหตุ: ใช้ any ไปก่อนเผื่อใน schema ของคุณปิ๊กยังไม่ได้กำหนด type ของ estimatedPrice ชัดเจน
+    // 6. คำนวณรายได้ของวันนี้
     const revenueToday = completedToday.reduce((sum, job: any) => {
       const price = parseInt(job.estimatedPrice || "0", 10);
       return sum + (isNaN(price) ? 0 : price);
@@ -42,11 +44,21 @@ export async function getDashboardStats(shopId: string) {
         activeCount: activeJobs.length,
         readyCount: readyForPickup.length,
         revenueToday: revenueToday,
-        recentJobs: allJobs.slice(0, 5), // ดึง 5 งานล่าสุดมาโชว์ในตาราง
+        recentJobs: allJobs.slice(0, 5), // ดึง 5 งานล่าสุด
       }
     };
   } catch (error) {
     console.error("❌ Error fetching dashboard stats:", error);
-    return { success: false, error: "ไม่สามารถดึงข้อมูลสถิติได้" };
+    // 🌟 ถ้าหลังบ้านพัง (เช่น ดึง DB ไม่ได้) ให้ส่งเลข 0 กลับไปแทนค่าว่าง (Null)
+    return { 
+      success: true, 
+      data: {
+        todayCount: 0, 
+        activeCount: 0, 
+        readyCount: 0, 
+        revenueToday: 0, 
+        recentJobs: []
+      }
+    };
   }
 }

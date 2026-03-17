@@ -29,7 +29,6 @@ import {
 import { getDashboardStats } from "@/actions/dashboard"
 import { updateQueueStatus } from "@/actions/queue" 
 
-// 🌟 ฟังก์ชันจัดฟอร์แมตเบอร์โทรศัพท์ให้อ่านง่าย (xxx-xxx-xxxx)
 const formatPhoneNumber = (phone?: string) => {
   if (!phone) return ""
   const cleaned = phone.replace(/\D/g, '')
@@ -46,7 +45,7 @@ export function DashboardOverview() {
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  const [editPhone, setEditPhone] = useState("") 
+  // 🌟 เอา editPhone ออกไปแล้ว
   const [isSaving, setIsSaving] = useState(false)
   
   const { toast } = useToast()
@@ -69,7 +68,6 @@ export function DashboardOverview() {
       setEditPrice(jobToView.estimatedPrice || "")
       setEditSn(jobToView.serialNumber || "")
       setEditImei(jobToView.imei || "")
-      setEditPhone(jobToView.phoneNumber || jobToView.phone || "") 
     }
   }, [jobToView])
 
@@ -77,17 +75,16 @@ export function DashboardOverview() {
     if (!jobToView) return
     setIsSaving(true)
     
+    // 🌟 เอา phoneNumber ออกจากการบันทึกช่าง
     const res = await updateQueueStatus(jobToView.id, jobToView.status, {
       estimatedPrice: editPrice,
       serialNumber: editSn,
-      imei: editImei,
-      phoneNumber: editPhone 
+      imei: editImei
     })
 
     if (res.success) {
       toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว` })
       setJobToView(null)
-      // โหลดข้อมูล Dashboard ใหม่ทันทีเพื่ออัปเดตสถิติ (เช่น รายได้)
       const refresh = await getDashboardStats("shop_test_001")
       if (refresh.success) setStats(refresh.data)
     } else {
@@ -131,8 +128,8 @@ export function DashboardOverview() {
             <CardTitle className="text-sm font-medium text-slate-600">งานเข้าวันนี้</CardTitle>
             <Activity className="h-4 w-4 text-blue-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-800">{stats?.todayCount} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
+         <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{stats?.todayCount || 0} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
             <p className="text-xs text-slate-500 mt-1">เครื่องที่ลูกค้านำมาส่งในวันนี้</p>
           </CardContent>
         </Card>
@@ -143,7 +140,7 @@ export function DashboardOverview() {
             <Wrench className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-800">{stats?.activeCount} <span className="text-sm font-normal text-slate-500">คิว</span></div>
+            <div className="text-2xl font-bold text-slate-800">{stats?.activeCount || 0} <span className="text-sm font-normal text-slate-500">คิว</span></div>
             <p className="text-xs text-slate-500 mt-1">รอตรวจสอบ และกำลังแกะซ่อม</p>
           </CardContent>
         </Card>
@@ -153,8 +150,8 @@ export function DashboardOverview() {
             <CardTitle className="text-sm font-medium text-slate-600">รอรับเครื่อง</CardTitle>
             <PackageCheck className="h-4 w-4 text-emerald-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-800">{stats?.readyCount} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
+         <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{stats?.readyCount || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
             <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอส่งมอบลูกค้า</p>
           </CardContent>
         </Card>
@@ -165,7 +162,7 @@ export function DashboardOverview() {
             <Wallet className="h-4 w-4 text-indigo-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-indigo-900">฿{stats?.revenueToday.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-indigo-900">฿{(stats?.revenueToday || 0).toLocaleString()}</div>
             <p className="text-xs text-indigo-600/70 mt-1">จากงานที่ปิดจ๊อบสำเร็จวันนี้</p>
           </CardContent>
         </Card>
@@ -208,9 +205,9 @@ export function DashboardOverview() {
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" /> {job.customerName}
                         </span>
-                        {(job.phoneNumber || job.phone) && (
+                        {job.phoneNumber && (
                           <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" /> {formatPhoneNumber(job.phoneNumber || job.phone)}
+                            <Phone className="h-3 w-3" /> {formatPhoneNumber(job.phoneNumber)}
                           </span>
                         )}
                         <span className="flex items-center gap-1 text-blue-600 font-medium">
@@ -305,20 +302,8 @@ export function DashboardOverview() {
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="editPhone" className="text-slate-600 flex items-center gap-1">
-                    <Phone className="h-3.5 w-3.5" /> เบอร์โทรศัพท์ติดต่อ
-                  </Label>
-                  <Input 
-                    id="editPhone" 
-                    type="tel" 
-                    placeholder="กรอกเบอร์โทรลูกค้า" 
-                    value={editPhone} 
-                    onChange={(e) => setEditPhone(e.target.value)} 
-                  />
-                </div>
-
-                <div className="space-y-2">
+                {/* 🌟 ขยายช่องราคาประเมินกลับไปกว้าง 2 คอลัมน์เหมือนเดิม */}
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                     <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
                   </Label>
@@ -328,6 +313,7 @@ export function DashboardOverview() {
                     placeholder="เช่น 1500" 
                     value={editPrice} 
                     onChange={(e) => setEditPrice(e.target.value)} 
+                    className="max-w-[200px]"
                   />
                 </div>
 

@@ -70,12 +70,12 @@ type RepairJob = {
   status: "PENDING" | "WAITING" | "PROCESSING" | "REPAIRED" | "CANCELLED" | "COMPLETED" | "ARCHIVED"
   timeElapsed?: string
   cancelReason?: CancelReason
-  cancelledAt?: Date
+  cancelledAt?: Date | string
   estimatedPrice?: string
   serialNumber?: string
   imei?: string
   phoneNumber?: string
-  createdAt?: Date | string // 🌟 เพิ่มบรรทัดนี้เข้าไปครับ
+  createdAt?: Date | string
 }
 
 const COLUMNS = [
@@ -85,7 +85,6 @@ const COLUMNS = [
   { id: "REPAIRED", title: "ซ่อมเสร็จ / รอรับ", color: "border-emerald-200 bg-emerald-50", icon: PackageCheck, iconColor: "text-emerald-600", badgeColor: "bg-emerald-500" },
 ]
 
-// 🌟 ฟังก์ชันจัดฟอร์แมตเบอร์โทรศัพท์ (xxx-xxx-xxxx)
 const formatPhoneNumber = (phone?: string) => {
   if (!phone) return ""
   const cleaned = phone.replace(/\D/g, '')
@@ -112,8 +111,7 @@ export function QueueBoard() {
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  const [editPhone, setEditPhone] = useState("") 
-  const [isSaving, setIsSaving] = useState(false) 
+  const [isSaving, setIsSaving] = useState(false)
 
   const { toast } = useToast()
 
@@ -167,7 +165,6 @@ export function QueueBoard() {
       setEditPrice(jobToView.estimatedPrice || "")
       setEditSn(jobToView.serialNumber || "")
       setEditImei(jobToView.imei || "")
-      setEditPhone(jobToView.phoneNumber || jobToView.phone || "") 
     }
   }, [jobToView])
 
@@ -198,29 +195,27 @@ export function QueueBoard() {
     if (!jobToView) return
     setIsSaving(true)
 
+    // 🌟 เอา phoneNumber ออก
     const res = await updateQueueStatus(jobToView.id, jobToView.status, {
       estimatedPrice: editPrice,
       serialNumber: editSn,
-      imei: editImei,
-      phoneNumber: editPhone
+      imei: editImei
     })
 
     if (res.success) {
-      setJobs(jobs.map(j => j.id === jobToView.id ? { 
-        ...j, 
-        estimatedPrice: editPrice, 
-        serialNumber: editSn, 
-        imei: editImei,
-        phone: editPhone,
-        phoneNumber: editPhone
+      setJobs(jobs.map(j => j.id === jobToView.id ? {
+        ...j,
+        estimatedPrice: editPrice,
+        serialNumber: editSn,
+        imei: editImei
       } as any : j))
-      
+
       toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว` })
       setJobToView(null)
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
     }
-    
+
     setIsSaving(false)
   }
 
@@ -398,7 +393,6 @@ export function QueueBoard() {
                         </div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
-                        {/* 🌟 แสดงเบอร์โทรแบบจัดฟอร์แมตในคลังดอง */}
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                         <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
                       </CardContent>
@@ -488,7 +482,6 @@ export function QueueBoard() {
                         </div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 text-xs text-slate-600">
-                        {/* 🌟 แสดงเบอร์โทรแบบจัดฟอร์แมตในถังขยะ */}
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                       </CardContent>
                       <CardFooter className="p-3 pt-0 flex gap-2 border-t border-slate-50 mt-2">
@@ -608,7 +601,6 @@ export function QueueBoard() {
 
                             <CardContent className="p-3 pt-0 text-sm space-y-2">
                               <div className="flex items-center justify-between text-slate-600">
-                                {/* 🌟 แสดงเบอร์โทรแบบจัดฟอร์แมตในกระดานหลัก */}
                                 <span className="font-medium truncate mr-2">
                                   {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-xs text-slate-400 font-normal">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}
                                 </span>
@@ -667,7 +659,6 @@ export function QueueBoard() {
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
                   <p className="font-medium text-slate-900">
-                    {/* 🌟 แสดงเบอร์โทรแบบจัดฟอร์แมตในหน้า Dialog */}
                     {jobToView?.customerName} {(jobToView?.phoneNumber || jobToView?.phone) && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber || jobToView.phone)})</span>}
                   </p>
                 </div>
@@ -694,29 +685,18 @@ export function QueueBoard() {
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="editPhone" className="text-slate-600 flex items-center gap-1">
-                    <Phone className="h-3.5 w-3.5" /> เบอร์โทรศัพท์ติดต่อ
-                  </Label>
-                  <Input 
-                    id="editPhone" 
-                    type="tel" 
-                    placeholder="กรอกเบอร์โทรลูกค้า" 
-                    value={editPhone} 
-                    onChange={(e) => setEditPhone(e.target.value)} 
-                  />
-                </div>
-
-                <div className="space-y-2">
+                {/* 🌟 ขยายช่องราคาประเมินกลับไป 2 คอลัมน์ */}
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                     <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
                   </Label>
-                  <Input 
-                    id="estimatedPrice" 
-                    type="number" 
-                    placeholder="เช่น 1500" 
-                    value={editPrice} 
-                    onChange={(e) => setEditPrice(e.target.value)} 
+                  <Input
+                    id="estimatedPrice"
+                    type="number"
+                    placeholder="เช่น 1500"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="max-w-[200px]"
                   />
                 </div>
 
@@ -724,11 +704,11 @@ export function QueueBoard() {
                   <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
                     <Barcode className="h-3.5 w-3.5" /> Serial Number
                   </Label>
-                  <Input 
-                    id="serialNumber" 
-                    placeholder="กรอก S/N เครื่อง" 
-                    value={editSn} 
-                    onChange={(e) => setEditSn(e.target.value)} 
+                  <Input
+                    id="serialNumber"
+                    placeholder="กรอก S/N เครื่อง"
+                    value={editSn}
+                    onChange={(e) => setEditSn(e.target.value)}
                   />
                 </div>
 
@@ -736,11 +716,11 @@ export function QueueBoard() {
                   <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
                     <Hash className="h-3.5 w-3.5" /> IMEI
                   </Label>
-                  <Input 
-                    id="imei" 
-                    placeholder="กรอกเลข IMEI 15 หลัก" 
-                    value={editImei} 
-                    onChange={(e) => setEditImei(e.target.value)} 
+                  <Input
+                    id="imei"
+                    placeholder="กรอกเลข IMEI 15 หลัก"
+                    value={editImei}
+                    onChange={(e) => setEditImei(e.target.value)}
                   />
                 </div>
               </div>
