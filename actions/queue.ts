@@ -17,22 +17,26 @@ interface CreateQueueInput {
 
 export async function createQueue(data: CreateQueueInput) {
   try {
-    // 1. สั่ง Prisma บันทึกข้อมูลลง Database
+    // 🌟 1. สร้างรหัสคิวซ่อมแบบสุ่ม 4 หลัก (เช่น Q-8F2A)
+    const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const generatedJobRef = `Q-${randomCode}`;
+
+    // 2. สั่ง Prisma บันทึกข้อมูลลง Database
     const newQueue = await db.queue.create({
       data: {
         shopId: data.shopId,
+        jobRef: generatedJobRef, // 🌟 3. เซฟรหัสคิวจริงลง DB ทันที
         customerName: data.customerName,
         phoneNumber: data.phoneNumber,
         deviceModel: data.deviceModel,
         deviceColor: data.deviceColor,
         issue: data.issue,
-        serviceName: data.serviceName, // 🌟 2. เพิ่มบรรทัดนี้เข้าไปเพื่อให้เซฟลง Database
+        serviceName: data.serviceName, 
         isManualEntry: data.isManualEntry || false,
-        status: "PENDING", // ค่าเริ่มต้น (ตั้งเป็น PENDING เสมอเวลาสร้างใหม่)
+        status: "PENDING", 
       },
     });
 
-    // 2. ส่งข้อมูลที่บันทึกสำเร็จกลับไปให้หน้าเว็บ
     return { 
       success: true, 
       data: newQueue, 
@@ -41,8 +45,6 @@ export async function createQueue(data: CreateQueueInput) {
 
   } catch (error) {
     console.error("❌ Error creating queue:", error);
-    
-    // จัดการ Error ส่งกลับไปบอกหน้าเว็บ
     return { 
       success: false, 
       error: "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง" 

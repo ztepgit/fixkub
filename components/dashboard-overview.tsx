@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+// 🌟 1. นำเข้า supabase สำหรับทำ Realtime
+import { supabase } from "@/lib/supabase" 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -45,13 +47,13 @@ export function DashboardOverview() {
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  // 🌟 เอา editPhone ออกไปแล้ว
   const [isSaving, setIsSaving] = useState(false)
   
   const { toast } = useToast()
 
   const loadStats = async () => {
-    setIsLoading(true)
+    // โหลดแบบเงียบๆ ไม่ต้องโชว์ Loading ถ้าระบบเคยโหลดครั้งแรกไปแล้ว (เพื่อไม่ให้จอกระพริบตอน Realtime อัปเดต)
+    if (!stats) setIsLoading(true) 
     const res = await getDashboardStats("shop_test_001")
     if (res.success) {
       setStats(res.data)
@@ -59,9 +61,28 @@ export function DashboardOverview() {
     setIsLoading(false)
   }
 
+  // 🌟 2. อัปเดต useEffect ให้มี Supabase ดักฟังแบบ Realtime
   useEffect(() => {
     loadStats()
-  }, [])
+
+    // เปิดท่อดักฟังการเปลี่ยนแปลงในตาราง Queue
+    const channel = supabase
+      .channel('dashboard_queue_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'Queue' },
+        (payload) => {
+          // ทันทีที่มีใครสร้างคิวใหม่ หรือเปลี่ยนสถานะ ให้โหลดข้อมูลสถิติใหม่ทันที
+          loadStats()
+        }
+      )
+      .subscribe()
+
+    // ปิดการเชื่อมต่อเมื่อเปลี่ยนหน้าเว็บ
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (jobToView) {
@@ -75,18 +96,17 @@ export function DashboardOverview() {
     if (!jobToView) return
     setIsSaving(true)
     
-    // 🌟 เอา phoneNumber ออกจากการบันทึกช่าง
     const res = await updateQueueStatus(jobToView.id, jobToView.status, {
-      estimatedPrice: editPrice,
+      estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
     })
 
     if (res.success) {
-      toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว` })
+      toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef || ''} เรียบร้อยแล้ว` })
       setJobToView(null)
-      const refresh = await getDashboardStats("shop_test_001")
-      if (refresh.success) setStats(refresh.data)
+      // โหลดสถิติใหม่หลังบันทึก (Supabase realtime จะทำงานให้อัตโนมัติด้วย แต่ทำเผื่อไว้เพื่อความชัวร์)
+      loadStats()
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
     }
@@ -128,7 +148,7 @@ export function DashboardOverview() {
             <CardTitle className="text-sm font-medium text-slate-600">งานเข้าวันนี้</CardTitle>
             <Activity className="h-4 w-4 text-blue-600" />
           </CardHeader>
-         <CardContent>
+          <CardContent>
             <div className="text-2xl font-bold text-slate-800">{stats?.todayCount || 0} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
             <p className="text-xs text-slate-500 mt-1">เครื่องที่ลูกค้านำมาส่งในวันนี้</p>
           </CardContent>
@@ -150,7 +170,7 @@ export function DashboardOverview() {
             <CardTitle className="text-sm font-medium text-slate-600">รอรับเครื่อง</CardTitle>
             <PackageCheck className="h-4 w-4 text-emerald-600" />
           </CardHeader>
-         <CardContent>
+          <CardContent>
             <div className="text-2xl font-bold text-slate-800">{stats?.readyCount || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
             <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอส่งมอบลูกค้า</p>
           </CardContent>
@@ -190,7 +210,7 @@ export function DashboardOverview() {
                           {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
                         </p>
                         <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 h-5 px-1.5 text-[10px]">
-                          {job.jobRef}
+                          {job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`}
                         </Badge>
                       </div>
                       
@@ -259,7 +279,7 @@ export function DashboardOverview() {
           <DialogHeader>
             <div className="flex items-center justify-between pr-6">
               <DialogTitle className="text-xl">
-                รายละเอียดคิว <span className="text-blue-600">{jobToView?.jobRef}</span>
+                รายละเอียดคิว <span className="text-blue-600">{jobToView?.jobRef || `Q-${jobToView?.id?.slice(-4).toUpperCase()}`}</span>
               </DialogTitle>
               <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
                 {jobToView ? translateStatus(jobToView.status) : ""}
@@ -276,7 +296,7 @@ export function DashboardOverview() {
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
                   <p className="font-medium text-slate-900">
-                    {jobToView?.customerName} {(jobToView?.phoneNumber || jobToView?.phone) && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber || jobToView.phone)})</span>}
+                    {jobToView?.customerName} {jobToView?.phoneNumber && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber)})</span>}
                   </p>
                 </div>
                 <div>
@@ -302,7 +322,6 @@ export function DashboardOverview() {
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 🌟 ขยายช่องราคาประเมินกลับไปกว้าง 2 คอลัมน์เหมือนเดิม */}
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                     <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
@@ -335,7 +354,7 @@ export function DashboardOverview() {
                   </Label>
                   <Input 
                     id="imei" 
-                    placeholder="กรอกเลข IMEI 15 หลัก" 
+                    placeholder="กรอกเลข IMEI 15 หลัก"
                     value={editImei} 
                     onChange={(e) => setEditImei(e.target.value)} 
                   />

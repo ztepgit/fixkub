@@ -197,7 +197,7 @@ export function QueueBoard() {
 
     // 🌟 เอา phoneNumber ออก
     const res = await updateQueueStatus(jobToView.id, jobToView.status, {
-      estimatedPrice: editPrice,
+      estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
     })
@@ -514,6 +514,8 @@ export function QueueBoard() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
+              {/* 🌟 เติมบรรทัดนี้: ใส่ Title ไว้หลอกระบบ แต่ใช้คลาส sr-only (Screen Reader Only) ซ่อนไม่ให้แสดงบนหน้าจอ */}
+              <DialogTitle className="sr-only">สร้างใบสั่งซ่อมใหม่</DialogTitle>
               <ShopOwnerCreateQueue
                 onCancel={() => setIsCreateOpen(false)}
                 onSuccess={() => {
