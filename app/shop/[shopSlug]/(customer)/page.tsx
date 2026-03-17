@@ -1,44 +1,46 @@
 "use client"
 
-import { useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CustomerBookingForm } from "@/components/customer-booking-form"
 import { CustomerQueueStatus } from "@/components/customer-queue-status"
+import { Smartphone, Search } from "lucide-react"
 
-export default function CustomerQueuePage() {
-    // State ชั่วคราว เอาไว้สลับดูหน้าจอ "ฟอร์มแจ้งซ่อม" กับ "สถานะคิว" 
-    const [isInQueue, setIsInQueue] = useState(false)
-
+export default function CustomerPortalPage() {
     return (
-        <div className="min-h-screen bg-slate-50 p-4 pt-8">
-            {!isInQueue ? (
-                <>
-                    <CustomerBookingForm />
+        <div className="min-h-screen bg-slate-50 py-8 px-4">
+            <div className="mx-auto w-full max-w-md space-y-6">
 
-                    {/* ปุ่มสำหรับเทสต์ UI (เดี๋ยวตอนต่อระบบจริงจะลบออกครับ) */}
-                    <div className="text-center mt-8">
-                        <button
-                            onClick={() => setIsInQueue(true)}
-                            className="text-sm font-medium text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
-                        >
-                            🔧 (กดเทสต์) จำลองว่าลูกค้าส่งฟอร์มแล้ว ไปหน้าสถานะ
-                        </button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <CustomerQueueStatus />
+                {/* หัวเว็บร้าน (จำลอง) */}
+                <div className="text-center space-y-2">
+                    <h1 className="text-2xl font-bold text-slate-800">ยินดีต้อนรับสู่ร้านซ่อม</h1>
+                    <p className="text-sm text-slate-500">บริการซ่อมมือถือครบวงจร รวดเร็ว ทันใจ</p>
+                </div>
 
-                    {/* ปุ่มสำหรับเทสต์ UI (เดี๋ยวตอนต่อระบบจริงจะลบออกครับ) */}
-                    <div className="text-center mt-8">
-                        <button
-                            onClick={() => setIsInQueue(false)}
-                            className="text-sm text-slate-500 hover:text-slate-700 underline underline-offset-4"
-                        >
-                            🔙 (กดเทสต์) ย้อนกลับไปหน้าฟอร์มแจ้งซ่อม
-                        </button>
-                    </div>
-                </>
-            )}
+                {/* ระบบ Tabs สลับหน้าจอ */}
+                <Tabs defaultValue="book" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-white border shadow-sm rounded-xl">
+                        <TabsTrigger value="book" className="rounded-lg data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 font-medium">
+                            <Smartphone className="h-4 w-4 mr-2" />
+                            แจ้งซ่อมเครื่อง
+                        </TabsTrigger>
+                        <TabsTrigger value="status" className="rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-medium">
+                            <Search className="h-4 w-4 mr-2" />
+                            เช็คสถานะ
+                        </TabsTrigger>
+                    </TabsList>
+
+                    {/* เนื้อหาแท็บแจ้งซ่อม */}
+                    <TabsContent value="book" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <CustomerBookingForm />
+                    </TabsContent>
+
+                    {/* เนื้อหาแท็บเช็คสถานะ */}
+                    <TabsContent value="status" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <CustomerQueueStatus />
+                    </TabsContent>
+                </Tabs>
+
+            </div>
         </div>
     )
 }

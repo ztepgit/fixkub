@@ -530,8 +530,10 @@ export function QueueBoard() {
                                   {job.jobRef}
                                 </Badge>
                                 <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-slate-800">
-                                  <Smartphone className="h-4 w-4 text-emerald-600" />
-                                  {job.deviceModel}
+                                  <Smartphone className="h-4 w-4 text-emerald-600 shrink-0" />
+                                  <span className="truncate">
+                                    {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                                  </span>
                                 </CardTitle>
                               </div>
 
@@ -670,8 +672,10 @@ export function QueueBoard() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 mt-2">
-            <Button variant="outline" onClick={() => setJobToView(null)}>ปิดหน้าต่าง</Button>
+          <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 mt-4">
+            <Button variant="outline" onClick={() => setJobToView(null)}>
+              ปิดหน้าต่าง
+            </Button>
             <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails}>
               บันทึกข้อมูลช่าง
             </Button>

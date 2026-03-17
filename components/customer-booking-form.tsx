@@ -7,12 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Smartphone, Wrench, User, PenLine } from "lucide-react"
-
-// 🌟 1. นำเข้า Server Action และ Toast
 import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
 
-// รายการคำค้นหายอดฮิต (Suggestion Chips)
 const COMMON_SERVICES = [
   "เปลี่ยนจอ",
   "เปลี่ยนแบต",
@@ -25,44 +22,43 @@ const COMMON_SERVICES = [
 ]
 
 export function CustomerBookingForm() {
-  const { toast } = useToast() // 🌟 เรียกใช้ระบบแจ้งเตือน
-  const [isSubmitting, setIsSubmitting] = useState(false) // 🌟 State กันคนกดปุ่มเบิ้ล
+  const { toast } = useToast() 
+  const [isSubmitting, setIsSubmitting] = useState(false) 
 
   const [serviceName, setServiceName] = useState<string>("")
   const [deviceModel, setDeviceModel] = useState<string>("")
   const [deviceColor, setDeviceColor] = useState<string>("")
   const [issue, setIssue] = useState<string>("")
   const [customerName, setCustomerName] = useState<string>("")
-  const [phone, setPhone] = useState<string>("")
+  const [phone, setPhone] = useState<string>("") // 🌟 ข้อมูลสำคัญที่จะใช้เป็น Key
 
-  // ฟังก์ชันเมื่อลูกค้ากดปุ่มคำค้นหายอดฮิต
   const handleChipClick = (service: string) => {
     setServiceName(service)
   }
 
-  // 🌟 2. ฟังก์ชันส่งข้อมูลเข้า Database
   const handleSubmit = async () => {
     setIsSubmitting(true)
     
     try {
       const response = await createQueue({
-        shopId: "shop_test_001", // 🔴 ID ร้านทดสอบ
+        shopId: "shop_test_001", 
         customerName: customerName,
-        phoneNumber: phone,
+        phoneNumber: phone, 
         deviceModel: deviceModel,
         deviceColor: deviceColor,
         issue: issue,
-        serviceName: serviceName, // ส่งบริการไปด้วย
+        serviceName: serviceName, 
         isManualEntry: false, 
       })
 
       if (response.success) {
         toast({
-          title: "✅ จองคิวสำเร็จ!",
-          description: "ส่งข้อมูลให้ทางร้านเรียบร้อยแล้ว",
+          title: "✅ แจ้งซ่อมสำเร็จ!",
+          // 🌟 แจ้งลูกค้าให้ชัดเจนว่าให้ใช้เบอร์โทรเช็คสถานะ
+          description: `ส่งข้อมูลให้ทางร้านแล้ว คุณสามารถใช้เบอร์ ${phone} เช็คสถานะได้ที่เมนู "เช็คสถานะ" ด้านบนครับ`,
+          duration: 6000,
         })
         
-        // เคลียร์ฟอร์มให้ว่างหลังส่งเสร็จ
         setServiceName("")
         setDeviceModel("")
         setDeviceColor("")
@@ -100,7 +96,6 @@ export function CustomerBookingForm() {
         
         <CardContent className="space-y-6 pt-6">
           
-          {/* หมวดบริการ (พิมพ์เอง + Suggestion Chips) */}
           <div className="space-y-3">
             <Label htmlFor="serviceName" className="text-base font-semibold flex items-center gap-2">
               <PenLine className="h-4 w-4" /> 1. บริการที่ต้องการ <span className="text-red-500">*</span>
@@ -112,8 +107,6 @@ export function CustomerBookingForm() {
               onChange={(e) => setServiceName(e.target.value)}
               className="border-emerald-200 focus-visible:ring-emerald-500"
             />
-            
-            {/* ปุ่มทางลัด (Tags/Chips) */}
             <div className="flex flex-wrap gap-2 pt-1">
               {COMMON_SERVICES.map((service) => (
                 <button
@@ -132,7 +125,6 @@ export function CustomerBookingForm() {
             </div>
           </div>
 
-          {/* ข้อมูลเครื่อง */}
           <div className="space-y-4 rounded-lg bg-slate-50 p-4 border border-slate-100">
             <Label className="text-base font-semibold flex items-center gap-2">
               <Smartphone className="h-4 w-4" /> 2. ข้อมูลตัวเครื่อง
@@ -170,7 +162,6 @@ export function CustomerBookingForm() {
             </div>
           </div>
 
-          {/* ข้อมูลลูกค้า */}
           <div className="space-y-4">
             <Label className="text-base font-semibold flex items-center gap-2">
               <User className="h-4 w-4" /> 3. ข้อมูลติดต่อ
@@ -185,11 +176,12 @@ export function CustomerBookingForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">เบอร์โทรศัพท์ (ถ้ามี)</Label>
+              {/* 🌟 บังคับกรอกเบอร์โทรศัพท์ */}
+              <Label htmlFor="phone">เบอร์โทรศัพท์ <span className="text-red-500">*</span></Label>
               <Input 
                 id="phone" 
                 type="tel" 
-                placeholder="08x-xxx-xxxx" 
+                placeholder="08x-xxx-xxxx (ใช้สำหรับเช็คสถานะ)" 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
@@ -198,11 +190,11 @@ export function CustomerBookingForm() {
         </CardContent>
 
         <CardFooter className="bg-slate-50 border-t rounded-b-xl pt-4 pb-6">
-          {/* 🌟 3. ผูกปุ่มเข้ากับฟังก์ชัน handleSubmit */}
           <Button 
             onClick={handleSubmit} 
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-lg py-6 shadow-lg shadow-emerald-200" 
-            disabled={!serviceName || !deviceModel || !customerName || isSubmitting}
+            // 🌟 เพิ่มเงื่อนไข !phone เข้าไปเพื่อล็อคปุ่มถ้ายังไม่กรอกเบอร์
+            disabled={!serviceName || !deviceModel || !customerName || !phone || isSubmitting}
           >
             {isSubmitting ? "กำลังส่งข้อมูล..." : "รับคิวแจ้งซ่อม"}
           </Button>
