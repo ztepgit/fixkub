@@ -32,7 +32,6 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ToastAction } from "@/components/ui/toast"
 import {
   Smartphone,
   Wrench,
@@ -51,7 +50,8 @@ import {
   Hash,
   Loader2,
   CheckCircle2,
-  UserX
+  UserX,
+  Phone // 🌟 นำเข้าไอคอน Phone
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { getQueues, updateQueueStatus } from "@/actions/queue"
@@ -74,6 +74,7 @@ type RepairJob = {
   estimatedPrice?: string
   serialNumber?: string
   imei?: string
+  phoneNumber?: string // เผื่อกรณีใช้ field นี้ใน DB
 }
 
 const COLUMNS = [
@@ -97,10 +98,13 @@ export function QueueBoard() {
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
 
+  // 🌟 State สำหรับจัดการข้อมูลในหน้ารายละเอียด
   const [jobToView, setJobToView] = useState<RepairJob | null>(null)
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
+  const [editPhone, setEditPhone] = useState("") // 🌟 State สำหรับเบอร์โทร
+  const [isSaving, setIsSaving] = useState(false) // 🌟 State โหลดตอนกดเซฟ
 
   const { toast } = useToast()
 
@@ -149,11 +153,13 @@ export function QueueBoard() {
     }
   }, [])
 
+  // 🌟 ดึงข้อมูลมาแสดงตอนเปิด Dialog
   useEffect(() => {
     if (jobToView) {
       setEditPrice(jobToView.estimatedPrice || "")
       setEditSn(jobToView.serialNumber || "")
       setEditImei(jobToView.imei || "")
+      setEditPhone(jobToView.phoneNumber || jobToView.phone || "") // ดึงเบอร์เดิมมาโชว์
     }
   }, [jobToView])
 
@@ -180,11 +186,36 @@ export function QueueBoard() {
     }
   }
 
-  const handleSaveDetails = () => {
+  // 🌟 ฟังก์ชันเซฟรายละเอียด ที่ยิงเข้า Database จริงๆ
+  const handleSaveDetails = async () => {
     if (!jobToView) return
-    setJobs(jobs.map(j => j.id === jobToView.id ? { ...j, estimatedPrice: editPrice, serialNumber: editSn, imei: editImei } : j))
-    toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว` })
-    setJobToView(null)
+    setIsSaving(true)
+
+    // บันทึกลง Database
+    const res = await updateQueueStatus(jobToView.id, jobToView.status, {
+      estimatedPrice: editPrice,
+      serialNumber: editSn,
+      imei: editImei,
+      phoneNumber: editPhone // บันทึกเบอร์โทร
+    })
+
+    if (res.success) {
+      // อัปเดตข้อมูลบนหน้ากระดาน
+      setJobs(jobs.map(j => j.id === jobToView.id ? { 
+        ...j, 
+        estimatedPrice: editPrice, 
+        serialNumber: editSn, 
+        imei: editImei,
+        phone: editPhone,
+        phoneNumber: editPhone
+      } as any : j))
+      
+      toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว` })
+      setJobToView(null)
+    } else {
+      toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
+    }
+    setIsSaving(false)
   }
 
   const confirmCancelJob = async () => {
@@ -354,12 +385,14 @@ export function QueueBoard() {
                             <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 mb-1">
                               {job.jobRef}
                             </Badge>
-                            <CardTitle className="text-sm font-bold">{job.deviceModel}</CardTitle>
+                            <CardTitle className="text-sm font-bold">
+                              {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                            </CardTitle>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
-                        <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {job.phone && `(${job.phone})`}</p>
+                        <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && `(${job.phoneNumber || job.phone})`}</p>
                         <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
                       </CardContent>
 
@@ -433,7 +466,9 @@ export function QueueBoard() {
                             <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 mb-1">
                               {job.jobRef}
                             </Badge>
-                            <CardTitle className="text-sm font-bold">{job.deviceModel}</CardTitle>
+                            <CardTitle className="text-sm font-bold">
+                              {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                            </CardTitle>
                           </div>
                           <span className="text-xs font-medium text-rose-500 bg-rose-50 px-2 py-1 rounded">
                             {job.cancelReason === "NO_SHOW" && "ลูกค้าไม่มา"}
@@ -449,7 +484,6 @@ export function QueueBoard() {
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName}</p>
                       </CardContent>
                       <CardFooter className="p-3 pt-0 flex gap-2 border-t border-slate-50 mt-2">
-                        {/* 🌟 เอาเงื่อนไขที่ซ่อนปุ่มออกแล้ว คืนค่าได้ทุกกรณี */}
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => restoreJob(job.id)}>
                           <RotateCcw className="h-3 w-3 mr-1" /> คืนค่า
                         </Button>
@@ -622,7 +656,7 @@ export function QueueBoard() {
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
                   <p className="font-medium text-slate-900">
-                    {jobToView?.customerName} {jobToView?.phone && <span className="text-slate-500 font-normal">({jobToView.phone})</span>}
+                    {jobToView?.customerName} {(jobToView?.phoneNumber || jobToView?.phone) && <span className="text-slate-500 font-normal">({jobToView.phoneNumber || jobToView.phone})</span>}
                   </p>
                 </div>
                 <div>
@@ -648,36 +682,65 @@ export function QueueBoard() {
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
+                {/* 🌟 ช่องกรอกเบอร์โทรศัพท์ */}
+                <div className="space-y-2">
+                  <Label htmlFor="editPhone" className="text-slate-600 flex items-center gap-1">
+                    <Phone className="h-3.5 w-3.5" /> เบอร์โทรศัพท์ติดต่อ
+                  </Label>
+                  <Input 
+                    id="editPhone" 
+                    type="tel" 
+                    placeholder="กรอกเบอร์โทรลูกค้า" 
+                    value={editPhone} 
+                    onChange={(e) => setEditPhone(e.target.value)} 
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                     <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
                   </Label>
-                  <Input id="estimatedPrice" type="number" placeholder="เช่น 1500" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="max-w-[200px]" />
+                  <Input 
+                    id="estimatedPrice" 
+                    type="number" 
+                    placeholder="เช่น 1500" 
+                    value={editPrice} 
+                    onChange={(e) => setEditPrice(e.target.value)} 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
                     <Barcode className="h-3.5 w-3.5" /> Serial Number
                   </Label>
-                  <Input id="serialNumber" placeholder="กรอก S/N เครื่อง" value={editSn} onChange={(e) => setEditSn(e.target.value)} />
+                  <Input 
+                    id="serialNumber" 
+                    placeholder="กรอก S/N เครื่อง" 
+                    value={editSn} 
+                    onChange={(e) => setEditSn(e.target.value)} 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
                     <Hash className="h-3.5 w-3.5" /> IMEI
                   </Label>
-                  <Input id="imei" placeholder="กรอกเลข IMEI 15 หลัก" value={editImei} onChange={(e) => setEditImei(e.target.value)} />
+                  <Input 
+                    id="imei" 
+                    placeholder="กรอกเลข IMEI 15 หลัก" 
+                    value={editImei} 
+                    onChange={(e) => setEditImei(e.target.value)} 
+                  />
                 </div>
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 mt-4">
-            <Button variant="outline" onClick={() => setJobToView(null)}>
-              ปิดหน้าต่าง
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails}>
-              บันทึกข้อมูลช่าง
+            <Button variant="outline" onClick={() => setJobToView(null)} disabled={isSaving}>ปิดหน้าต่าง</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isSaving ? "กำลังบันทึก..." : "บันทึกข้อมูลช่าง"}
             </Button>
           </DialogFooter>
         </DialogContent>

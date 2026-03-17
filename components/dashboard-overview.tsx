@@ -38,6 +38,7 @@ export function DashboardOverview() {
     const [editPrice, setEditPrice] = useState("")
     const [editSn, setEditSn] = useState("")
     const [editImei, setEditImei] = useState("")
+    const [editPhone, setEditPhone] = useState("") // 🌟 เพิ่ม State นี้
     const [isSaving, setIsSaving] = useState(false)
 
     const { toast } = useToast()
@@ -61,6 +62,7 @@ export function DashboardOverview() {
             setEditPrice(jobToView.estimatedPrice || "")
             setEditSn(jobToView.serialNumber || "")
             setEditImei(jobToView.imei || "")
+            setEditPhone(jobToView.phoneNumber || "") // 🌟 เพิ่มบรรทัดนี้
         }
     }, [jobToView])
 
@@ -73,7 +75,8 @@ export function DashboardOverview() {
         const res = await updateQueueStatus(jobToView.id, jobToView.status, {
             estimatedPrice: editPrice,
             serialNumber: editSn,
-            imei: editImei
+            imei: editImei,
+            phoneNumber: editPhone // 🌟 เพิ่มบรรทัดนี้
         })
 
         if (res.success) {
@@ -302,7 +305,21 @@ export function DashboardOverview() {
                             </h4>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2 md:col-span-2">
+                                {/* 🌟 ช่องกรอกเบอร์โทรศัพท์ */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="editPhone" className="text-slate-600 flex items-center gap-1">
+                                        <Phone className="h-3.5 w-3.5" /> เบอร์โทรศัพท์ติดต่อ
+                                    </Label>
+                                    <Input
+                                        id="editPhone"
+                                        type="tel"
+                                        placeholder="กรอกเบอร์โทรลูกค้า"
+                                        value={editPhone}
+                                        onChange={(e) => setEditPhone(e.target.value)}
+                                    />
+                                </div>
+                                {/* ช่องราคาประเมิน (เอา md:col-span-2 ออก เพื่อให้มันแบ่งครึ่งกับเบอร์โทรพอดี) */}
+                                <div className="space-y-2">
                                     <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                                         <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
                                     </Label>
@@ -312,7 +329,6 @@ export function DashboardOverview() {
                                         placeholder="เช่น 1500"
                                         value={editPrice}
                                         onChange={(e) => setEditPrice(e.target.value)}
-                                        className="max-w-[200px]"
                                     />
                                 </div>
 
