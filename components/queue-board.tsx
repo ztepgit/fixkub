@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
@@ -33,11 +33,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
-import { 
-  Smartphone, 
-  Wrench, 
-  Clock, 
-  Plus, 
+import {
+  Smartphone,
+  Wrench,
+  Clock,
+  Plus,
   PackageCheck,
   MoreHorizontal,
   ClipboardList,
@@ -50,10 +50,10 @@ import {
   Barcode,
   Hash,
   Loader2,
-  CheckCircle2, 
-  UserX         
+  CheckCircle2,
+  UserX
 } from "lucide-react"
-import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue" 
+import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { getQueues, updateQueueStatus } from "@/actions/queue"
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
@@ -84,16 +84,16 @@ const COLUMNS = [
 ]
 
 export function QueueBoard() {
-  const [jobs, setJobs] = useState<RepairJob[]>([]) 
+  const [jobs, setJobs] = useState<RepairJob[]>([])
   const [trashedJobs, setTrashedJobs] = useState<RepairJob[]>([])
-  const [archivedJobs, setArchivedJobs] = useState<RepairJob[]>([]) 
-  const [isLoading, setIsLoading] = useState(true) 
-  
+  const [archivedJobs, setArchivedJobs] = useState<RepairJob[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  
+
   const [jobToCancel, setJobToCancel] = useState<RepairJob | null>(null)
   const [cancelReason, setCancelReason] = useState<CancelReason | "">("")
-  
+
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
 
@@ -101,26 +101,26 @@ export function QueueBoard() {
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  
+
   const { toast } = useToast()
 
   const loadQueues = async () => {
     setIsLoading(true)
-    const response = await getQueues("shop_test_001") 
+    const response = await getQueues("shop_test_001")
     if (response.success && response.data) {
       const formattedData = response.data.map((job: any) => ({
         ...job,
         jobRef: job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`,
       }))
 
-      const activeJobs = formattedData.filter((j: any) => 
-        j.status !== "CANCELLED" && 
-        j.status !== "COMPLETED" && 
+      const activeJobs = formattedData.filter((j: any) =>
+        j.status !== "CANCELLED" &&
+        j.status !== "COMPLETED" &&
         j.status !== "ARCHIVED"
       )
       const cancelledJobs = formattedData.filter((j: any) => j.status === "CANCELLED")
       const archived = formattedData.filter((j: any) => j.status === "ARCHIVED")
-      
+
       setJobs(activeJobs)
       setTrashedJobs(cancelledJobs)
       setArchivedJobs(archived)
@@ -165,7 +165,7 @@ export function QueueBoard() {
       "REPAIRED": "COMPLETED"
     }
     const nextStatus = statusFlow[currentStatus]
-    
+
     if (nextStatus === "COMPLETED") {
       setJobs(jobs.filter(j => j.id !== jobId))
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องเรียบร้อยแล้ว" })
@@ -190,22 +190,22 @@ export function QueueBoard() {
   const confirmCancelJob = async () => {
     if (!jobToCancel || !cancelReason) return
 
-    const cancelledJob: RepairJob = { 
-      ...jobToCancel, 
-      status: "CANCELLED", 
+    const cancelledJob: RepairJob = {
+      ...jobToCancel,
+      status: "CANCELLED",
       cancelReason: cancelReason as CancelReason,
       cancelledAt: new Date()
     }
 
     setJobs(prev => prev.filter(j => j.id !== jobToCancel.id))
     setTrashedJobs(prev => [cancelledJob, ...prev])
-    
+
     setJobToCancel(null)
     setCancelReason("")
 
-    await updateQueueStatus(jobToCancel.id, "CANCELLED", { 
-      cancelReason: cancelReason, 
-      cancelledAt: new Date() 
+    await updateQueueStatus(jobToCancel.id, "CANCELLED", {
+      cancelReason: cancelReason,
+      cancelledAt: new Date()
     })
 
     toast({ title: "🗑️ ยกเลิกงานเรียบร้อย", description: `ย้ายคิว ${jobToCancel.jobRef} ไปที่ถังขยะแล้ว`, duration: 5000 })
@@ -218,27 +218,27 @@ export function QueueBoard() {
     const isUncontactable = jobToRestore.cancelReason === "UNCONTACTABLE"
     const targetStatus = isUncontactable ? "ARCHIVED" : "PENDING"
 
-    const restoredJob = { 
-      ...jobToRestore, 
-      status: targetStatus as any, 
-      cancelReason: undefined, 
-      cancelledAt: undefined 
+    const restoredJob = {
+      ...jobToRestore,
+      status: targetStatus as any,
+      cancelReason: undefined,
+      cancelledAt: undefined
     }
-    
+
     setTrashedJobs(prev => prev.filter(j => j.id !== jobId))
-    
+
     if (isUncontactable) {
       setArchivedJobs(prev => [...prev, restoredJob])
     } else {
       setJobs(prev => [...prev, restoredJob])
     }
-    
+
     await updateQueueStatus(jobId, targetStatus, { cancelReason: null, cancelledAt: null })
 
     toast({
       title: "🔄 คืนค่างานสำเร็จ",
-      description: isUncontactable 
-        ? `รายการ ${jobToRestore.jobRef} ถูกดึงกลับเข้าคลังแล้ว` 
+      description: isUncontactable
+        ? `รายการ ${jobToRestore.jobRef} ถูกดึงกลับเข้าคลังแล้ว`
         : `คิว ${jobToRestore.jobRef} กลับสู่กระดานคิวแล้ว`,
       duration: 3000,
     })
@@ -261,7 +261,7 @@ export function QueueBoard() {
     setJobs(jobs.filter(j => j.id !== jobId))
     toast({ title: "📦 ย้ายเครื่องเข้าคลัง", description: `รายการ ${jobRef} ถูกย้ายไปยังคลังเครื่องค้างแล้ว`, duration: 3000 })
     const res = await updateQueueStatus(jobId, "ARCHIVED")
-    if (!res.success) loadQueues() 
+    if (!res.success) loadQueues()
   }
 
   const unarchiveJob = async (jobId: string) => {
@@ -284,20 +284,20 @@ export function QueueBoard() {
     if (!job) return
 
     const abandonedJob = { ...job, status: "CANCELLED" as const, cancelReason: "UNCONTACTABLE" as CancelReason, cancelledAt: new Date() }
-    
+
     setArchivedJobs(prev => prev.filter(j => j.id !== jobId))
     setTrashedJobs(prev => [abandonedJob, ...prev])
 
-    toast({ title: "❌ ตีกลับเข้าถังขยะ", description: `รายการ ${jobRef} ถูกบันทึกว่าติดต่อไม่ได้` })
-    
-    await updateQueueStatus(jobId, "CANCELLED", { 
-      cancelReason: "UNCONTACTABLE", 
-      cancelledAt: new Date() 
+    toast({ title: "❌ ส่งไปถังขยะ", description: `รายการ ${jobRef} ถูกบันทึกว่าติดต่อไม่ได้` })
+
+    await updateQueueStatus(jobId, "CANCELLED", {
+      cancelReason: "UNCONTACTABLE",
+      cancelledAt: new Date()
     })
   }
 
   const translateStatus = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "PENDING": return "รอยืนยัน"
       case "WAITING": return "รอคิวซ่อม"
       case "PROCESSING": return "กำลังซ่อม"
@@ -308,7 +308,7 @@ export function QueueBoard() {
 
   return (
     <div className="flex flex-col min-h-screen md:min-h-0 md:h-[calc(100vh-8rem)]">
-      
+
       {/* ส่วนหัวกระดาน & ปุ่มถังขยะ */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 shrink-0">
         <div>
@@ -316,12 +316,12 @@ export function QueueBoard() {
           <p className="text-sm text-slate-500">อัปเดตสถานะงานซ่อมได้ง่ายๆ</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          
+
           {/* 🌟 Sheet คลังเครื่องค้าง */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
-                <Archive className="mr-2 h-4 w-4 text-amber-500" /> คลังเครื่องค้าง
+                <Archive className="mr-2 h-4 w-4 text-amber-500" /> คลังดอง
                 {archivedJobs.length > 0 && (
                   <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200">
                     {archivedJobs.length}
@@ -332,18 +332,18 @@ export function QueueBoard() {
             <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
               <SheetHeader className="shrink-0">
                 <SheetTitle className="flex items-center gap-2 text-amber-600">
-                  <Archive className="h-5 w-5" /> คลังเครื่องค้าง
+                  <Archive className="h-5 w-5" /> คลังดอง
                 </SheetTitle>
                 <SheetDescription>
-                  รายการมือถือที่ซ่อมเสร็จแล้ว แต่ลูกค้ายังไม่มารับ
+                  งานที่ซ่อมเสร็จแล้ว แต่ลูกค้ายังไม่มารับ
                 </SheetDescription>
               </SheetHeader>
-              
+
               <div className="flex-1 overflow-y-auto mt-6 space-y-3">
                 {archivedJobs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
                     <Archive className="h-10 w-10 opacity-20" />
-                    <p className="text-sm">ไม่มีเครื่องค้างในคลัง</p>
+                    <p className="text-sm">ไม่มีรายการ</p>
                   </div>
                 ) : (
                   archivedJobs.map(job => (
@@ -362,27 +362,27 @@ export function QueueBoard() {
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {job.phone && `(${job.phone})`}</p>
                         <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
                       </CardContent>
-                      
+
                       <CardFooter className="p-3 pt-0 flex flex-col gap-2 border-t border-slate-50 mt-2">
-                        <Button 
-                          className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white" 
+                        <Button
+                          className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
                           onClick={() => completeArchivedJob(job.id)}
                         >
                           <CheckCircle2 className="h-4 w-4 mr-2" /> ลูกค้ามารับเครื่อง (ปิดจ๊อบ)
                         </Button>
                         <div className="flex gap-2 w-full">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 h-8 text-blue-600 border-blue-200 hover:bg-blue-50" 
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
                             onClick={() => unarchiveJob(job.id)}
                           >
                             <RotateCcw className="h-3 w-3 mr-1" /> ดึงกลับ
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 h-8 text-rose-600 border-rose-200 hover:bg-rose-50" 
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8 text-rose-600 border-rose-200 hover:bg-rose-50"
                             onClick={() => markAsUncontactable(job.id, job.jobRef)}
                           >
                             <UserX className="h-3 w-3 mr-1" /> ติดต่อไม่ได้
@@ -400,7 +400,7 @@ export function QueueBoard() {
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
-                <Trash2 className="mr-2 h-4 w-4 text-rose-500" /> ถังขยะ 
+                <Trash2 className="mr-2 h-4 w-4 text-rose-500" /> ถังขยะ
                 {trashedJobs.length > 0 && (
                   <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full">
                     {trashedJobs.length}
@@ -417,7 +417,7 @@ export function QueueBoard() {
                   งานในถังขยะจะถูกลบถาวรอัตโนมัติเมื่อครบ 30 วัน
                 </SheetDescription>
               </SheetHeader>
-              
+
               <div className="flex-1 overflow-y-auto mt-6 space-y-3">
                 {trashedJobs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
@@ -479,12 +479,12 @@ export function QueueBoard() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
-              <ShopOwnerCreateQueue 
-                onCancel={() => setIsCreateOpen(false)} 
+              <ShopOwnerCreateQueue
+                onCancel={() => setIsCreateOpen(false)}
                 onSuccess={() => {
                   setIsCreateOpen(false)
-                  loadQueues() 
-                }} 
+                  loadQueues()
+                }}
               />
             </DialogContent>
           </Dialog>
@@ -534,7 +534,7 @@ export function QueueBoard() {
                                   {job.deviceModel}
                                 </CardTitle>
                               </div>
-                              
+
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100">
@@ -561,7 +561,7 @@ export function QueueBoard() {
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </CardHeader>
-                            
+
                             <CardContent className="p-3 pt-0 text-sm space-y-2">
                               <div className="flex items-center justify-between text-slate-600">
                                 <span className="font-medium">{job.customerName}</span>
@@ -574,9 +574,9 @@ export function QueueBoard() {
                                 )}
                               </div>
                             </CardContent>
-                            
+
                             <CardFooter className="p-3 pt-0 flex gap-2">
-                              <Button 
+                              <Button
                                 onClick={() => moveJob(job.id, job.status)}
                                 className="w-full text-xs h-8 bg-white text-slate-700 border border-slate-300 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
                               >
@@ -644,7 +644,7 @@ export function QueueBoard() {
               <h4 className="font-semibold text-slate-800 flex items-center gap-2 border-b pb-2">
                 <Wrench className="h-4 w-4 text-slate-500" /> ข้อมูลสำหรับช่าง (ไม่บังคับ)
               </h4>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
@@ -652,7 +652,7 @@ export function QueueBoard() {
                   </Label>
                   <Input id="estimatedPrice" type="number" placeholder="เช่น 1500" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="max-w-[200px]" />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
                     <Barcode className="h-3.5 w-3.5" /> Serial Number
@@ -736,7 +736,7 @@ export function QueueBoard() {
             </DialogTitle>
             <DialogDescription className="pt-2">
               คุณกำลังจะลบรายการ <span className="font-bold text-slate-800">{jobToDelete?.jobRef}</span> ออกจากระบบ
-              <br/><br/>
+              <br /><br />
               <span className="text-rose-500 font-medium">การกระทำนี้ไม่สามารถกู้คืนได้</span>
             </DialogDescription>
           </DialogHeader>
@@ -755,7 +755,7 @@ export function QueueBoard() {
             </DialogTitle>
             <DialogDescription className="pt-2">
               คุณกำลังจะลบงานที่ถูกยกเลิกทั้งหมดจำนวน <span className="font-bold text-slate-800">{trashedJobs.length}</span> รายการ
-              <br/><br/>
+              <br /><br />
               <span className="text-rose-500 font-medium">การกระทำนี้ไม่สามารถกู้คืนได้</span>
             </DialogDescription>
           </DialogHeader>
