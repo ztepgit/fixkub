@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// 🌟 1. นำเข้า supabase สำหรับทำ Realtime
 import { supabase } from "@/lib/supabase" 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -52,7 +51,6 @@ export function DashboardOverview() {
   const { toast } = useToast()
 
   const loadStats = async () => {
-    // โหลดแบบเงียบๆ ไม่ต้องโชว์ Loading ถ้าระบบเคยโหลดครั้งแรกไปแล้ว (เพื่อไม่ให้จอกระพริบตอน Realtime อัปเดต)
     if (!stats) setIsLoading(true) 
     const res = await getDashboardStats("shop_test_001")
     if (res.success) {
@@ -61,24 +59,20 @@ export function DashboardOverview() {
     setIsLoading(false)
   }
 
-  // 🌟 2. อัปเดต useEffect ให้มี Supabase ดักฟังแบบ Realtime
   useEffect(() => {
     loadStats()
 
-    // เปิดท่อดักฟังการเปลี่ยนแปลงในตาราง Queue
     const channel = supabase
       .channel('dashboard_queue_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'Queue' },
         (payload) => {
-          // ทันทีที่มีใครสร้างคิวใหม่ หรือเปลี่ยนสถานะ ให้โหลดข้อมูลสถิติใหม่ทันที
           loadStats()
         }
       )
       .subscribe()
 
-    // ปิดการเชื่อมต่อเมื่อเปลี่ยนหน้าเว็บ
     return () => {
       supabase.removeChannel(channel)
     }
@@ -105,7 +99,6 @@ export function DashboardOverview() {
     if (res.success) {
       toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef || ''} เรียบร้อยแล้ว` })
       setJobToView(null)
-      // โหลดสถิติใหม่หลังบันทึก (Supabase realtime จะทำงานให้อัตโนมัติด้วย แต่ทำเผื่อไว้เพื่อความชัวร์)
       loadStats()
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
@@ -235,6 +228,22 @@ export function DashboardOverview() {
                           {job.estimatedPrice ? `฿${parseInt(job.estimatedPrice).toLocaleString()}` : "ยังไม่ประเมิน"}
                         </span>
                       </div>
+
+                      {/* 🌟 แสดง S/N และ IMEI ใต้ข้อมูลลูกค้าในรายการอัปเดตล่าสุด (เอาไอคอนออก) */}
+                      {(job.serialNumber || job.imei) && (
+                        <div className="flex items-center gap-4 text-[10px] text-slate-400 pt-1">
+                          {job.serialNumber && (
+                            <span className="flex items-center gap-1">
+                              S/N: <span className="text-slate-500">{job.serialNumber}</span>
+                            </span>
+                          )}
+                          {job.imei && (
+                            <span className="flex items-center gap-1">
+                              IMEI: <span className="text-slate-500">{job.imei}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -274,6 +283,7 @@ export function DashboardOverview() {
         </CardContent>
       </Card>
 
+      {/* Dialog รายละเอียดคิว (มีไอคอนปกติ) */}
       <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
@@ -292,7 +302,7 @@ export function DashboardOverview() {
 
           <div className="grid gap-6 py-2">
             <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4">
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
                   <p className="font-medium text-slate-900">
@@ -309,7 +319,18 @@ export function DashboardOverview() {
                     {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
                   </p>
                 </div>
+                
                 <div>
+                  <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
+                  <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
+                </div>
+                
+                <div>
+                  <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
+                  <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
+                </div>
+
+                <div className="sm:col-span-2">
                   <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
                   <p className="font-medium text-slate-900">{jobToView?.issue || "-"}</p>
                 </div>
@@ -354,7 +375,7 @@ export function DashboardOverview() {
                   </Label>
                   <Input 
                     id="imei" 
-                    placeholder="กรอกเลข IMEI 15 หลัก"
+                    placeholder="กรอกเลข IMEI 15 หลัก" 
                     value={editImei} 
                     onChange={(e) => setEditImei(e.target.value)} 
                   />

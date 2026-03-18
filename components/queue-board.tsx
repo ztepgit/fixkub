@@ -195,7 +195,6 @@ export function QueueBoard() {
     if (!jobToView) return
     setIsSaving(true)
 
-    // 🌟 เอา phoneNumber ออก
     const res = await updateQueueStatus(jobToView.id, jobToView.status, {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
@@ -395,6 +394,14 @@ export function QueueBoard() {
                       <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                         <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
+
+                        {/* 🌟 โชว์ S/N / IMEI ในคลังดอง (เอาไอคอนออก) */}
+                        {(job.serialNumber || job.imei) && (
+                          <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
+                            {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
+                            {job.imei && <p className="flex items-center gap-1"><span className="font-semibold">IMEI:</span> {job.imei}</p>}
+                          </div>
+                        )}
                       </CardContent>
 
                       <CardFooter className="p-3 pt-0 flex flex-col gap-2 border-t border-slate-50 mt-2">
@@ -483,12 +490,20 @@ export function QueueBoard() {
                       </CardHeader>
                       <CardContent className="p-3 pt-0 text-xs text-slate-600">
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
+
+                        {/* 🌟 โชว์ S/N / IMEI ในถังขยะ (เอาไอคอนออก) */}
+                        {(job.serialNumber || job.imei) && (
+                          <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
+                            {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
+                            {job.imei && <p className="flex items-center gap-1"><span className="font-semibold">IMEI:</span> {job.imei}</p>}
+                          </div>
+                        )}
                       </CardContent>
                       <CardFooter className="p-3 pt-0 flex gap-2 border-t border-slate-50 mt-2">
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => restoreJob(job.id)}>
                           <RotateCcw className="h-3 w-3 mr-1" /> คืนค่า
                         </Button>
-                        <Button variant="ghost" size="sm" className="flex-1 h-8 text-rose-600 hover:bg-rose-50" onClick={() => setJobToDelete(job)}>
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-rose-600 border-rose-300 hover:bg-rose-50 hover:border-rose-400" onClick={() => setJobToDelete(job)}>
                           ลบถาวร
                         </Button>
                       </CardFooter>
@@ -514,7 +529,6 @@ export function QueueBoard() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
-              {/* 🌟 เติมบรรทัดนี้: ใส่ Title ไว้หลอกระบบ แต่ใช้คลาส sr-only (Screen Reader Only) ซ่อนไม่ให้แสดงบนหน้าจอ */}
               <DialogTitle className="sr-only">สร้างใบสั่งซ่อมใหม่</DialogTitle>
               <ShopOwnerCreateQueue
                 onCancel={() => setIsCreateOpen(false)}
@@ -613,6 +627,14 @@ export function QueueBoard() {
                                 {job.estimatedPrice && (
                                   <div className="text-blue-600 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
                                 )}
+
+                                {/* 🌟 แสดง S/N และ IMEI บนการ์ดคิวหลัก (เอาไอคอนออก) */}
+                                {(job.serialNumber || job.imei) && (
+                                  <div className="flex flex-col gap-0.5 mt-1 pt-1.5 border-t border-slate-200/60 text-[10px] text-slate-500">
+                                    {job.serialNumber && <div className="flex items-center gap-1.5">S/N: {job.serialNumber}</div>}
+                                    {job.imei && <div className="flex items-center gap-1.5">IMEI: {job.imei}</div>}
+                                  </div>
+                                )}
                               </div>
                             </CardContent>
 
@@ -657,11 +679,11 @@ export function QueueBoard() {
 
           <div className="grid gap-6 py-2">
             <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4">
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
                   <p className="font-medium text-slate-900">
-                    {jobToView?.customerName} {(jobToView?.phoneNumber || jobToView?.phone) && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber || jobToView.phone)})</span>}
+                    {jobToView?.customerName} {jobToView?.phoneNumber && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber)})</span>}
                   </p>
                 </div>
                 <div>
@@ -674,7 +696,18 @@ export function QueueBoard() {
                     {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
                   </p>
                 </div>
+
                 <div>
+                  <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
+                  <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
+                </div>
+
+                <div>
+                  <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
+                  <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
+                </div>
+
+                <div className="sm:col-span-2">
                   <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
                   <p className="font-medium text-slate-900">{jobToView?.issue || "-"}</p>
                 </div>
@@ -687,7 +720,6 @@ export function QueueBoard() {
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 🌟 ขยายช่องราคาประเมินกลับไป 2 คอลัมน์ */}
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                     <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)

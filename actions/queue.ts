@@ -13,6 +13,8 @@ interface CreateQueueInput {
   issue?: string;
   serviceName?: string; // 🌟 1. เพิ่มบรรทัดนี้เข้าไปครับ
   isManualEntry?: boolean; // บอกว่าช่างคีย์เอง หรือลูกค้าสแกนมา
+  serialNumber?: string; // 🌟 เพิ่มบรรทัดนี้
+  imei?: string;         // 🌟 เพิ่มบรรทัดนี้
 }
 
 export async function createQueue(data: CreateQueueInput) {
@@ -30,6 +32,8 @@ export async function createQueue(data: CreateQueueInput) {
         phoneNumber: data.phoneNumber,
         deviceModel: data.deviceModel,
         deviceColor: data.deviceColor,
+        serialNumber: data.serialNumber, // 🌟 ส่งเข้า DB
+        imei: data.imei,                 // 🌟 ส่งเข้า DB
         issue: data.issue,
         serviceName: data.serviceName, 
         isManualEntry: data.isManualEntry || false,
