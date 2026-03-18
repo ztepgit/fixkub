@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase" 
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,13 +24,13 @@ import {
 // 🌟 Import Tooltip เพิ่มเติม
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Activity, Wrench, PackageCheck, Wallet, Smartphone, Loader2, User, Banknote, 
-  MoreHorizontal, ClipboardList, Barcode, Hash, Phone 
+import {
+  Activity, Wrench, PackageCheck, Wallet, Smartphone, Loader2, User, Banknote,
+  MoreHorizontal, ClipboardList, Barcode, Hash, Phone
 } from "lucide-react"
 
 import { getDashboardStats } from "@/actions/dashboard"
-import { updateQueueStatus } from "@/actions/queue" 
+import { updateQueueStatus } from "@/actions/queue"
 
 const formatPhoneNumber = (phone?: string) => {
   if (!phone) return ""
@@ -63,11 +63,11 @@ export function DashboardOverview() {
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-  
+
   const { toast } = useToast()
 
   const loadStats = async () => {
-    if (!stats) setIsLoading(true) 
+    if (!stats) setIsLoading(true)
     const res = await getDashboardStats("shop_test_001")
     if (res.success) {
       setStats(res.data)
@@ -105,7 +105,7 @@ export function DashboardOverview() {
   const handleSaveDetails = async () => {
     if (!jobToView) return
     setIsSaving(true)
-    
+
     const res = await updateQueueStatus(jobToView.id, jobToView.status, {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
@@ -160,7 +160,7 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">{stats?.todayCount || 0} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
-              <p className="text-xs text-slate-500 mt-1">เครื่องที่ลูกค้านำมาส่งในวันนี้</p>
+              <p className="text-xs text-slate-500 mt-1">รายการลูกค้าแจ้งซ่อมวันนี้</p>
             </CardContent>
           </Card>
 
@@ -171,29 +171,29 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">{stats?.activeCount || 0} <span className="text-sm font-normal text-slate-500">คิว</span></div>
-              <p className="text-xs text-slate-500 mt-1">รอตรวจสอบ และกำลังแกะซ่อม</p>
+              <p className="text-xs text-slate-500 mt-1">ลูกค้าแจ้งซ่อม/รอคิวซ่อม/กำลังแกะซ่อม</p>
             </CardContent>
           </Card>
 
           <Card className="shadow-sm border-emerald-100">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">รอรับเครื่อง</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600">ซ่อมเสร็จแล้ว</CardTitle>
               <PackageCheck className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">{stats?.readyCount || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
-              <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอส่งมอบลูกค้า</p>
+              <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอเก็บเงิน</p>
             </CardContent>
           </Card>
 
           <Card className="shadow-sm border-indigo-100 bg-indigo-50/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-indigo-700">รายได้วันนี้ (ประมาณการ)</CardTitle>
+              <CardTitle className="text-sm font-medium text-indigo-700">รายได้วันนี้</CardTitle>
               <Wallet className="h-4 w-4 text-indigo-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-indigo-900">฿{(stats?.revenueToday || 0).toLocaleString()}</div>
-              <p className="text-xs text-indigo-600/70 mt-1">จากงานที่ปิดจ๊อบสำเร็จวันนี้</p>
+              <p className="text-xs text-indigo-600/70 mt-1">เก็บเงินแล้ว</p>
             </CardContent>
           </Card>
         </div>
@@ -223,7 +223,7 @@ export function DashboardOverview() {
                             {job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`}
                           </Badge>
                         </div>
-                        
+
                         <div className="flex items-center gap-1.5 text-xs text-slate-600 flex-wrap">
                           <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
                             {job.serviceName || "ทั่วไป"}
@@ -241,7 +241,7 @@ export function DashboardOverview() {
                             </span>
                           )}
                           <span className="flex items-center gap-1 text-blue-600 font-medium">
-                            <Banknote className="h-3 w-3" /> 
+                            <Banknote className="h-3 w-3" />
                             {job.estimatedPrice ? `฿${parseInt(job.estimatedPrice).toLocaleString()}` : "ยังไม่ประเมิน"}
                           </span>
                         </div>
@@ -262,13 +262,13 @@ export function DashboardOverview() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="text-right shrink-0 flex flex-col items-end gap-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className={
                           job.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                          job.status === "CANCELLED" || job.status === "ARCHIVED" ? "bg-rose-50 text-rose-700 border-rose-200" :
-                          "bg-blue-50 text-blue-700 border-blue-200"
+                            job.status === "CANCELLED" || job.status === "ARCHIVED" ? "bg-rose-50 text-rose-700 border-rose-200" :
+                              "bg-blue-50 text-blue-700 border-blue-200"
                         }>
                           {translateStatus(job.status)}
                         </Badge>
@@ -342,12 +342,12 @@ export function DashboardOverview() {
                       {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
                     </p>
                   </div>
-                  
+
                   <div>
                     <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
                     <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
                   </div>
-                  
+
                   <div>
                     <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
                     <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
@@ -370,12 +370,12 @@ export function DashboardOverview() {
                     <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
                       <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
                     </Label>
-                    <Input 
-                      id="estimatedPrice" 
-                      type="number" 
-                      placeholder="เช่น 1500" 
-                      value={editPrice} 
-                      onChange={(e) => setEditPrice(e.target.value)} 
+                    <Input
+                      id="estimatedPrice"
+                      type="number"
+                      placeholder="เช่น 1500"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
                       className="max-w-[200px]"
                     />
                   </div>
@@ -384,11 +384,11 @@ export function DashboardOverview() {
                     <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
                       <Barcode className="h-3.5 w-3.5" /> Serial Number
                     </Label>
-                    <Input 
-                      id="serialNumber" 
-                      placeholder="กรอก S/N เครื่อง" 
-                      value={editSn} 
-                      onChange={(e) => setEditSn(e.target.value)} 
+                    <Input
+                      id="serialNumber"
+                      placeholder="กรอก S/N เครื่อง"
+                      value={editSn}
+                      onChange={(e) => setEditSn(e.target.value)}
                     />
                   </div>
 
@@ -396,11 +396,11 @@ export function DashboardOverview() {
                     <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
                       <Hash className="h-3.5 w-3.5" /> IMEI
                     </Label>
-                    <Input 
-                      id="imei" 
-                      placeholder="กรอกเลข IMEI 15 หลัก" 
-                      value={editImei} 
-                      onChange={(e) => setEditImei(e.target.value)} 
+                    <Input
+                      id="imei"
+                      placeholder="กรอกเลข IMEI 15 หลัก"
+                      value={editImei}
+                      onChange={(e) => setEditImei(e.target.value)}
                     />
                   </div>
                 </div>
