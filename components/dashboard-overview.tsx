@@ -143,7 +143,7 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-800">{stats?.todayCount || 0} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
-            <p className="text-xs text-slate-500 mt-1">เครื่องที่ลูกค้านำมาส่งในวันนี้</p>
+            <p className="text-xs text-slate-500 mt-1">รายการลูกค้าแจ้งซ่อมวันนี้</p>
           </CardContent>
         </Card>
 
@@ -154,29 +154,29 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-800">{stats?.activeCount || 0} <span className="text-sm font-normal text-slate-500">คิว</span></div>
-            <p className="text-xs text-slate-500 mt-1">รอตรวจสอบ และกำลังแกะซ่อม</p>
+            <p className="text-xs text-slate-500 mt-1">ลูกค้าแจ้งซ่อม/รอคิวซ่อม/กำลังแกะซ่อม</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-sm border-emerald-100">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">รอรับเครื่อง</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">ซ่อมเสร็จแล้ว</CardTitle>
             <PackageCheck className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-800">{stats?.readyCount || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
-            <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอส่งมอบลูกค้า</p>
+            <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอเก็บเงิน</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-sm border-indigo-100 bg-indigo-50/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-indigo-700">รายได้วันนี้ (ประมาณการ)</CardTitle>
+            <CardTitle className="text-sm font-medium text-indigo-700">รายได้วันนี้</CardTitle>
             <Wallet className="h-4 w-4 text-indigo-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-indigo-900">฿{(stats?.revenueToday || 0).toLocaleString()}</div>
-            <p className="text-xs text-indigo-600/70 mt-1">จากงานที่ปิดจ๊อบสำเร็จวันนี้</p>
+            <p className="text-xs text-indigo-600/70 mt-1">เก็บเงินแล้ว</p>
           </CardContent>
         </Card>
       </div>
