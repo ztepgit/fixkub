@@ -394,8 +394,8 @@ export function QueueBoard() {
                       <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                         <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
-
-                        {/* 🌟 โชว์ S/N / IMEI ในคลังดอง (เอาไอคอนออก) */}
+                        
+                        {/* 🌟 โชว์ S/N / IMEI ในคลังดอง */}
                         {(job.serialNumber || job.imei) && (
                           <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
                             {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
@@ -490,8 +490,8 @@ export function QueueBoard() {
                       </CardHeader>
                       <CardContent className="p-3 pt-0 text-xs text-slate-600">
                         <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
-
-                        {/* 🌟 โชว์ S/N / IMEI ในถังขยะ (เอาไอคอนออก) */}
+                        
+                        {/* 🌟 โชว์ S/N / IMEI ในถังขยะ */}
                         {(job.serialNumber || job.imei) && (
                           <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
                             {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
@@ -627,8 +627,8 @@ export function QueueBoard() {
                                 {job.estimatedPrice && (
                                   <div className="text-blue-600 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
                                 )}
-
-                                {/* 🌟 แสดง S/N และ IMEI บนการ์ดคิวหลัก (เอาไอคอนออก) */}
+                                
+                                {/* 🌟 แสดง S/N และ IMEI บนการ์ดคิวหลัก */}
                                 {(job.serialNumber || job.imei) && (
                                   <div className="flex flex-col gap-0.5 mt-1 pt-1.5 border-t border-slate-200/60 text-[10px] text-slate-500">
                                     {job.serialNumber && <div className="flex items-center gap-1.5">S/N: {job.serialNumber}</div>}
@@ -661,6 +661,7 @@ export function QueueBoard() {
         )}
       </div>
 
+      {/* Dialog ดูรายละเอียด */}
       <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
@@ -696,12 +697,12 @@ export function QueueBoard() {
                     {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
                   </p>
                 </div>
-
+                
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
                   <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
                 </div>
-
+                
                 <div>
                   <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
                   <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
@@ -770,6 +771,58 @@ export function QueueBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 🌟 หน้าต่าง Pop-up สำหรับยกเลิกงาน (เพิ่มใหม่ล่าสุด) */}
+      <Dialog open={!!jobToCancel} onOpenChange={(open) => {
+        if (!open) {
+          setJobToCancel(null)
+          setCancelReason("")
+        }
+      }}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="text-rose-600 flex items-center gap-2 text-lg">
+              <AlertCircle className="h-5 w-5" />
+              ยืนยันการยกเลิกงาน
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-slate-600">
+              คุณกำลังจะยกเลิกคิว <span className="font-bold text-slate-800">{jobToCancel?.jobRef}</span> ของคุณ <span className="font-medium text-slate-800">{jobToCancel?.customerName}</span>
+              <br className="mb-2" />กรุณาระบุเหตุผลในการยกเลิก เพื่อเก็บเป็นสถิติ:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <RadioGroup value={cancelReason} onValueChange={(val) => setCancelReason(val as CancelReason)} className="flex flex-col gap-3">
+              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("CUSTOMER_CANCEL")}>
+                <RadioGroupItem value="CUSTOMER_CANCEL" id="r1" />
+                <Label htmlFor="r1" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าเปลี่ยนใจ / ไม่ซ่อมแล้ว</Label>
+              </div>
+              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_SHOW")}>
+                <RadioGroupItem value="NO_SHOW" id="r2" />
+                <Label htmlFor="r2" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าไม่มา</Label>
+              </div>
+              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("UNREPAIRABLE")}>
+                <RadioGroupItem value="UNREPAIRABLE" id="r3" />
+                <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700">ซ่อมไม่ได้ / บอร์ดพังหนัก</Label>
+              </div>
+              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_PARTS")}>
+                <RadioGroupItem value="NO_PARTS" id="r4" />
+                <Label htmlFor="r4" className="cursor-pointer flex-1 font-medium text-slate-700">ไม่มีอะไหล่ / อะไหล่เลิกผลิต</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <DialogFooter className="gap-3 mt-4 flex flex-row justify-end">
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { setJobToCancel(null); setCancelReason("") }}>
+              ปิดหน้าต่าง
+            </Button>
+            <Button variant="destructive" className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700" onClick={confirmCancelJob} disabled={!cancelReason}>
+              ยืนยันการยกเลิกคิว
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }
