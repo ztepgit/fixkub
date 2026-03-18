@@ -1,7 +1,6 @@
-"use server"; // 🌟 บรรทัดนี้สำคัญมาก! เป็นการบอก Next.js ว่าไฟล์นี้คือฝั่ง Server เท่านั้น
+"use server";
 
 import { db } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 
 // กำหนด Type ข้อมูลที่จะรับมาจากหน้าเว็บ
 interface CreateQueueInput {
@@ -78,30 +77,40 @@ export async function getQueues(shopId: string) {
 // 🌟 เปลี่ยนให้รับข้อมูลอื่นๆ เพิ่มเติมได้ เช่น เหตุผลการยกเลิก หรือ เวลาที่ปิดจ๊อบ
 export async function updateQueueStatus(id: string, status: string, additionalData?: any) {
   try {
-    // 1. เตรียมข้อมูลที่จะอัปเดต
+    // 🌟 1. ดึงข้อมูลคิวเดิมจาก Database มาตรวจสอบก่อน
+    // เพื่อป้องกันไม่ให้เวลารีเซ็ตใหม่ ตอนที่ช่างแค่กดอัปเดตราคาหรือเลข IMEI
+    const existingQueue = await db.queue.findUnique({
+      where: { id }
+    });
+
+    if (!existingQueue) {
+      return { success: false, error: "ไม่พบข้อมูลคิวนี้ในระบบ" };
+    }
+
+    // 2. เตรียมข้อมูลที่จะอัปเดต
     const updateData: any = { 
       status, 
       ...additionalData 
     };
 
-    // 🌟 2. ดักจับสถานะ เพื่อประทับตราเวลา (Timestamp) ลง DB อัตโนมัติสำหรับการทำ Report
-    if (status === "WAITING" && !updateData.acceptedAt) {
+    // 🌟 3. ดักจับสถานะ โดยเช็คจาก existingQueue ว่าเคยมีเวลาประทับไว้หรือยัง?
+    if (status === "WAITING" && !existingQueue.acceptedAt) {
       updateData.acceptedAt = new Date(); // เวลารับเครื่องเข้าคิว
     } 
-    else if (status === "PROCESSING" && !updateData.startedAt) {
+    else if (status === "PROCESSING" && !existingQueue.startedAt) {
       updateData.startedAt = new Date(); // เวลาเริ่มแกะซ่อม
     } 
-    else if (status === "REPAIRED" && !updateData.repairedAt) {
+    else if (status === "REPAIRED" && !existingQueue.repairedAt) {
       updateData.repairedAt = new Date(); // เวลาซ่อมเสร็จ
     } 
-    else if (status === "COMPLETED" && !updateData.completedAt) {
+    else if (status === "COMPLETED" && !existingQueue.completedAt) {
       updateData.completedAt = new Date(); // เวลาส่งมอบเครื่อง/รับเงิน
     }
-    else if (status === "CANCELLED" && !updateData.cancelledAt) {
+    else if (status === "CANCELLED" && !existingQueue.cancelledAt) {
       updateData.cancelledAt = new Date(); // เวลายกเลิกคิว
     }
 
-    // 3. บันทึกลง Database
+    // 4. บันทึกลง Database
     const updatedQueue = await db.queue.update({
       where: { id },
       data: updateData,
@@ -121,7 +130,6 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
     };
   }
 }
-
 // --- วางต่อท้ายไฟล์ actions/queue.ts ---
 
 // ค้นหาคิวสำหรับลูกค้า (ค้นจากเลขบิล หรือ เบอร์โทร)
