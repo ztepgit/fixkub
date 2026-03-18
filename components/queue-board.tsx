@@ -29,6 +29,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+// 🌟 Import Tooltip เพิ่มเติม
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
@@ -91,6 +93,20 @@ const formatPhoneNumber = (phone?: string) => {
   if (cleaned.length === 10) return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
   if (cleaned.length === 9) return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 5)}-${cleaned.slice(5)}`
   return phone
+}
+
+// 🌟 สร้างฟังก์ชันแปลงวันที่แบบย่อ และแบบเต็ม (มีเวลา)
+const formatShortDate = (date?: Date | string) => {
+  if (!date) return ""
+  return new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
+}
+
+const formatFullDateTime = (date?: Date | string) => {
+  if (!date) return ""
+  return new Date(date).toLocaleString('th-TH', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  }) + ' น.'
 }
 
 export function QueueBoard() {
@@ -338,502 +354,537 @@ export function QueueBoard() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen md:min-h-0 md:h-[calc(100vh-8rem)]">
+    <TooltipProvider>
+      <div className="flex flex-col min-h-screen md:min-h-0 md:h-[calc(100vh-8rem)]">
 
-      {/* ส่วนหัวกระดาน & ปุ่มถังขยะ */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">กระดานคิวงานซ่อม</h2>
-          <p className="text-sm text-slate-500">อัปเดตสถานะงานซ่อมได้ง่ายๆ</p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-
-          {/* 🌟 Sheet คลังเครื่องค้าง */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
-                <Archive className="mr-2 h-4 w-4 text-amber-500" /> คลังดอง
-                {archivedJobs.length > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200">
-                    {archivedJobs.length}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
-              <SheetHeader className="shrink-0">
-                <SheetTitle className="flex items-center gap-2 text-amber-600">
-                  <Archive className="h-5 w-5" /> คลังดอง
-                </SheetTitle>
-                <SheetDescription>
-                  งานที่ซ่อมเสร็จแล้ว แต่ลูกค้ายังไม่มารับ
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="flex-1 overflow-y-auto mt-6 space-y-3">
-                {archivedJobs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
-                    <Archive className="h-10 w-10 opacity-20" />
-                    <p className="text-sm">ไม่มีรายการ</p>
-                  </div>
-                ) : (
-                  archivedJobs.map(job => (
-                    <Card key={job.id} className="shadow-sm border-amber-200 bg-white">
-                      <CardHeader className="p-3 pb-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 mb-1">
-                              {job.jobRef}
-                            </Badge>
-                            <CardTitle className="text-sm font-bold">
-                              {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
-                            </CardTitle>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
-                        <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
-                        <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
-                        
-                        {/* 🌟 แสดงราคาประเมิน */}
-                        {job.estimatedPrice && (
-                          <p><span className="font-semibold">ประเมิน:</span> <span className="text-blue-600 font-medium">฿{job.estimatedPrice}</span></p>
-                        )}
-                        
-                        {/* 🌟 โชว์ S/N / IMEI ในคลังดอง */}
-                        {(job.serialNumber || job.imei) && (
-                          <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
-                            {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
-                            {job.imei && <p className="flex items-center gap-1"><span className="font-semibold">IMEI:</span> {job.imei}</p>}
-                          </div>
-                        )}
-                      </CardContent>
-
-                      <CardFooter className="p-3 pt-0 flex flex-col gap-2 border-t border-slate-50 mt-2">
-                        <Button
-                          className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={() => completeArchivedJob(job.id)}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" /> ลูกค้ามารับเครื่อง (ปิดจ๊อบ)
-                        </Button>
-                        <div className="flex gap-2 w-full">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
-                            onClick={() => unarchiveJob(job.id)}
-                          >
-                            <RotateCcw className="h-3 w-3 mr-1" /> ดึงกลับ
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-8 text-rose-600 border-rose-200 hover:bg-rose-50"
-                            onClick={() => markAsUncontactable(job.id, job.jobRef)}
-                          >
-                            <UserX className="h-3 w-3 mr-1" /> ติดต่อไม่ได้
-                          </Button>
-                        </div>
-                      </CardFooter>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {/* 🌟 ถังขยะ */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
-                <Trash2 className="mr-2 h-4 w-4 text-rose-500" /> ถังขยะ
-                {trashedJobs.length > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full">
-                    {trashedJobs.length}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
-              <SheetHeader className="shrink-0">
-                <SheetTitle className="flex items-center gap-2 text-rose-600">
-                  <Trash2 className="h-5 w-5" /> ถังขยะ (งานที่ถูกยกเลิก)
-                </SheetTitle>
-                <SheetDescription>
-                  งานในถังขยะจะถูกลบถาวรอัตโนมัติเมื่อครบ 30 วัน
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="flex-1 overflow-y-auto mt-6 space-y-3">
-                {trashedJobs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
-                    <Trash2 className="h-10 w-10 opacity-20" />
-                    <p className="text-sm">ไม่มีงานในถังขยะ</p>
-                  </div>
-                ) : (
-                  trashedJobs.map(job => (
-                    <Card key={job.id} className="shadow-sm border-rose-100 bg-white">
-                      <CardHeader className="p-3 pb-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 mb-1">
-                              {job.jobRef}
-                            </Badge>
-                            <CardTitle className="text-sm font-bold">
-                              {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
-                            </CardTitle>
-                          </div>
-                          <span className="text-xs font-medium text-rose-500 bg-rose-50 px-2 py-1 rounded">
-                            {job.cancelReason === "NO_SHOW" && "ลูกค้าไม่มา"}
-                            {job.cancelReason === "CUSTOMER_CANCEL" && "ลูกค้าไม่ซ่อมแล้ว"}
-                            {job.cancelReason === "UNREPAIRABLE" && "ซ่อมไม่ได้"}
-                            {job.cancelReason === "NO_PARTS" && "ไม่มีอะไหล่"}
-                            {job.cancelReason === "UNCONTACTABLE" && "ติดต่อไม่ได้/ทิ้งเครื่อง"}
-                            {!job.cancelReason && "ยกเลิกงาน"}
-                          </span>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
-                        <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
-                        <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
-                        
-                        {/* 🌟 แสดงราคาประเมินในถังขยะด้วย */}
-                        {job.estimatedPrice && (
-                          <p><span className="font-semibold">ประเมิน:</span> <span className="text-blue-600 font-medium">฿{job.estimatedPrice}</span></p>
-                        )}
-                        
-                        {/* 🌟 โชว์ S/N / IMEI ในถังขยะ */}
-                        {(job.serialNumber || job.imei) && (
-                          <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
-                            {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
-                            {job.imei && <p className="flex items-center gap-1"><span className="font-semibold">IMEI:</span> {job.imei}</p>}
-                          </div>
-                        )}
-                      </CardContent>
-                      <CardFooter className="p-3 pt-0 flex gap-2 border-t border-slate-50 mt-2">
-                        <Button variant="outline" size="sm" className="flex-1 h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => restoreJob(job.id)}>
-                          <RotateCcw className="h-3 w-3 mr-1" /> คืนค่า
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1 h-8 text-rose-600 border-rose-300 hover:bg-rose-50 hover:border-rose-400" onClick={() => setJobToDelete(job)}>
-                          ลบถาวร
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))
-                )}
-              </div>
-
-              {trashedJobs.length > 0 && (
-                <div className="pt-4 border-t shrink-0">
-                  <Button variant="destructive" className="w-full" onClick={() => setIsConfirmEmptyOpen(true)}>
-                    <AlertCircle className="mr-2 h-4 w-4" /> ล้างถังขยะทั้งหมด (Empty Bin)
-                  </Button>
-                </div>
-              )}
-            </SheetContent>
-          </Sheet>
-
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 shadow-sm">
-                <Plus className="mr-2 h-4 w-4" /> สร้างใบสั่งซ่อม
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
-              <DialogTitle className="sr-only">สร้างใบสั่งซ่อมใหม่</DialogTitle>
-              <ShopOwnerCreateQueue
-                onCancel={() => setIsCreateOpen(false)}
-                onSuccess={() => {
-                  setIsCreateOpen(false)
-                  loadQueues()
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {/* กระดาน Kanban */}
-      <div className="flex-1 overflow-x-hidden md:overflow-x-auto pb-4">
-        {isLoading ? (
-          <div className="flex h-[450px] w-full items-center justify-center text-slate-400 gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-            <p>กำลังโหลดข้อมูลคิว...</p>
+        {/* ส่วนหัวกระดาน & ปุ่มถังขยะ */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">กระดานคิวงานซ่อม</h2>
+            <p className="text-sm text-slate-500">อัปเดตสถานะงานซ่อมได้ง่ายๆ</p>
           </div>
-        ) : (
-          <div className="flex flex-col md:flex-row gap-4 h-full md:items-start md:justify-center">
-            {COLUMNS.map((col) => {
-              const columnJobs = jobs.filter(j => j.status === col.id)
-              const Icon = col.icon
-              return (
-                <div key={col.id} className={`w-full md:w-[320px] md:shrink-0 rounded-xl border-2 flex flex-col h-[450px] md:h-full overflow-hidden ${col.color}`}>
-                  <div className="p-3 border-b border-black/5 bg-white/50 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Icon className={`h-5 w-5 ${col.iconColor}`} />
-                      <h3 className="font-bold text-slate-700">{col.title}</h3>
-                    </div>
-                    <Badge variant="secondary" className="font-bold shadow-sm">
-                      {columnJobs.length}
+          <div className="flex gap-2 w-full sm:w-auto">
+
+            {/* 🌟 Sheet คลังเครื่องค้าง */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
+                  <Archive className="mr-2 h-4 w-4 text-amber-500" /> คลังดอง
+                  {archivedJobs.length > 0 && (
+                    <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200">
+                      {archivedJobs.length}
                     </Badge>
-                  </div>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
+                <SheetHeader className="shrink-0">
+                  <SheetTitle className="flex items-center gap-2 text-amber-600">
+                    <Archive className="h-5 w-5" /> คลังดอง
+                  </SheetTitle>
+                  <SheetDescription>
+                    งานที่ซ่อมเสร็จแล้ว แต่ลูกค้ายังไม่มารับ
+                  </SheetDescription>
+                </SheetHeader>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto p-3">
-                    <div className="space-y-3 pb-2">
-                      {columnJobs.length === 0 ? (
-                        <div className="text-center p-4 py-8 text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
-                          ไม่มีงานในสถานะนี้
-                        </div>
-                      ) : (
-                        columnJobs.map((job) => (
-                          <Card key={job.id} className="shadow-sm border-slate-200 hover:border-emerald-300 transition-colors cursor-default relative group">
-                            <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between space-y-0">
-                              <div>
-                                <Badge variant="outline" className={`text-white border-transparent ${col.badgeColor} mb-1`}>
-                                  {job.jobRef}
-                                </Badge>
-                                <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-slate-800">
-                                  <Smartphone className="h-4 w-4 text-emerald-600 shrink-0" />
-                                  <span className="truncate">
-                                    {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
-                                  </span>
-                                </CardTitle>
-                              </div>
+                <div className="flex-1 overflow-y-auto mt-6 space-y-3">
+                  {archivedJobs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
+                      <Archive className="h-10 w-10 opacity-20" />
+                      <p className="text-sm">ไม่มีรายการ</p>
+                    </div>
+                  ) : (
+                    archivedJobs.map(job => (
+                      <Card key={job.id} className="shadow-sm border-amber-200 bg-white">
+                        <CardHeader className="p-3 pb-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 mb-1">
+                                {job.jobRef}
+                              </Badge>
+                              <CardTitle className="text-sm font-bold">
+                                {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                              </CardTitle>
+                            </div>
+                            
+                            {/* 🌟 แสดงวันที่บนการ์ดในคลังดอง พร้อม Tooltip */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="text-[10px] text-slate-400 cursor-help whitespace-nowrap mt-1">
+                                  {formatShortDate(job.createdAt)}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{formatFullDateTime(job.createdAt)}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
+                          <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
+                          <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
+                          
+                          {job.estimatedPrice && (
+                            <p><span className="font-semibold">ประเมิน:</span> <span className="text-blue-600 font-medium">฿{job.estimatedPrice}</span></p>
+                          )}
+                          
+                          {(job.serialNumber || job.imei) && (
+                            <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
+                              {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
+                              {job.imei && <p className="flex items-center gap-1"><span className="font-semibold">IMEI:</span> {job.imei}</p>}
+                            </div>
+                          )}
+                        </CardContent>
 
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-52">
-                                  <DropdownMenuItem className="cursor-pointer" onClick={() => setJobToView(job)}>
-                                    <ClipboardList className="mr-2 h-4 w-4 text-blue-600" />
-                                    รายละเอียด / ประเมินราคา
-                                  </DropdownMenuItem>
+                        <CardFooter className="p-3 pt-0 flex flex-col gap-2 border-t border-slate-50 mt-2">
+                          <Button
+                            className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => completeArchivedJob(job.id)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" /> ลูกค้ามารับเครื่อง (ปิดจ๊อบ)
+                          </Button>
+                          <div className="flex gap-2 w-full">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
+                              onClick={() => unarchiveJob(job.id)}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" /> ดึงกลับ
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 h-8 text-rose-600 border-rose-200 hover:bg-rose-50"
+                              onClick={() => markAsUncontactable(job.id, job.jobRef)}
+                            >
+                              <UserX className="h-3 w-3 mr-1" /> ติดต่อไม่ได้
+                            </Button>
+                          </div>
+                        </CardFooter>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
 
-                                  {col.id !== "REPAIRED" ? (
-                                    <DropdownMenuItem className="text-rose-600 focus:bg-rose-50 focus:text-rose-700 cursor-pointer" onClick={() => setJobToCancel(job)}>
-                                      <XCircle className="mr-2 h-4 w-4" />
-                                      ยกเลิกงาน
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem className="text-amber-600 focus:bg-amber-50 focus:text-amber-700 cursor-pointer" onClick={() => handleMoveToArchive(job.id, job.jobRef)}>
-                                      <Archive className="mr-2 h-4 w-4" />
-                                      ย้ายเครื่องเข้าคลัง
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </CardHeader>
+            {/* 🌟 ถังขยะ */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
+                  <Trash2 className="mr-2 h-4 w-4 text-rose-500" /> ถังขยะ
+                  {trashedJobs.length > 0 && (
+                    <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                      {trashedJobs.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
+                <SheetHeader className="shrink-0">
+                  <SheetTitle className="flex items-center gap-2 text-rose-600">
+                    <Trash2 className="h-5 w-5" /> ถังขยะ (งานที่ถูกยกเลิก)
+                  </SheetTitle>
+                  <SheetDescription>
+                    งานในถังขยะจะถูกลบถาวรอัตโนมัติเมื่อครบ 30 วัน
+                  </SheetDescription>
+                </SheetHeader>
 
-                            <CardContent className="p-3 pt-0 text-sm space-y-2">
-                              <div className="flex items-center justify-between text-slate-600">
-                                <span className="font-medium truncate mr-2">
-                                  {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-xs text-slate-400 font-normal">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}
-                                </span>
-                                <span className="text-[10px] text-slate-400 whitespace-nowrap shrink-0">{job.timeElapsed || new Date(job.createdAt || new Date()).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })}</span>
-                              </div>
-                              <div className="bg-slate-50 p-2 rounded border border-slate-100 text-xs text-slate-600 flex flex-col gap-1">
-                                <div><span className="font-semibold text-emerald-700">[{job.serviceName || "ทั่วไป"}]</span> {job.issue || "-"}</div>
-                                {job.estimatedPrice && (
-                                  <div className="text-blue-600 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
-                                )}
-                                
-                                {/* 🌟 แสดง S/N และ IMEI บนการ์ดคิวหลัก */}
-                                {(job.serialNumber || job.imei) && (
-                                  <div className="flex flex-col gap-0.5 mt-1 pt-1.5 border-t border-slate-200/60 text-[10px] text-slate-500">
-                                    {job.serialNumber && <div className="flex items-center gap-1.5">S/N: {job.serialNumber}</div>}
-                                    {job.imei && <div className="flex items-center gap-1.5">IMEI: {job.imei}</div>}
+                <div className="flex-1 overflow-y-auto mt-6 space-y-3">
+                  {trashedJobs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
+                      <Trash2 className="h-10 w-10 opacity-20" />
+                      <p className="text-sm">ไม่มีงานในถังขยะ</p>
+                    </div>
+                  ) : (
+                    trashedJobs.map(job => (
+                      <Card key={job.id} className="shadow-sm border-rose-100 bg-white">
+                        <CardHeader className="p-3 pb-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 mb-1">
+                                {job.jobRef}
+                              </Badge>
+                              <CardTitle className="text-sm font-bold">
+                                {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                              </CardTitle>
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-1.5">
+                              <span className="text-xs font-medium text-rose-500 bg-rose-50 px-2 py-1 rounded">
+                                {job.cancelReason === "NO_SHOW" && "ลูกค้าไม่มา"}
+                                {job.cancelReason === "CUSTOMER_CANCEL" && "ลูกค้าไม่ซ่อมแล้ว"}
+                                {job.cancelReason === "UNREPAIRABLE" && "ซ่อมไม่ได้"}
+                                {job.cancelReason === "NO_PARTS" && "ไม่มีอะไหล่"}
+                                {job.cancelReason === "UNCONTACTABLE" && "ติดต่อไม่ได้/ทิ้งเครื่อง"}
+                                {!job.cancelReason && "ยกเลิกงาน"}
+                              </span>
+                              
+                              {/* 🌟 แสดงวันที่บนการ์ดในถังขยะ พร้อม Tooltip */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-[10px] text-slate-400 cursor-help whitespace-nowrap">
+                                    {formatShortDate(job.createdAt)}
                                   </div>
-                                )}
-                              </div>
-                            </CardContent>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{formatFullDateTime(job.createdAt)}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 text-xs text-slate-600 space-y-1">
+                          <p><span className="font-semibold">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
+                          <p><span className="font-semibold">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
+                          
+                          {job.estimatedPrice && (
+                            <p><span className="font-semibold">ประเมิน:</span> <span className="text-blue-600 font-medium">฿{job.estimatedPrice}</span></p>
+                          )}
+                          
+                          {(job.serialNumber || job.imei) && (
+                            <div className="pt-1.5 mt-1 border-t border-slate-100 text-[10px] text-slate-500 space-y-0.5">
+                              {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
+                              {job.imei && <p className="flex items-center gap-1"><span className="font-semibold">IMEI:</span> {job.imei}</p>}
+                            </div>
+                          )}
+                        </CardContent>
+                        <CardFooter className="p-3 pt-0 flex gap-2 border-t border-slate-50 mt-2">
+                          <Button variant="outline" size="sm" className="flex-1 h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => restoreJob(job.id)}>
+                            <RotateCcw className="h-3 w-3 mr-1" /> คืนค่า
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1 h-8 text-rose-600 border-rose-300 hover:bg-rose-50 hover:border-rose-400" onClick={() => setJobToDelete(job)}>
+                            ลบถาวร
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))
+                  )}
+                </div>
+                
+                {trashedJobs.length > 0 && (
+                  <div className="pt-4 border-t shrink-0">
+                    <Button variant="destructive" className="w-full" onClick={() => setIsConfirmEmptyOpen(true)}>
+                      <AlertCircle className="mr-2 h-4 w-4" /> ล้างถังขยะทั้งหมด (Empty Bin)
+                    </Button>
+                  </div>
+                )}
+              </SheetContent>
+            </Sheet>
 
-                            <CardFooter className="p-3 pt-0 flex gap-2">
-                              <Button
-                                onClick={() => moveJob(job.id, job.status)}
-                                className="w-full text-xs h-8 bg-white text-slate-700 border border-slate-300 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
-                              >
-                                {job.status === "PENDING" && "รับเครื่องเข้าคิว"}
-                                {job.status === "WAITING" && "เริ่มลงมือซ่อม"}
-                                {job.status === "PROCESSING" && "ซ่อมเสร็จแล้ว"}
-                                {job.status === "REPAIRED" && "ลูกค้ามารับแล้ว (จบงาน)"}
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        ))
-                      )}
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 shadow-sm">
+                  <Plus className="mr-2 h-4 w-4" /> สร้างใบสั่งซ่อม
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none">
+                <DialogTitle className="sr-only">สร้างใบสั่งซ่อมใหม่</DialogTitle>
+                <ShopOwnerCreateQueue
+                  onCancel={() => setIsCreateOpen(false)}
+                  onSuccess={() => {
+                    setIsCreateOpen(false)
+                    loadQueues()
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+
+        {/* กระดาน Kanban */}
+        <div className="flex-1 overflow-x-hidden md:overflow-x-auto pb-4">
+          {isLoading ? (
+            <div className="flex h-[450px] w-full items-center justify-center text-slate-400 gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+              <p>กำลังโหลดข้อมูลคิว...</p>
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-4 h-full md:items-start md:justify-center">
+              {COLUMNS.map((col) => {
+                const columnJobs = jobs.filter(j => j.status === col.id)
+                const Icon = col.icon
+                return (
+                  <div key={col.id} className={`w-full md:w-[320px] md:shrink-0 rounded-xl border-2 flex flex-col h-[450px] md:h-full overflow-hidden ${col.color}`}>
+                    <div className="p-3 border-b border-black/5 bg-white/50 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-5 w-5 ${col.iconColor}`} />
+                        <h3 className="font-bold text-slate-700">{col.title}</h3>
+                      </div>
+                      <Badge variant="secondary" className="font-bold shadow-sm">
+                        {columnJobs.length}
+                      </Badge>
+                    </div>
+
+                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                      <div className="space-y-3 pb-2">
+                        {columnJobs.length === 0 ? (
+                          <div className="text-center p-4 py-8 text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+                            ไม่มีงานในสถานะนี้
+                          </div>
+                        ) : (
+                          columnJobs.map((job) => (
+                            <Card key={job.id} className="shadow-sm border-slate-200 hover:border-emerald-300 transition-colors cursor-default relative group">
+                              <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between space-y-0">
+                                <div>
+                                  <Badge variant="outline" className={`text-white border-transparent ${col.badgeColor} mb-1`}>
+                                    {job.jobRef}
+                                  </Badge>
+                                  <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-slate-800">
+                                    <Smartphone className="h-4 w-4 text-emerald-600 shrink-0" />
+                                    <span className="truncate">
+                                      {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                                    </span>
+                                  </CardTitle>
+                                </div>
+
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-52">
+                                    <DropdownMenuItem className="cursor-pointer" onClick={() => setJobToView(job)}>
+                                      <ClipboardList className="mr-2 h-4 w-4 text-blue-600" />
+                                      รายละเอียด / ประเมินราคา
+                                    </DropdownMenuItem>
+
+                                    {col.id !== "REPAIRED" ? (
+                                      <DropdownMenuItem className="text-rose-600 focus:bg-rose-50 focus:text-rose-700 cursor-pointer" onClick={() => setJobToCancel(job)}>
+                                        <XCircle className="mr-2 h-4 w-4" />
+                                        ยกเลิกงาน
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem className="text-amber-600 focus:bg-amber-50 focus:text-amber-700 cursor-pointer" onClick={() => handleMoveToArchive(job.id, job.jobRef)}>
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        ย้ายเครื่องเข้าคลัง
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </CardHeader>
+
+                              <CardContent className="p-3 pt-0 text-sm space-y-2">
+                                <div className="flex items-center justify-between text-slate-600">
+                                  <span className="font-medium truncate mr-2">
+                                    {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-xs text-slate-400 font-normal">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}
+                                  </span>
+                                  
+                                  {/* 🌟 แสดงวันที่แบบมี Tooltip บนการ์ดคิวปกติ */}
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-[10px] text-slate-400 whitespace-nowrap shrink-0 cursor-help">
+                                        {job.timeElapsed || formatShortDate(job.createdAt)}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{formatFullDateTime(job.createdAt)}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <div className="bg-slate-50 p-2 rounded border border-slate-100 text-xs text-slate-600 flex flex-col gap-1">
+                                  <div><span className="font-semibold text-emerald-700">[{job.serviceName || "ทั่วไป"}]</span> {job.issue || "-"}</div>
+                                  {job.estimatedPrice && (
+                                    <div className="text-blue-600 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
+                                  )}
+                                  
+                                  {(job.serialNumber || job.imei) && (
+                                    <div className="flex flex-col gap-0.5 mt-1 pt-1.5 border-t border-slate-200/60 text-[10px] text-slate-500">
+                                      {job.serialNumber && <div className="flex items-center gap-1.5">S/N: {job.serialNumber}</div>}
+                                      {job.imei && <div className="flex items-center gap-1.5">IMEI: {job.imei}</div>}
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+
+                              <CardFooter className="p-3 pt-0 flex gap-2">
+                                <Button
+                                  onClick={() => moveJob(job.id, job.status)}
+                                  className="w-full text-xs h-8 bg-white text-slate-700 border border-slate-300 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
+                                >
+                                  {job.status === "PENDING" && "รับเครื่องเข้าคิว"}
+                                  {job.status === "WAITING" && "เริ่มลงมือซ่อม"}
+                                  {job.status === "PROCESSING" && "ซ่อมเสร็จแล้ว"}
+                                  {job.status === "REPAIRED" && "ลูกค้ามารับแล้ว (จบงาน)"}
+                                </Button>
+                              </CardFooter>
+                            </Card>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
-      {/* Dialog ดูรายละเอียด */}
-      <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <div className="flex items-center justify-between pr-6">
-              <DialogTitle className="text-xl">
-                รายละเอียดคิว <span className="text-blue-600">{jobToView?.jobRef}</span>
+        {/* Dialog ดูรายละเอียด */}
+        <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
+          <DialogContent className="sm:max-w-[550px]">
+            <DialogHeader>
+              <div className="flex items-center justify-between pr-6">
+                <DialogTitle className="text-xl">
+                  รายละเอียดคิว <span className="text-blue-600">{jobToView?.jobRef}</span>
+                </DialogTitle>
+                <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+                  {jobToView ? translateStatus(jobToView.status) : ""}
+                </span>
+              </div>
+              <DialogDescription>
+                ตรวจสอบข้อมูลลูกค้าและบันทึกรายละเอียดเชิงลึกสำหรับงานซ่อม
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-6 py-2">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4">
+                  <div>
+                    <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
+                    <p className="font-medium text-slate-900">
+                      {jobToView?.customerName} {jobToView?.phoneNumber && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber)})</span>}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1 text-xs">บริการ / อาการ</span>
+                    <p className="font-medium text-emerald-700">{jobToView?.serviceName || "ทั่วไป"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block mb-1 text-xs">รุ่นเครื่อง</span>
+                    <p className="font-medium text-slate-900">
+                      {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
+                    <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
+                  </div>
+                  
+                  <div>
+                    <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
+                    <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
+                    <p className="font-medium text-slate-900">{jobToView?.issue || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-semibold text-slate-800 flex items-center gap-2 border-b pb-2">
+                  <Wrench className="h-4 w-4 text-slate-500" /> ข้อมูลสำหรับช่าง (ไม่บังคับ)
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
+                      <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
+                    </Label>
+                    <Input
+                      id="estimatedPrice"
+                      type="number"
+                      placeholder="เช่น 1500"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      className="max-w-[200px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
+                      <Barcode className="h-3.5 w-3.5" /> Serial Number
+                    </Label>
+                    <Input
+                      id="serialNumber"
+                      placeholder="กรอก S/N เครื่อง"
+                      value={editSn}
+                      onChange={(e) => setEditSn(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
+                      <Hash className="h-3.5 w-3.5" /> IMEI
+                    </Label>
+                    <Input
+                      id="imei"
+                      placeholder="กรอกเลข IMEI 15 หลัก"
+                      value={editImei}
+                      onChange={(e) => setEditImei(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 mt-4">
+              <Button variant="outline" onClick={() => setJobToView(null)} disabled={isSaving}>ปิดหน้าต่าง</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isSaving ? "กำลังบันทึก..." : "บันทึกข้อมูลช่าง"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* หน้าต่าง Pop-up สำหรับยกเลิกงาน */}
+        <Dialog open={!!jobToCancel} onOpenChange={(open) => {
+          if (!open) {
+            setJobToCancel(null)
+            setCancelReason("")
+          }
+        }}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle className="text-rose-600 flex items-center gap-2 text-lg">
+                <AlertCircle className="h-5 w-5" />
+                ยืนยันการยกเลิกงาน
               </DialogTitle>
-              <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
-                {jobToView ? translateStatus(jobToView.status) : ""}
-              </span>
-            </div>
-            <DialogDescription>
-              ตรวจสอบข้อมูลลูกค้าและบันทึกรายละเอียดเชิงลึกสำหรับงานซ่อม
-            </DialogDescription>
-          </DialogHeader>
+              <DialogDescription className="pt-2 text-slate-600">
+                คุณกำลังจะยกเลิกคิว <span className="font-bold text-slate-800">{jobToCancel?.jobRef}</span> ของคุณ <span className="font-medium text-slate-800">{jobToCancel?.customerName}</span>
+                <br className="mb-2" />กรุณาระบุเหตุผลในการยกเลิก เพื่อเก็บเป็นสถิติ:
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid gap-6 py-2">
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4">
-                <div>
-                  <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
-                  <p className="font-medium text-slate-900">
-                    {jobToView?.customerName} {jobToView?.phoneNumber && <span className="text-slate-500 font-normal">({formatPhoneNumber(jobToView.phoneNumber)})</span>}
-                  </p>
+            <div className="py-2">
+              <RadioGroup value={cancelReason} onValueChange={(val) => setCancelReason(val as CancelReason)} className="flex flex-col gap-3">
+                <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("CUSTOMER_CANCEL")}>
+                  <RadioGroupItem value="CUSTOMER_CANCEL" id="r1" />
+                  <Label htmlFor="r1" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าเปลี่ยนใจ / ไม่ซ่อมแล้ว</Label>
                 </div>
-                <div>
-                  <span className="text-slate-500 block mb-1 text-xs">บริการ / อาการ</span>
-                  <p className="font-medium text-emerald-700">{jobToView?.serviceName || "ทั่วไป"}</p>
+                <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_SHOW")}>
+                  <RadioGroupItem value="NO_SHOW" id="r2" />
+                  <Label htmlFor="r2" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าไม่มาส่งเครื่องตามนัด</Label>
                 </div>
-                <div>
-                  <span className="text-slate-500 block mb-1 text-xs">รุ่นเครื่อง</span>
-                  <p className="font-medium text-slate-900">
-                    {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
-                  </p>
+                <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("UNREPAIRABLE")}>
+                  <RadioGroupItem value="UNREPAIRABLE" id="r3" />
+                  <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700">เครื่องซ่อมไม่ได้ / บอร์ดพังหนัก</Label>
                 </div>
-                
-                <div>
-                  <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
-                  <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
+                <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_PARTS")}>
+                  <RadioGroupItem value="NO_PARTS" id="r4" />
+                  <Label htmlFor="r4" className="cursor-pointer flex-1 font-medium text-slate-700">ไม่มีอะไหล่ / อะไหล่เลิกผลิต</Label>
                 </div>
-                
-                <div>
-                  <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
-                  <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
-                  <p className="font-medium text-slate-900">{jobToView?.issue || "-"}</p>
-                </div>
-              </div>
+              </RadioGroup>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-800 flex items-center gap-2 border-b pb-2">
-                <Wrench className="h-4 w-4 text-slate-500" /> ข้อมูลสำหรับช่าง (ไม่บังคับ)
-              </h4>
+            <DialogFooter className="gap-3 mt-4 flex flex-row justify-end">
+              <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { setJobToCancel(null); setCancelReason("") }}>
+                ปิดหน้าต่าง
+              </Button>
+              <Button variant="destructive" className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700" onClick={confirmCancelJob} disabled={!cancelReason}>
+                ยืนยันการยกเลิกคิว
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
-                    <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
-                  </Label>
-                  <Input
-                    id="estimatedPrice"
-                    type="number"
-                    placeholder="เช่น 1500"
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    className="max-w-[200px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
-                    <Barcode className="h-3.5 w-3.5" /> Serial Number
-                  </Label>
-                  <Input
-                    id="serialNumber"
-                    placeholder="กรอก S/N เครื่อง"
-                    value={editSn}
-                    onChange={(e) => setEditSn(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
-                    <Hash className="h-3.5 w-3.5" /> IMEI
-                  </Label>
-                  <Input
-                    id="imei"
-                    placeholder="กรอกเลข IMEI 15 หลัก"
-                    value={editImei}
-                    onChange={(e) => setEditImei(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 mt-4">
-            <Button variant="outline" onClick={() => setJobToView(null)} disabled={isSaving}>ปิดหน้าต่าง</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {isSaving ? "กำลังบันทึก..." : "บันทึกข้อมูลช่าง"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 🌟 หน้าต่าง Pop-up สำหรับยกเลิกงาน */}
-      <Dialog open={!!jobToCancel} onOpenChange={(open) => {
-        if (!open) {
-          setJobToCancel(null)
-          setCancelReason("")
-        }
-      }}>
-        <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader>
-            <DialogTitle className="text-rose-600 flex items-center gap-2 text-lg">
-              <AlertCircle className="h-5 w-5" />
-              ยืนยันการยกเลิกงาน
-            </DialogTitle>
-            <DialogDescription className="pt-2 text-slate-600">
-              คุณกำลังจะยกเลิกคิว <span className="font-bold text-slate-800">{jobToCancel?.jobRef}</span> ของคุณ <span className="font-medium text-slate-800">{jobToCancel?.customerName}</span>
-              <br className="mb-2" />กรุณาระบุเหตุผลในการยกเลิก เพื่อเก็บเป็นสถิติ:
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-2">
-            <RadioGroup value={cancelReason} onValueChange={(val) => setCancelReason(val as CancelReason)} className="flex flex-col gap-3">
-              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("CUSTOMER_CANCEL")}>
-                <RadioGroupItem value="CUSTOMER_CANCEL" id="r1" />
-                <Label htmlFor="r1" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าเปลี่ยนใจ / ไม่ซ่อมแล้ว</Label>
-              </div>
-              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_SHOW")}>
-                <RadioGroupItem value="NO_SHOW" id="r2" />
-                <Label htmlFor="r2" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าไม่มาส่งเครื่องตามนัด</Label>
-              </div>
-              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("UNREPAIRABLE")}>
-                <RadioGroupItem value="UNREPAIRABLE" id="r3" />
-                <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700">เครื่องซ่อมไม่ได้ / บอร์ดพังหนัก</Label>
-              </div>
-              <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_PARTS")}>
-                <RadioGroupItem value="NO_PARTS" id="r4" />
-                <Label htmlFor="r4" className="cursor-pointer flex-1 font-medium text-slate-700">ไม่มีอะไหล่ / อะไหล่เลิกผลิต</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <DialogFooter className="gap-3 mt-4 flex flex-row justify-end">
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { setJobToCancel(null); setCancelReason("") }}>
-              ปิดหน้าต่าง
-            </Button>
-            <Button variant="destructive" className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700" onClick={confirmCancelJob} disabled={!cancelReason}>
-              ยืนยันการยกเลิกคิว
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }
