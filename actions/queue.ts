@@ -76,19 +76,49 @@ export async function getQueues(shopId: string) {
 }
 
 // 🌟 เปลี่ยนให้รับข้อมูลอื่นๆ เพิ่มเติมได้ เช่น เหตุผลการยกเลิก หรือ เวลาที่ปิดจ๊อบ
-export async function updateQueueStatus(queueId: string, newStatus: any, additionalData?: any) {
+export async function updateQueueStatus(id: string, status: string, additionalData?: any) {
   try {
+    // 1. เตรียมข้อมูลที่จะอัปเดต
+    const updateData: any = { 
+      status, 
+      ...additionalData 
+    };
+
+    // 🌟 2. ดักจับสถานะ เพื่อประทับตราเวลา (Timestamp) ลง DB อัตโนมัติสำหรับการทำ Report
+    if (status === "WAITING" && !updateData.acceptedAt) {
+      updateData.acceptedAt = new Date(); // เวลารับเครื่องเข้าคิว
+    } 
+    else if (status === "PROCESSING" && !updateData.startedAt) {
+      updateData.startedAt = new Date(); // เวลาเริ่มแกะซ่อม
+    } 
+    else if (status === "REPAIRED" && !updateData.repairedAt) {
+      updateData.repairedAt = new Date(); // เวลาซ่อมเสร็จ
+    } 
+    else if (status === "COMPLETED" && !updateData.completedAt) {
+      updateData.completedAt = new Date(); // เวลาส่งมอบเครื่อง/รับเงิน
+    }
+    else if (status === "CANCELLED" && !updateData.cancelledAt) {
+      updateData.cancelledAt = new Date(); // เวลายกเลิกคิว
+    }
+
+    // 3. บันทึกลง Database
     const updatedQueue = await db.queue.update({
-      where: { id: queueId },
-      data: { 
-        status: newStatus,
-        ...additionalData // 🌟 ใส่จุดสามจุดตรงนี้ เพื่อให้มันเอาข้อมูลอื่นมาบันทึกด้วย
-      },
+      where: { id },
+      data: updateData,
     });
-    return { success: true, data: updatedQueue };
+
+    return { 
+      success: true, 
+      data: updatedQueue,
+      message: "อัปเดตสถานะสำเร็จ"
+    };
+
   } catch (error) {
-    console.error("❌ Error updating status:", error);
-    return { success: false, error: "อัปเดตสถานะไม่สำเร็จ" };
+    console.error("❌ Error updating queue status:", error);
+    return { 
+      success: false, 
+      error: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" 
+    };
   }
 }
 
