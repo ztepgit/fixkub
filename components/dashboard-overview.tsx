@@ -152,8 +152,8 @@ export function DashboardOverview() {
           <p className="text-sm text-slate-500">สรุปสถิติและสถานะงานซ่อมประจำวัน</p>
         </div>
 
-        {/* 🌟 เปลี่ยน grid-cols-4 เป็น grid-cols-5 */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {/* 🌟 grid-cols-4 */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="shadow-sm border-blue-100">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-slate-600">งานเข้าวันนี้</CardTitle>
@@ -172,7 +172,7 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">{stats?.activeCount || 0} <span className="text-sm font-normal text-slate-500">คิว</span></div>
-              <p className="text-xs text-slate-500 mt-1">ลูกค้าแจ้งซ่อม/รอคิวซ่อม/กำลังแกะซ่อม</p>
+              <p className="text-xs text-slate-500 mt-1">รับเรื่อง/รอคิวซ่อม/กำลังซ่อม</p>
             </CardContent>
           </Card>
 
@@ -198,7 +198,7 @@ export function DashboardOverview() {
             </CardContent>
           </Card>
 
-          {/* 🌟 การ์ดใบที่ 5: เวลาซ่อมเฉลี่ย */}
+          {/*
           <Card className="shadow-sm border-purple-100 bg-purple-50/30">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-purple-700">เวลาซ่อมเฉลี่ย</CardTitle>
@@ -206,9 +206,9 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold text-purple-900">{stats?.avgRepairTimeText || "-"}</div>
-              <p className="text-[10px] md:text-xs text-purple-600/70 mt-1">เวลาเฉลี่ยบนโต๊ะช่าง</p>
+              <p className="text-xs text-indigo-600/70 mt-1">เวลาเฉลี่ยบนโต๊ะช่าง</p>
             </CardContent>
-          </Card>
+          </Card>*/}
         </div>
 
         <Card className="shadow-sm border-slate-200">

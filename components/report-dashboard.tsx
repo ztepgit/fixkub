@@ -116,7 +116,7 @@ export function ReportDashboard() {
 
         <Card className="shadow-sm border-blue-100">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">รับงานมาแล้วทั้งหมด</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">คิวที่ลูกค้าแจ้งซ่อม</CardTitle>
             <Wrench className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
@@ -127,7 +127,7 @@ export function ReportDashboard() {
 
         <Card className="shadow-sm border-emerald-100">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">อัตราการซ่อมสำเร็จ</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">เก็บเงินแล้ว</CardTitle>
             <Target className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
