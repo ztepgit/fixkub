@@ -131,7 +131,7 @@ export function CustomerBookingForm() {
             </Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="deviceModel">รุ่นมือถือ <span className="text-red-500">*</span></Label>
+                <Label htmlFor="deviceModel">รุ่นมือถือ/iPad หรืออื่นๆ<span className="text-red-500">*</span></Label>
                 <Input 
                   id="deviceModel" 
                   placeholder="เช่น iPhone 13" 
