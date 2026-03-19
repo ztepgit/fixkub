@@ -1,0 +1,276 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2 } from "lucide-react"
+import { getAnalyticsSummary, getTrendData } from "@/actions/report"
+
+// นำเข้า Recharts สำหรับวาดกราฟ
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, Legend
+} from 'recharts'
+
+const COLORS = ['#f43f5e', '#f97316', '#eab308', '#8b5cf6', '#64748b'];
+
+const translateCancelReason = (reason: string) => {
+  switch (reason) {
+    case "NO_SHOW": return "ลูกค้าไม่มาส่งเครื่อง"
+    case "CUSTOMER_CANCEL": return "ลูกค้าเปลี่ยนใจ/ไม่ซ่อม"
+    case "UNREPAIRABLE": return "เครื่องซ่อมไม่ได้/บอร์ดพัง"
+    case "NO_PARTS": return "ไม่มีอะไหล่"
+    case "UNCONTACTABLE": return "ติดต่อไม่ได้/ทิ้งเครื่อง"
+    default: return reason
+  }
+}
+
+export function ReportDashboard() {
+  const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('month')
+  const [summary, setSummary] = useState<any>(null)
+  const [trend, setTrend] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [timeframe])
+
+  const loadData = async () => {
+    setIsLoading(true)
+    try {
+      // โหลดข้อมูลจาก 2 ฟังก์ชันที่เราเพิ่งสร้างในหลังบ้าน
+      const [summaryRes, trendRes] = await Promise.all([
+        getAnalyticsSummary("shop_test_001"),
+        getTrendData("shop_test_001", timeframe)
+      ])
+
+      if (summaryRes.success) setSummary(summaryRes.data)
+      if (trendRes.success) setTrend(trendRes.data || [])
+    } catch (error) {
+      console.error("Failed to load reports:", error)
+    }
+    setIsLoading(false)
+  }
+
+  // คำนวณเปอร์เซ็นต์ซ่อมสำเร็จ
+  const successRate = summary?.totalJobs > 0 
+    ? Math.round((summary.completedJobs / summary.totalJobs) * 100) 
+    : 0
+
+  // ข้อมูลสำหรับกราฟโดนัท (สาเหตุยกเลิก)
+  const pieData = summary?.cancelReasons?.map((item: any) => ({
+    name: translateCancelReason(item.reason),
+    value: item.count
+  })) || []
+
+  if (isLoading && !summary) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center text-slate-400 gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <p className="text-lg">กำลังประมวลผลข้อมูลสถิติ...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 pb-8">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">รายงานและสถิติ (Analytics)</h2>
+        <p className="text-sm text-slate-500">วิเคราะห์ภาพรวม รายได้ และประสิทธิภาพของร้าน</p>
+      </div>
+
+      {/* 🌟 1. การ์ดสรุปยอด All-Time */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">รายได้รวมตลอดกาล</CardTitle>
+            <Wallet className="h-4 w-4 text-indigo-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-indigo-900">฿{(summary?.totalRevenue || 0).toLocaleString()}</div>
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-emerald-500" /> เก็บเงินเรียบร้อยแล้ว
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-blue-100">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">รับงานมาแล้วทั้งหมด</CardTitle>
+            <Wrench className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{summary?.totalJobs || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
+            <p className="text-xs text-slate-500 mt-1">คิวงานทั้งหมดในระบบ</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-emerald-100">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">อัตราการซ่อมสำเร็จ</CardTitle>
+            <Target className="h-4 w-4 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-700">{successRate}%</div>
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3 text-emerald-500" /> ปิดจ๊อบแล้ว {summary?.completedJobs || 0} เครื่อง
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-rose-100">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">ยกเลิก / ซ่อมไม่ได้</CardTitle>
+            <AlertCircle className="h-4 w-4 text-rose-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-rose-700">{summary?.cancelledJobs || 0} <span className="text-sm font-normal text-rose-500/70">เครื่อง</span></div>
+            <p className="text-xs text-slate-500 mt-1">งานที่ถูกตีกลับหรือยกเลิก</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 🌟 2. แท็บเลือกช่วงเวลาของกราฟ */}
+      <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
+        <div className="flex justify-end">
+          <TabsList className="grid w-[300px] grid-cols-3 bg-slate-100 border border-slate-200">
+            <TabsTrigger value="week">สัปดาห์นี้</TabsTrigger>
+            <TabsTrigger value="month">เดือนนี้</TabsTrigger>
+            <TabsTrigger value="year">ปีนี้</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* 🌟 กราฟที่ 1: รายได้ (Revenue Trend) */}
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader>
+            <CardTitle className="text-lg">แนวโน้มรายได้ (Revenue Trend)</CardTitle>
+            <CardDescription>แสดงยอดรายได้ที่เก็บเงินแล้วตามช่วงเวลา</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full mt-4">
+              {isLoading ? (
+                <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {timeframe === 'month' ? (
+                    <LineChart data={trend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(value) => `฿${value.toLocaleString()}`} />
+                      <RechartsTooltip 
+                        formatter={(value: number) => [`฿${value.toLocaleString()}`, 'รายได้']}
+                        labelStyle={{ color: '#0f172a', fontWeight: 'bold', marginBottom: '4px' }}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }} />
+                    </LineChart>
+                  ) : (
+                    <BarChart data={trend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(value) => `฿${value.toLocaleString()}`} />
+                      <RechartsTooltip 
+                        cursor={{ fill: '#f1f5f9' }}
+                        formatter={(value: number) => [`฿${value.toLocaleString()}`, 'รายได้']}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* 🌟 กราฟที่ 2: งานที่รับ vs งานที่เสร็จ */}
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader>
+              <CardTitle className="text-lg">ประสิทธิภาพงานซ่อม (Performance)</CardTitle>
+              <CardDescription>เปรียบเทียบจำนวนเครื่องที่เริ่มแกะซ่อม กับ ซ่อมเสร็จ</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[280px] w-full mt-2">
+                {isLoading ? (
+                  <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <RechartsTooltip 
+                        cursor={{ fill: '#f1f5f9' }}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number, name: string) => [value, name === 'processing' ? 'เริ่มแกะซ่อม' : 'ซ่อมเสร็จ']}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} formatter={(value) => value === 'processing' ? 'เริ่มแกะซ่อม' : 'ซ่อมเสร็จ'} />
+                      <Bar dataKey="processing" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="repaired" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 🌟 กราฟที่ 3: สถิติการยกเลิกงาน (Cancel Reasons) */}
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-rose-700 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" /> วิเคราะห์สาเหตุยกเลิกงาน
+              </CardTitle>
+              <CardDescription>ข้อมูลรวมตลอดกาล (All-Time)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pieData.length === 0 ? (
+                <div className="h-[280px] flex flex-col items-center justify-center text-slate-400 space-y-2">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-400 opacity-50" />
+                  <p>ยังไม่มีงานที่ถูกยกเลิกในระบบ 🎉</p>
+                </div>
+              ) : (
+                <div className="flex flex-col md:flex-row items-center h-[280px]">
+                  <div className="h-[200px] w-full md:w-1/2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {pieData.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="w-full md:w-1/2 space-y-3 px-2">
+                    {pieData.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                          <span className="text-slate-600 truncate max-w-[120px]" title={item.name}>{item.name}</span>
+                        </div>
+                        <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold">{item.value}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </Tabs>
+    </div>
+  )
+}

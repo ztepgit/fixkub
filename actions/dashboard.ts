@@ -1,64 +1,86 @@
-"use server";
+"use server"
 
-import { db } from "@/lib/prisma";
+import { db } from "@/lib/prisma"
 
 export async function getDashboardStats(shopId: string) {
   try {
-    // 1. ดึงงานทั้งหมดของร้าน
-    const allJobs = await db.queue.findMany({
-      where: { shopId: shopId },
-      orderBy: { createdAt: 'desc' },
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // 1. งานเข้าวันนี้
+    const todayCount = await db.queue.count({
+      where: { shopId, createdAt: { gte: todayStart } }
     });
 
-    // 🌟 วิธีแก้ปัญหา Timezone: ใช้วิธีดึงแค่วันที่ (YYYY-MM-DD) ตามเวลาประเทศไทย
-    const todayString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
-
-    // 2. กรองงานที่เข้ามา "วันนี้" (เทียบวันที่เวลาไทย)
-    const todayJobs = allJobs.filter((job: any) => {
-      // ดึงวันที่สร้างคิวแปลงเป็นเวลาไทย
-      const jobDate = new Date(job.createdAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
-      return jobDate === todayString;
+    // 2. กำลังดำเนินการ (รอซ่อม + กำลังซ่อม)
+    const activeCount = await db.queue.count({
+      where: { shopId, status: { in: ["WAITING", "PROCESSING"] } }
     });
+
+    // 3. รอรับเครื่อง (ซ่อมเสร็จแล้ว)
+    const readyCount = await db.queue.count({
+      where: { shopId, status: "REPAIRED" }
+    });
+
+    // 4. รายได้วันนี้
+    const revenueTodayAgg = await db.queue.aggregate({
+      where: { shopId, status: "COMPLETED", completedAt: { gte: todayStart } },
+      _sum: { estimatedPrice: true }
+    });
+    const revenueToday = revenueTodayAgg._sum.estimatedPrice || 0;
+
+    // 5. รายการอัปเดตล่าสุด
+    const recentJobs = await db.queue.findMany({
+      where: { shopId },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    });
+
+    // 🌟🌟 [ส่วนที่เพิ่มใหม่] สำหรับหน้า Overview 🌟🌟
+
+    // 6. รายได้รวมทั้งหมด (ตั้งแต่เปิดร้าน)
+    const allCompleted = await db.queue.aggregate({
+      where: { shopId, status: "COMPLETED" },
+      _sum: { estimatedPrice: true }
+    });
+    const allTimeRevenue = allCompleted._sum.estimatedPrice || 0;
+
+    // 7. คำนวณเวลาซ่อมเฉลี่ยต่องาน (ดึงเฉพาะงานที่บันทึกเวลาเริ่มและจบไว้)
+    const jobsWithTime = await db.queue.findMany({
+      where: { shopId, startedAt: { not: null }, repairedAt: { not: null } },
+      select: { startedAt: true, repairedAt: true }
+    });
+
+    let totalMinutes = 0;
+    jobsWithTime.forEach(job => {
+      // แปลงความต่างของเวลาเป็น "นาที"
+      const diffInMinutes = (job.repairedAt!.getTime() - job.startedAt!.getTime()) / 60000;
+      if (diffInMinutes > 0) totalMinutes += diffInMinutes;
+    });
+
+    const avgMinutes = jobsWithTime.length > 0 ? Math.round(totalMinutes / jobsWithTime.length) : 0;
+    const avgHours = Math.floor(avgMinutes / 60);
+    const remainMins = avgMinutes % 60;
     
-    // 3. จำนวนงานที่ "กำลังดำเนินการอยู่"
-    const activeJobs = allJobs.filter((job: any) => 
-      ["PENDING", "WAITING", "PROCESSING"].includes(job.status)
-    );
+    // จัดรูปแบบให้อ่านง่าย เช่น "1 ชม. 15 นาที" หรือ "45 นาที"
+    const avgRepairTimeText = avgHours > 0 
+        ? `${avgHours} ชม. ${remainMins} นาที` 
+        : `${remainMins} นาที`;
 
-    // 4. จำนวนงานที่ "รอรับเครื่อง"
-    const readyForPickup = allJobs.filter((job: any) => job.status === "REPAIRED");
-
-    // 5. งานที่ปิดจ๊อบแล้ว "วันนี้"
-    const completedToday = todayJobs.filter((job: any) => job.status === "COMPLETED");
-
-    // 6. คำนวณรายได้ของวันนี้
-    const revenueToday = completedToday.reduce((sum, job: any) => {
-      const price = parseInt(job.estimatedPrice || "0", 10);
-      return sum + (isNaN(price) ? 0 : price);
-    }, 0);
-
-    return {
-      success: true,
-      data: {
-        todayCount: todayJobs.length,
-        activeCount: activeJobs.length,
-        readyCount: readyForPickup.length,
-        revenueToday: revenueToday,
-        recentJobs: allJobs.slice(0, 5), // ดึง 5 งานล่าสุด
-      }
+    return { 
+      success: true, 
+      data: { 
+        todayCount, 
+        activeCount, 
+        readyCount, 
+        revenueToday, 
+        recentJobs,
+        allTimeRevenue,      // ส่งไปโชว์ Overview
+        avgRepairTimeText    // ส่งไปโชว์ Overview
+      } 
     };
   } catch (error) {
     console.error("❌ Error fetching dashboard stats:", error);
-    // 🌟 ถ้าหลังบ้านพัง (เช่น ดึง DB ไม่ได้) ให้ส่งเลข 0 กลับไปแทนค่าว่าง (Null)
-    return { 
-      success: true, 
-      data: {
-        todayCount: 0, 
-        activeCount: 0, 
-        readyCount: 0, 
-        revenueToday: 0, 
-        recentJobs: []
-      }
-    };
+    return { success: false, error: "ไม่สามารถโหลดข้อมูลสถิติได้" };
   }
 }
