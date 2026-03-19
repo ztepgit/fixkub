@@ -150,7 +150,7 @@ export function ReportDashboard() {
                 </Card>
             </div>
 
-            {/* 2. กราฟ (เหมือนเดิม) */}
+            {/* 2. กราฟ */}
             <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
                 <div className="flex justify-end">
                     <TabsList className="grid w-[300px] grid-cols-3 bg-slate-100 border border-slate-200">
@@ -278,7 +278,7 @@ export function ReportDashboard() {
                 </div>
             </Tabs>
 
-            {/* 🌟 3. ตารางรายการยกเลิกงาน (เพิ่มใหม่) */}
+            {/* 🌟 3. ตารางรายการยกเลิกงาน */}
             <Card className="shadow-sm border-slate-200 mt-6">
                 <CardHeader className="border-b bg-slate-50/50 pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -289,9 +289,9 @@ export function ReportDashboard() {
                             </CardTitle>
                             <CardDescription className="mt-1">ค้นหาและกรองประวัติการยกเลิกงานเพื่อปรับปรุงบริการ (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
                         </div>
-                      
+
                         <div className="flex items-center gap-3">
-                              {/* คอมเมนต์
+                            {/* คอมเมนต์ส่วน Search Bar เพื่อซ่อนเบอร์โทรลูกค้า
                             <div className="relative w-full md:w-64">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                                 <Input
@@ -320,23 +320,24 @@ export function ReportDashboard() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    {/* 🌟 1. ครอบด้วย div ที่จำกัดความสูง (max-h-[500px]) และสั่งให้มี Scroll (overflow-auto) */}
+                    {/* 🌟 จำกัดความสูงให้ Scroll ได้ */}
                     <div className="max-h-[500px] overflow-auto relative">
                         <Table>
-                            {/* 🌟 2. เพิ่ม sticky top-0 และ z-10 เข้าไป เพื่อล็อคหัวตารางให้ติดหนึบเวลาเลื่อนลง */}
+                            {/* 🌟 ล็อคส่วนหัวตารางไว้ด้านบนเวลาเลื่อนลง */}
                             <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
                                 <TableRow>
                                     <TableHead className="w-[60px] text-center">ลำดับ</TableHead>
                                     <TableHead>วันที่ยกเลิก</TableHead>
                                     <TableHead>รหัสบิล / ลูกค้า</TableHead>
                                     <TableHead>รุ่นเครื่อง</TableHead>
+                                    <TableHead>อาการเสีย</TableHead> {/* 🌟 เพิ่มคอลัมน์อาการเสีย */}
                                     <TableHead>สาเหตุการยกเลิก</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredCancelledJobs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-10 text-slate-500">
+                                        <TableCell colSpan={6} className="text-center py-10 text-slate-500"> {/* 🌟 เปลี่ยน colSpan เป็น 6 */}
                                             ไม่พบข้อมูลที่ค้นหา
                                         </TableCell>
                                     </TableRow>
@@ -352,6 +353,14 @@ export function ReportDashboard() {
                                                 <div className="text-xs text-slate-500">{job.customerName}</div>
                                             </TableCell>
                                             <TableCell className="text-sm text-slate-700">{job.deviceModel}</TableCell>
+
+                                            {/* 🌟 นำข้อมูลอาการเสียมาแสดง และจำกัดความยาวเพื่อไม่ให้ตารางพัง */}
+                                            <TableCell className="text-sm text-slate-600 max-w-[200px]">
+                                                <p className="truncate" title={job.issue || "ไม่ได้ระบุ"}>
+                                                    {job.issue || "-"}
+                                                </p>
+                                            </TableCell>
+
                                             <TableCell>
                                                 <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
                                                     {translateCancelReason(job.cancelReason)}
