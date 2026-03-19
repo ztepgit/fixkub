@@ -330,7 +330,7 @@ export function ReportDashboard() {
                                     <TableHead>วันที่ยกเลิก</TableHead>
                                     <TableHead>รหัสบิล / ลูกค้า</TableHead>
                                     <TableHead>รุ่นเครื่อง</TableHead>
-                                    <TableHead>อาการเสีย</TableHead> {/* 🌟 เพิ่มคอลัมน์อาการเสีย */}
+                                    <TableHead>บริการ</TableHead>
                                     <TableHead>สาเหตุการยกเลิก</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -355,9 +355,10 @@ export function ReportDashboard() {
                                             <TableCell className="text-sm text-slate-700">{job.deviceModel}</TableCell>
 
                                             {/* 🌟 นำข้อมูลอาการเสียมาแสดง และจำกัดความยาวเพื่อไม่ให้ตารางพัง */}
+                                            {/* 🌟 แสดงข้อมูลบริการและอาการเสีย */}
                                             <TableCell className="text-sm text-slate-600 max-w-[200px]">
-                                                <p className="truncate" title={job.issue || "ไม่ได้ระบุ"}>
-                                                    {job.issue || "-"}
+                                                <p className="truncate" title={`${job.serviceName || "ไม่ได้ระบุบริการ"} ${job.issue ? `- ${job.issue}` : ""}`}>
+                                                    <span className="font-semibold text-emerald-700">[{job.serviceName || "ทั่วไป"}]</span> {job.issue || ""}
                                                 </p>
                                             </TableCell>
 

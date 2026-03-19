@@ -175,6 +175,7 @@ export async function getCancelledJobsDetails(shopId: string) {
         cancelReason: true,
         cancelledAt: true,
         issue: true,
+        serviceName: true, // 🌟 เพิ่มบรรทัดนี้เข้ามาครับ!
       }
     });
     return { success: true, data: jobs };
