@@ -4,10 +4,12 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2 } from "lucide-react"
-import { getAnalyticsSummary, getTrendData } from "@/actions/report"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2, Search, Filter, ClipboardX } from "lucide-react"
+import { getAnalyticsSummary, getTrendData, getCancelledJobsDetails } from "@/actions/report"
 
-// นำเข้า Recharts สำหรับวาดกราฟ
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend
@@ -22,7 +24,7 @@ const translateCancelReason = (reason: string) => {
     case "UNREPAIRABLE": return "เครื่องซ่อมไม่ได้/บอร์ดพัง"
     case "NO_PARTS": return "ไม่มีอะไหล่"
     case "UNCONTACTABLE": return "ติดต่อไม่ได้/ทิ้งเครื่อง"
-    default: return reason
+    default: return reason || "ไม่ระบุสาเหตุ"
   }
 }
 
@@ -30,6 +32,12 @@ export function ReportDashboard() {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('month')
   const [summary, setSummary] = useState<any>(null)
   const [trend, setTrend] = useState<any[]>([])
+  
+  // State สำหรับตารางยกเลิกงาน
+  const [cancelledList, setCancelledList] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterReason, setFilterReason] = useState("ALL")
+
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -39,14 +47,15 @@ export function ReportDashboard() {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      // โหลดข้อมูลจาก 2 ฟังก์ชันที่เราเพิ่งสร้างในหลังบ้าน
-      const [summaryRes, trendRes] = await Promise.all([
+      const [summaryRes, trendRes, cancelRes] = await Promise.all([
         getAnalyticsSummary("shop_test_001"),
-        getTrendData("shop_test_001", timeframe)
+        getTrendData("shop_test_001", timeframe),
+        getCancelledJobsDetails("shop_test_001") // ดึงรายการยกเลิก
       ])
 
       if (summaryRes.success) setSummary(summaryRes.data)
       if (trendRes.success) setTrend(trendRes.data || [])
+      if (cancelRes.success) setCancelledList(cancelRes.data || [])
     } catch (error) {
       console.error("Failed to load reports:", error)
     }
@@ -55,14 +64,24 @@ export function ReportDashboard() {
 
   // คำนวณเปอร์เซ็นต์ซ่อมสำเร็จ
   const successRate = summary?.totalJobs > 0 
-    ? Math.round((summary.completedJobs / summary.totalJobs) * 100) 
-    : 0
+    ? Math.round((summary.completedJobs / summary.totalJobs) * 100) : 0
 
-  // ข้อมูลสำหรับกราฟโดนัท (สาเหตุยกเลิก)
   const pieData = summary?.cancelReasons?.map((item: any) => ({
     name: translateCancelReason(item.reason),
     value: item.count
   })) || []
+
+  // ฟิลเตอร์ตาราง
+  const filteredCancelledJobs = cancelledList.filter(job => {
+    const matchesSearch = 
+      (job.jobRef || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (job.customerName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (job.deviceModel || "").toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesFilter = filterReason === "ALL" || job.cancelReason === filterReason;
+    
+    return matchesSearch && matchesFilter;
+  });
 
   if (isLoading && !summary) {
     return (
@@ -80,7 +99,7 @@ export function ReportDashboard() {
         <p className="text-sm text-slate-500">วิเคราะห์ภาพรวม รายได้ และประสิทธิภาพของร้าน</p>
       </div>
 
-      {/* 🌟 1. การ์ดสรุปยอด All-Time */}
+      {/* 1. การ์ดสรุปยอด All-Time */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -131,7 +150,7 @@ export function ReportDashboard() {
         </Card>
       </div>
 
-      {/* 🌟 2. แท็บเลือกช่วงเวลาของกราฟ */}
+      {/* 2. กราฟ (เหมือนเดิม) */}
       <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
         <div className="flex justify-end">
           <TabsList className="grid w-[300px] grid-cols-3 bg-slate-100 border border-slate-200">
@@ -141,7 +160,6 @@ export function ReportDashboard() {
           </TabsList>
         </div>
 
-        {/* 🌟 กราฟที่ 1: รายได้ (Revenue Trend) */}
         <Card className="shadow-sm border-slate-200">
           <CardHeader>
             <CardTitle className="text-lg">แนวโน้มรายได้ (Revenue Trend)</CardTitle>
@@ -185,7 +203,6 @@ export function ReportDashboard() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {/* 🌟 กราฟที่ 2: งานที่รับ vs งานที่เสร็จ */}
           <Card className="shadow-sm border-slate-200">
             <CardHeader>
               <CardTitle className="text-lg">ประสิทธิภาพงานซ่อม (Performance)</CardTitle>
@@ -216,7 +233,6 @@ export function ReportDashboard() {
             </CardContent>
           </Card>
 
-          {/* 🌟 กราฟที่ 3: สถิติการยกเลิกงาน (Cancel Reasons) */}
           <Card className="shadow-sm border-slate-200">
             <CardHeader>
               <CardTitle className="text-lg text-rose-700 flex items-center gap-2">
@@ -235,22 +251,12 @@ export function ReportDashboard() {
                   <div className="h-[200px] w-full md:w-1/2">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
+                        <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                           {pieData.map((entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <RechartsTooltip 
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        />
+                        <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -271,6 +277,89 @@ export function ReportDashboard() {
           </Card>
         </div>
       </Tabs>
+
+      {/* 🌟 3. ตารางรายการยกเลิกงาน (เพิ่มใหม่) */}
+      <Card className="shadow-sm border-slate-200 mt-6">
+        <CardHeader className="border-b bg-slate-50/50 pb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ClipboardX className="h-5 w-5 text-rose-600" />
+                รายการงานที่ถูกยกเลิกทั้งหมด
+              </CardTitle>
+              <CardDescription className="mt-1">ค้นหาและกรองประวัติการยกเลิกงานเพื่อปรับปรุงบริการ (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                <Input 
+                  placeholder="ค้นหาบิล, ชื่อลูกค้า, รุ่น..." 
+                  className="pl-9 h-9 text-sm"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Select value={filterReason} onValueChange={setFilterReason}>
+                <SelectTrigger className="w-[180px] h-9 text-sm">
+                  <Filter className="w-4 h-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="กรองสาเหตุ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">ทุกสาเหตุ</SelectItem>
+                  <SelectItem value="NO_SHOW">ลูกค้าไม่มาส่งเครื่อง</SelectItem>
+                  <SelectItem value="CUSTOMER_CANCEL">ลูกค้าเปลี่ยนใจ/ไม่ซ่อม</SelectItem>
+                  <SelectItem value="UNREPAIRABLE">เครื่องซ่อมไม่ได้</SelectItem>
+                  <SelectItem value="NO_PARTS">ไม่มีอะไหล่</SelectItem>
+                  <SelectItem value="UNCONTACTABLE">ติดต่อไม่ได้/ทิ้งเครื่อง</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50/50">
+                <TableRow>
+                  <TableHead className="w-[60px] text-center">ลำดับ</TableHead>
+                  <TableHead>วันที่ยกเลิก</TableHead>
+                  <TableHead>รหัสบิล / ลูกค้า</TableHead>
+                  <TableHead>รุ่นเครื่อง</TableHead>
+                  <TableHead>สาเหตุการยกเลิก</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCancelledJobs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-slate-500">
+                      ไม่พบข้อมูลที่ค้นหา
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCancelledJobs.map((job, index) => (
+                    <TableRow key={job.id}>
+                      <TableCell className="text-center font-medium text-slate-500">{index + 1}</TableCell>
+                      <TableCell className="text-sm text-slate-600">
+                        {job.cancelledAt ? new Date(job.cancelledAt).toLocaleDateString('th-TH') : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-slate-800">{job.jobRef}</div>
+                        <div className="text-xs text-slate-500">{job.customerName}</div>
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-700">{job.deviceModel}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
+                          {translateCancelReason(job.cancelReason)}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

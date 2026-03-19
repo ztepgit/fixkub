@@ -45,15 +45,21 @@ export async function getDashboardStats(shopId: string) {
     });
     const allTimeRevenue = allCompleted._sum.estimatedPrice || 0;
 
-    // 7. คำนวณเวลาซ่อมเฉลี่ยต่องาน (ดึงเฉพาะงานที่บันทึกเวลาเริ่มและจบไว้)
+    // 7. คำนวณเวลาซ่อมเฉลี่ยต่องาน 
     const jobsWithTime = await db.queue.findMany({
-      where: { shopId, startedAt: { not: null }, repairedAt: { not: null } },
-      select: { startedAt: true, repairedAt: true }
+      where: {
+        shopId,
+        // 🌟 ดึงงานที่ซ่อมเสร็จแล้ว (รวมที่รับกลับไปแล้ว และอยู่ในคลังดอง)
+        status: { in: ["REPAIRED", "COMPLETED", "ARCHIVED"] },
+        startedAt: { not: null },
+        repairedAt: { not: null }
+      },
+      select: { startedAt: true, repairedAt: true } // ดึงมาแค่ 2 เวลานี้เท่านั้น
     });
 
     let totalMinutes = 0;
     jobsWithTime.forEach(job => {
-      // แปลงความต่างของเวลาเป็น "นาที"
+      // 🌟 ใช้แค่ repairedAt ลบด้วย startedAt (ไม่เอา COMPLETED มายุ่งเลยครับ)
       const diffInMinutes = (job.repairedAt!.getTime() - job.startedAt!.getTime()) / 60000;
       if (diffInMinutes > 0) totalMinutes += diffInMinutes;
     });
@@ -61,23 +67,23 @@ export async function getDashboardStats(shopId: string) {
     const avgMinutes = jobsWithTime.length > 0 ? Math.round(totalMinutes / jobsWithTime.length) : 0;
     const avgHours = Math.floor(avgMinutes / 60);
     const remainMins = avgMinutes % 60;
-    
-    // จัดรูปแบบให้อ่านง่าย เช่น "1 ชม. 15 นาที" หรือ "45 นาที"
-    const avgRepairTimeText = avgHours > 0 
-        ? `${avgHours} ชม. ${remainMins} นาที` 
-        : `${remainMins} นาที`;
 
-    return { 
-      success: true, 
-      data: { 
-        todayCount, 
-        activeCount, 
-        readyCount, 
-        revenueToday, 
+    // จัดรูปแบบให้อ่านง่าย เช่น "1 ชม. 15 นาที" หรือ "45 นาที"
+    const avgRepairTimeText = avgHours > 0
+      ? `${avgHours} ชม. ${remainMins} นาที`
+      : `${remainMins} นาที`;
+
+    return {
+      success: true,
+      data: {
+        todayCount,
+        activeCount,
+        readyCount,
+        revenueToday,
         recentJobs,
         allTimeRevenue,      // ส่งไปโชว์ Overview
         avgRepairTimeText    // ส่งไปโชว์ Overview
-      } 
+      }
     };
   } catch (error) {
     console.error("❌ Error fetching dashboard stats:", error);

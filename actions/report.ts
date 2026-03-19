@@ -158,3 +158,28 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
     return { success: false, error: "ไม่สามารถดึงข้อมูลกราฟได้" };
   }
 }
+
+// ==========================================
+// 3. ดึงรายการงานที่ถูกยกเลิกทั้งหมด (สำหรับตาราง)
+// ==========================================
+export async function getCancelledJobsDetails(shopId: string) {
+  try {
+    const jobs = await db.queue.findMany({
+      where: { shopId, status: "CANCELLED" },
+      orderBy: { cancelledAt: 'desc' },
+      select: {
+        id: true,
+        jobRef: true,
+        customerName: true,
+        deviceModel: true,
+        cancelReason: true,
+        cancelledAt: true,
+        issue: true,
+      }
+    });
+    return { success: true, data: jobs };
+  } catch (error) {
+    console.error("❌ Error fetching cancelled jobs details:", error);
+    return { success: false, error: "ไม่สามารถดึงข้อมูลรายการยกเลิกได้" };
+  }
+}
