@@ -33,7 +33,7 @@ export async function getDashboardStats(shopId: string) {
     const recentJobs = await db.queue.findMany({
       where: { shopId },
       orderBy: { updatedAt: "desc" },
-      take: 5,
+      take: 50,
     });
 
     // 🌟🌟 [ส่วนที่เพิ่มใหม่] สำหรับหน้า Overview 🌟🌟

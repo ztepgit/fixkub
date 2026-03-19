@@ -21,12 +21,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-// 🌟 Import Tooltip เพิ่มเติม
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+// 🌟 Import ScrollArea เพิ่มเข้ามา
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import {
   Activity, Wrench, PackageCheck, Wallet, Smartphone, Loader2, User, Banknote,
-  MoreHorizontal, ClipboardList, Barcode, Hash, Phone, Clock // 🌟 เพิ่ม Clock ตรงนี้
+  MoreHorizontal, ClipboardList, Barcode, Hash, Phone, Clock
 } from "lucide-react"
 
 import { getDashboardStats } from "@/actions/dashboard"
@@ -40,7 +41,6 @@ const formatPhoneNumber = (phone?: string) => {
   return phone
 }
 
-// 🌟 สร้างฟังก์ชันแปลงวันที่แบบย่อ และแบบเต็ม (มีเวลา)
 const formatShortDate = (date?: Date | string) => {
   if (!date) return ""
   return new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
@@ -152,16 +152,15 @@ export function DashboardOverview() {
           <p className="text-sm text-slate-500">สรุปสถิติและสถานะงานซ่อมประจำวัน</p>
         </div>
 
-        {/* 🌟 grid-cols-4 */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="shadow-sm border-blue-100">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">งานเข้าวันนี้</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600">รายการลูกค้าแจ้งซ่อมวันนี้</CardTitle>
               <Activity className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">{stats?.todayCount || 0} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
-              <p className="text-xs text-slate-500 mt-1">รายการลูกค้าแจ้งซ่อมวันนี้</p>
+              <p className="text-xs text-slate-500 mt-1">เครื่องที่ลูกค้านำมาส่งในวันนี้</p>
             </CardContent>
           </Card>
 
@@ -172,7 +171,7 @@ export function DashboardOverview() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">{stats?.activeCount || 0} <span className="text-sm font-normal text-slate-500">คิว</span></div>
-              <p className="text-xs text-slate-500 mt-1">รับเรื่อง/รอคิวซ่อม/กำลังซ่อม</p>
+              <p className="text-xs text-slate-500 mt-1">รอตรวจสอบ และกำลังแกะซ่อม</p>
             </CardContent>
           </Card>
 
@@ -197,126 +196,119 @@ export function DashboardOverview() {
               <p className="text-xs text-indigo-600/70 mt-1">เก็บเงินแล้ว</p>
             </CardContent>
           </Card>
-
-          {/*
-          <Card className="shadow-sm border-purple-100 bg-purple-50/30">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-purple-700">เวลาซ่อมเฉลี่ย</CardTitle>
-              <Clock className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-purple-900">{stats?.avgRepairTimeText || "-"}</div>
-              <p className="text-xs text-indigo-600/70 mt-1">เวลาเฉลี่ยบนโต๊ะช่าง</p>
-            </CardContent>
-          </Card>*/}
         </div>
 
         <Card className="shadow-sm border-slate-200">
           <CardHeader>
             <CardTitle>รายการอัปเดตล่าสุด</CardTitle>
-            <CardDescription>5 คิวซ่อมล่าสุดที่มีการเคลื่อนไหวในระบบ</CardDescription>
+            {/* 🌟 เปลี่ยนคำอธิบายเล็กน้อยเพราะตอนนี้ไม่ได้โชว์แค่ 5 แล้ว */}
+            <CardDescription>คิวซ่อมล่าสุดที่มีการเคลื่อนไหวในระบบ</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {stats?.recentJobs?.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">ยังไม่มีข้อมูลงานซ่อม</p>
-              ) : (
-                stats?.recentJobs.map((job: any) => (
-                  <div key={job.id} className="flex items-start justify-between border-b pb-4 last:border-0 last:pb-0">
-                    <div className="flex items-start gap-3 sm:gap-4">
-                      <div className="h-10 w-10 mt-0.5 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                        <Smartphone className="h-5 w-5 text-slate-600" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-bold text-slate-800">
-                            {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
-                          </p>
-                          <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 h-5 px-1.5 text-[10px]">
-                            {job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`}
-                          </Badge>
+            
+            {/* 🌟 ใช้ ScrollArea ครอบเนื้อหา และกำหนดความสูง h-[420px] ให้อยู่ประมาณ 5 การ์ดพอดี */}
+            <ScrollArea className="h-[420px] pr-4">
+              <div className="space-y-4">
+                {stats?.recentJobs?.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-4">ยังไม่มีข้อมูลงานซ่อม</p>
+                ) : (
+                  stats?.recentJobs.map((job: any) => (
+                    <div key={job.id} className="flex items-start justify-between border-b pb-4 last:border-0 last:pb-0">
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <div className="h-10 w-10 mt-0.5 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                          <Smartphone className="h-5 w-5 text-slate-600" />
                         </div>
-
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600 flex-wrap">
-                          <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                            {job.serviceName || "ทั่วไป"}
-                          </span>
-                          {job.issue && <span className="text-slate-500 line-clamp-1 max-w-[200px]">- {job.issue}</span>}
-                        </div>
-
-                        <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" /> {job.customerName}
-                          </span>
-                          {job.phoneNumber && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" /> {formatPhoneNumber(job.phoneNumber)}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1 text-blue-600 font-medium">
-                            <Banknote className="h-3 w-3" />
-                            {job.estimatedPrice ? `฿${parseInt(job.estimatedPrice).toLocaleString()}` : "ยังไม่ประเมิน"}
-                          </span>
-                        </div>
-
-                        {(job.serialNumber || job.imei) && (
-                          <div className="flex items-center gap-4 text-[10px] text-slate-400 pt-1">
-                            {job.serialNumber && (
-                              <span className="flex items-center gap-1">
-                                S/N: <span className="text-slate-500">{job.serialNumber}</span>
-                              </span>
-                            )}
-                            {job.imei && (
-                              <span className="flex items-center gap-1">
-                                IMEI: <span className="text-slate-500">{job.imei}</span>
-                              </span>
-                            )}
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-bold text-slate-800">
+                              {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500">(สี{job.deviceColor})</span>}
+                            </p>
+                            <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 h-5 px-1.5 text-[10px]">
+                              {job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`}
+                            </Badge>
                           </div>
-                        )}
+
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600 flex-wrap">
+                            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              {job.serviceName || "ทั่วไป"}
+                            </span>
+                            {job.issue && <span className="text-slate-500 line-clamp-1 max-w-[200px]">- {job.issue}</span>}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <User className="h-3 w-3" /> {job.customerName}
+                            </span>
+                            {job.phoneNumber && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" /> {formatPhoneNumber(job.phoneNumber)}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1 text-blue-600 font-medium">
+                              <Banknote className="h-3 w-3" />
+                              {job.estimatedPrice ? `฿${parseInt(job.estimatedPrice).toLocaleString()}` : "ยังไม่ประเมิน"}
+                            </span>
+                          </div>
+
+                          {(job.serialNumber || job.imei) && (
+                            <div className="flex items-center gap-4 text-[10px] text-slate-400 pt-1">
+                              {job.serialNumber && (
+                                <span className="flex items-center gap-1">
+                                  S/N: <span className="text-slate-500">{job.serialNumber}</span>
+                                </span>
+                              )}
+                              {job.imei && (
+                                <span className="flex items-center gap-1">
+                                  IMEI: <span className="text-slate-500">{job.imei}</span>
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0 flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={
+                            job.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                              job.status === "CANCELLED" || job.status === "ARCHIVED" ? "bg-rose-50 text-rose-700 border-rose-200" :
+                                "bg-blue-50 text-blue-700 border-blue-200"
+                          }>
+                            {translateStatus(job.status)}
+                          </Badge>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem className="cursor-pointer" onClick={() => setJobToView(job)}>
+                                <ClipboardList className="mr-2 h-4 w-4 text-blue-600" />
+                                รายละเอียด / ประเมินราคา
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-[10px] text-slate-400 mr-9 cursor-help">
+                              {formatShortDate(job.createdAt)}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{formatFullDateTime(job.createdAt)}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
-
-                    <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={
-                          job.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                            job.status === "CANCELLED" || job.status === "ARCHIVED" ? "bg-rose-50 text-rose-700 border-rose-200" :
-                              "bg-blue-50 text-blue-700 border-blue-200"
-                        }>
-                          {translateStatus(job.status)}
-                        </Badge>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52">
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => setJobToView(job)}>
-                              <ClipboardList className="mr-2 h-4 w-4 text-blue-600" />
-                              รายละเอียด / ประเมินราคา
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      {/* 🌟 แสดงวันที่แบบมี Tooltip โชว์เวลาเต็มๆ */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <p className="text-[10px] text-slate-400 mr-9 cursor-help">
-                            {formatShortDate(job.createdAt)}
-                          </p>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{formatFullDateTime(job.createdAt)}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+            
           </CardContent>
         </Card>
 

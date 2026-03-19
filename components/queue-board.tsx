@@ -29,7 +29,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-// 🌟 Import Tooltip เพิ่มเติม
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
@@ -53,7 +52,8 @@ import {
   Loader2,
   CheckCircle2,
   UserX,
-  Phone
+  Phone,
+  Search // 🌟 Import Search icon เพิ่มเข้ามา
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { getQueues, updateQueueStatus } from "@/actions/queue"
@@ -95,7 +95,6 @@ const formatPhoneNumber = (phone?: string) => {
   return phone
 }
 
-// 🌟 สร้างฟังก์ชันแปลงวันที่แบบย่อ และแบบเต็ม (มีเวลา)
 const formatShortDate = (date?: Date | string) => {
   if (!date) return ""
   return new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
@@ -128,6 +127,10 @@ export function QueueBoard() {
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+
+  // 🌟 State สำหรับระบบค้นหา
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState("")
+  const [trashSearchQuery, setTrashSearchQuery] = useState("")
 
   const { toast } = useToast()
 
@@ -353,6 +356,24 @@ export function QueueBoard() {
     }
   }
 
+  // 🌟 Logic กรองข้อมูลคลังดองตามคำค้นหา (เบอร์โทร, ชื่อ, รหัสคิว)
+  const filteredArchivedJobs = archivedJobs.filter(job => {
+    if (!archiveSearchQuery) return true;
+    const searchLower = archiveSearchQuery.toLowerCase();
+    return (job.phoneNumber || job.phone || "").includes(searchLower) ||
+           (job.customerName || "").toLowerCase().includes(searchLower) ||
+           (job.jobRef || "").toLowerCase().includes(searchLower);
+  });
+
+  // 🌟 Logic กรองข้อมูลถังขยะตามคำค้นหา (เบอร์โทร, ชื่อ, รหัสคิว)
+  const filteredTrashedJobs = trashedJobs.filter(job => {
+    if (!trashSearchQuery) return true;
+    const searchLower = trashSearchQuery.toLowerCase();
+    return (job.phoneNumber || job.phone || "").includes(searchLower) ||
+           (job.customerName || "").toLowerCase().includes(searchLower) ||
+           (job.jobRef || "").toLowerCase().includes(searchLower);
+  });
+
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen md:min-h-0 md:h-[calc(100vh-8rem)]">
@@ -377,7 +398,7 @@ export function QueueBoard() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
+              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50 px-4">
                 <SheetHeader className="shrink-0">
                   <SheetTitle className="flex items-center gap-2 text-amber-600">
                     <Archive className="h-5 w-5" /> คลังดอง
@@ -387,14 +408,25 @@ export function QueueBoard() {
                   </SheetDescription>
                 </SheetHeader>
 
-                <div className="flex-1 overflow-y-auto mt-6 space-y-3">
-                  {archivedJobs.length === 0 ? (
+                {/* 🌟 ช่องค้นหาในคลังดอง */}
+                <div className="relative mt-4 shrink-0">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="ค้นหาเบอร์โทร, ชื่อ, หรือรหัสคิว..."
+                    className="pl-9 h-9 text-sm border-amber-200 focus-visible:ring-amber-500"
+                    value={archiveSearchQuery}
+                    onChange={(e) => setArchiveSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto mt-4 space-y-3">
+                  {filteredArchivedJobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
-                      <Archive className="h-10 w-10 opacity-20" />
-                      <p className="text-sm">ไม่มีรายการ</p>
+                      <Search className="h-10 w-10 opacity-20" />
+                      <p className="text-sm">{archiveSearchQuery ? "ไม่พบข้อมูลที่ค้นหา" : "ไม่มีรายการ"}</p>
                     </div>
                   ) : (
-                    archivedJobs.map(job => (
+                    filteredArchivedJobs.map(job => (
                       <Card key={job.id} className="shadow-sm border-amber-200 bg-white">
                         <CardHeader className="p-3 pb-2">
                           <div className="flex justify-between items-start">
@@ -407,7 +439,6 @@ export function QueueBoard() {
                               </CardTitle>
                             </div>
                             
-                            {/* 🌟 แสดงวันที่บนการ์ดในคลังดอง พร้อม Tooltip */}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="text-[10px] text-slate-400 cursor-help whitespace-nowrap mt-1">
@@ -481,7 +512,7 @@ export function QueueBoard() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
+              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50 px-4">
                 <SheetHeader className="shrink-0">
                   <SheetTitle className="flex items-center gap-2 text-rose-600">
                     <Trash2 className="h-5 w-5" /> ถังขยะ (งานที่ถูกยกเลิก)
@@ -491,14 +522,25 @@ export function QueueBoard() {
                   </SheetDescription>
                 </SheetHeader>
 
-                <div className="flex-1 overflow-y-auto mt-6 space-y-3">
-                  {trashedJobs.length === 0 ? (
+                {/* 🌟 ช่องค้นหาในถังขยะ */}
+                <div className="relative mt-4 shrink-0">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="ค้นหาเบอร์โทร, ชื่อ, หรือรหัสคิว..."
+                    className="pl-9 h-9 text-sm border-rose-200 focus-visible:ring-rose-500"
+                    value={trashSearchQuery}
+                    onChange={(e) => setTrashSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto mt-4 space-y-3">
+                  {filteredTrashedJobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
-                      <Trash2 className="h-10 w-10 opacity-20" />
-                      <p className="text-sm">ไม่มีงานในถังขยะ</p>
+                      <Search className="h-10 w-10 opacity-20" />
+                      <p className="text-sm">{trashSearchQuery ? "ไม่พบข้อมูลที่ค้นหา" : "ไม่มีงานในถังขยะ"}</p>
                     </div>
                   ) : (
-                    trashedJobs.map(job => (
+                    filteredTrashedJobs.map(job => (
                       <Card key={job.id} className="shadow-sm border-rose-100 bg-white">
                         <CardHeader className="p-3 pb-2">
                           <div className="flex justify-between items-start">
@@ -521,7 +563,6 @@ export function QueueBoard() {
                                 {!job.cancelReason && "ยกเลิกงาน"}
                               </span>
                               
-                              {/* 🌟 แสดงวันที่บนการ์ดในถังขยะ พร้อม Tooltip */}
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="text-[10px] text-slate-400 cursor-help whitespace-nowrap">
@@ -672,7 +713,6 @@ export function QueueBoard() {
                                     {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-xs text-slate-400 font-normal">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}
                                   </span>
                                   
-                                  {/* 🌟 แสดงวันที่แบบมี Tooltip บนการ์ดคิวปกติ */}
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="text-[10px] text-slate-400 whitespace-nowrap shrink-0 cursor-help">
