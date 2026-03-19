@@ -53,7 +53,7 @@ import {
   CheckCircle2,
   UserX,
   Phone,
-  Search // 🌟 Import Search icon เพิ่มเข้ามา
+  Search
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { getQueues, updateQueueStatus } from "@/actions/queue"
@@ -128,7 +128,6 @@ export function QueueBoard() {
   const [editImei, setEditImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
-  // 🌟 State สำหรับระบบค้นหา
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("")
   const [trashSearchQuery, setTrashSearchQuery] = useState("")
 
@@ -356,21 +355,23 @@ export function QueueBoard() {
     }
   }
 
-  // 🌟 Logic กรองข้อมูลคลังดองตามคำค้นหา (เบอร์โทร, ชื่อ, รหัสคิว)
+  // 🌟 Logic กรองข้อมูลคลังดองตามคำค้นหา (เบอร์โทร, ชื่อ, รุ่นเครื่อง, รหัสคิว)
   const filteredArchivedJobs = archivedJobs.filter(job => {
     if (!archiveSearchQuery) return true;
     const searchLower = archiveSearchQuery.toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(searchLower) ||
            (job.customerName || "").toLowerCase().includes(searchLower) ||
+           (job.deviceModel || "").toLowerCase().includes(searchLower) || // 🌟 ค้นหาด้วยรุ่นเครื่อง
            (job.jobRef || "").toLowerCase().includes(searchLower);
   });
 
-  // 🌟 Logic กรองข้อมูลถังขยะตามคำค้นหา (เบอร์โทร, ชื่อ, รหัสคิว)
+  // 🌟 Logic กรองข้อมูลถังขยะตามคำค้นหา (เบอร์โทร, ชื่อ, รุ่นเครื่อง, รหัสคิว)
   const filteredTrashedJobs = trashedJobs.filter(job => {
     if (!trashSearchQuery) return true;
     const searchLower = trashSearchQuery.toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(searchLower) ||
            (job.customerName || "").toLowerCase().includes(searchLower) ||
+           (job.deviceModel || "").toLowerCase().includes(searchLower) || // 🌟 ค้นหาด้วยรุ่นเครื่อง
            (job.jobRef || "").toLowerCase().includes(searchLower);
   });
 
@@ -378,7 +379,6 @@ export function QueueBoard() {
     <TooltipProvider>
       <div className="flex flex-col min-h-screen md:min-h-0 md:h-[calc(100vh-8rem)]">
 
-        {/* ส่วนหัวกระดาน & ปุ่มถังขยะ */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">กระดานคิวงานซ่อม</h2>
@@ -398,8 +398,8 @@ export function QueueBoard() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50 px-4">
-                <SheetHeader className="shrink-0">
+              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
+                <SheetHeader className="shrink-0 px-2">
                   <SheetTitle className="flex items-center gap-2 text-amber-600">
                     <Archive className="h-5 w-5" /> คลังดอง
                   </SheetTitle>
@@ -408,18 +408,17 @@ export function QueueBoard() {
                   </SheetDescription>
                 </SheetHeader>
 
-                {/* 🌟 ช่องค้นหาในคลังดอง */}
-                <div className="relative mt-4 shrink-0">
+                <div className="relative mt-4 shrink-0 mx-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                   <Input
-                    placeholder="ค้นหาเบอร์โทร, ชื่อ, หรือรหัสคิว..."
+                    placeholder="ค้นหาเบอร์โทร, ชื่อ, รุ่นเครื่อง, หรือรหัสคิว..."
                     className="pl-9 h-9 text-sm border-amber-200 focus-visible:ring-amber-500"
                     value={archiveSearchQuery}
                     onChange={(e) => setArchiveSearchQuery(e.target.value)}
                   />
                 </div>
 
-                <div className="flex-1 overflow-y-auto mt-4 space-y-3">
+                <div className="flex-1 overflow-y-auto mt-4 space-y-3 px-2 pb-6">
                   {filteredArchivedJobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
                       <Search className="h-10 w-10 opacity-20" />
@@ -512,8 +511,8 @@ export function QueueBoard() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50 px-4">
-                <SheetHeader className="shrink-0">
+              <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-50">
+                <SheetHeader className="shrink-0 px-2">
                   <SheetTitle className="flex items-center gap-2 text-rose-600">
                     <Trash2 className="h-5 w-5" /> ถังขยะ (งานที่ถูกยกเลิก)
                   </SheetTitle>
@@ -522,18 +521,17 @@ export function QueueBoard() {
                   </SheetDescription>
                 </SheetHeader>
 
-                {/* 🌟 ช่องค้นหาในถังขยะ */}
-                <div className="relative mt-4 shrink-0">
+                <div className="relative mt-4 shrink-0 mx-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                   <Input
-                    placeholder="ค้นหาเบอร์โทร, ชื่อ, หรือรหัสคิว..."
+                    placeholder="ค้นหาเบอร์โทร, ชื่อ, รุ่นเครื่อง, หรือรหัสคิว..."
                     className="pl-9 h-9 text-sm border-rose-200 focus-visible:ring-rose-500"
                     value={trashSearchQuery}
                     onChange={(e) => setTrashSearchQuery(e.target.value)}
                   />
                 </div>
 
-                <div className="flex-1 overflow-y-auto mt-4 space-y-3">
+                <div className="flex-1 overflow-y-auto mt-4 space-y-3 px-2 pb-4">
                   {filteredTrashedJobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-400 space-y-2">
                       <Search className="h-10 w-10 opacity-20" />
@@ -605,7 +603,7 @@ export function QueueBoard() {
                 </div>
                 
                 {trashedJobs.length > 0 && (
-                  <div className="pt-4 border-t shrink-0">
+                  <div className="pt-4 border-t shrink-0 px-2 pb-4">
                     <Button variant="destructive" className="w-full" onClick={() => setIsConfirmEmptyOpen(true)}>
                       <AlertCircle className="mr-2 h-4 w-4" /> ล้างถังขยะทั้งหมด (Empty Bin)
                     </Button>
@@ -798,12 +796,12 @@ export function QueueBoard() {
                       {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 font-normal">(สี{jobToView.deviceColor})</span>}
                     </p>
                   </div>
-                  
+
                   <div>
                     <span className="text-slate-500 block mb-1 text-xs">Serial Number</span>
                     <p className="font-medium text-slate-900">{jobToView?.serialNumber || "-"}</p>
                   </div>
-                  
+
                   <div>
                     <span className="text-slate-500 block mb-1 text-xs">IMEI</span>
                     <p className="font-medium text-slate-900">{jobToView?.imei || "-"}</p>
