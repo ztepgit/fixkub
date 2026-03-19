@@ -4,10 +4,14 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button" // 🌟 Import Button
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2, Search, Filter, ClipboardX } from "lucide-react"
+import { 
+    Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2, 
+    Search, Filter, ClipboardX, Eye, EyeOff // 🌟 Import Eye, EyeOff
+} from "lucide-react"
 import { getAnalyticsSummary, getTrendData, getCancelledJobsDetails } from "@/actions/report"
 
 import {
@@ -32,6 +36,9 @@ export function ReportDashboard() {
     const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('month')
     const [summary, setSummary] = useState<any>(null)
     const [trend, setTrend] = useState<any[]>([])
+
+    // 🌟 State สำหรับการซ่อนข้อมูล
+    const [isHidden, setIsHidden] = useState(false)
 
     // State สำหรับตารางยกเลิกงาน
     const [cancelledList, setCancelledList] = useState<any[]>([])
@@ -94,12 +101,23 @@ export function ReportDashboard() {
 
     return (
         <div className="space-y-6 pb-8">
-            <div>
-                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">รายงานและสถิติ (Analytics)</h2>
-                <p className="text-sm text-slate-500">วิเคราะห์ภาพรวม รายได้ และประสิทธิภาพของร้าน</p>
+            {/* 🌟 1. ปรับส่วน Header เพื่อใส่ปุ่มซ่อน/ดูข้อมูล */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">รายงานและสถิติ (Analytics)</h2>
+                    <p className="text-sm text-slate-500">วิเคราะห์ภาพรวม รายได้ และประสิทธิภาพของร้าน</p>
+                </div>
+                <Button 
+                    variant="outline" 
+                    onClick={() => setIsHidden(!isHidden)} 
+                    className="text-slate-600 border-slate-300 hover:bg-slate-100"
+                >
+                    {isHidden ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                    {isHidden ? "ดูข้อมูล" : "ซ่อนข้อมูล"}
+                </Button>
             </div>
 
-            {/* 1. การ์ดสรุปยอด All-Time */}
+            {/* 🌟 2. การ์ดสรุปยอด All-Time (ใส่เงื่อนไข isHidden) */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -107,7 +125,9 @@ export function ReportDashboard() {
                         <Wallet className="h-4 w-4 text-indigo-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-indigo-900">฿{(summary?.totalRevenue || 0).toLocaleString()}</div>
+                        <div className="text-2xl font-bold text-indigo-900">
+                            {isHidden ? "฿***" : `฿${(summary?.totalRevenue || 0).toLocaleString()}`}
+                        </div>
                         <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                             <TrendingUp className="h-3 w-3 text-emerald-500" /> เก็บเงินเรียบร้อยแล้ว
                         </p>
@@ -120,7 +140,9 @@ export function ReportDashboard() {
                         <Wrench className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-slate-800">{summary?.totalJobs || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
+                        <div className="text-2xl font-bold text-slate-800">
+                            {isHidden ? "***" : (summary?.totalJobs || 0)} <span className="text-sm font-normal text-slate-500">เครื่อง</span>
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">คิวงานทั้งหมดในระบบ</p>
                     </CardContent>
                 </Card>
@@ -131,9 +153,11 @@ export function ReportDashboard() {
                         <Target className="h-4 w-4 text-emerald-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-emerald-700">{successRate}%</div>
+                        <div className="text-2xl font-bold text-emerald-700">
+                            {isHidden ? "***%" : `${successRate}%`}
+                        </div>
                         <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-500" /> ปิดจ๊อบแล้ว {summary?.completedJobs || 0} เครื่อง
+                            <CheckCircle2 className="h-3 w-3 text-emerald-500" /> ปิดจ๊อบแล้ว {isHidden ? "***" : (summary?.completedJobs || 0)} เครื่อง
                         </p>
                     </CardContent>
                 </Card>
@@ -144,13 +168,15 @@ export function ReportDashboard() {
                         <AlertCircle className="h-4 w-4 text-rose-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-rose-700">{summary?.cancelledJobs || 0} <span className="text-sm font-normal text-rose-500/70">เครื่อง</span></div>
+                        <div className="text-2xl font-bold text-rose-700">
+                            {isHidden ? "***" : (summary?.cancelledJobs || 0)} <span className="text-sm font-normal text-rose-500/70">เครื่อง</span>
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">งานที่ถูกตีกลับหรือยกเลิก</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* 2. กราฟ */}
+            {/* กราฟ */}
             <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
                 <div className="flex justify-end">
                     <TabsList className="grid w-[300px] grid-cols-3 bg-slate-100 border border-slate-200">
@@ -278,7 +304,7 @@ export function ReportDashboard() {
                 </div>
             </Tabs>
 
-            {/* 🌟 3. ตารางรายการยกเลิกงาน */}
+            {/* ตารางรายการยกเลิกงาน */}
             <Card className="shadow-sm border-slate-200 mt-6">
                 <CardHeader className="border-b bg-slate-50/50 pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -289,19 +315,8 @@ export function ReportDashboard() {
                             </CardTitle>
                             <CardDescription className="mt-1">ค้นหาและกรองประวัติการยกเลิกงานเพื่อปรับปรุงบริการ (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
                         </div>
-
+                      
                         <div className="flex items-center gap-3">
-                            {/* คอมเมนต์ส่วน Search Bar เพื่อซ่อนเบอร์โทรลูกค้า
-                            <div className="relative w-full md:w-64">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                                <Input
-                                    placeholder="ค้นหาบิล, ชื่อลูกค้า, รุ่น..."
-                                    className="pl-9 h-9 text-sm"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                                
-                            </div> */}
                             <Select value={filterReason} onValueChange={setFilterReason}>
                                 <SelectTrigger className="w-[180px] h-9 text-sm">
                                     <Filter className="w-4 h-4 mr-2 text-slate-400" />
@@ -320,10 +335,8 @@ export function ReportDashboard() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    {/* 🌟 จำกัดความสูงให้ Scroll ได้ */}
                     <div className="max-h-[500px] overflow-auto relative">
                         <Table>
-                            {/* 🌟 ล็อคส่วนหัวตารางไว้ด้านบนเวลาเลื่อนลง */}
                             <TableHeader className="bg-slate-50/50 sticky top-0 z-10 shadow-sm">
                                 <TableRow>
                                     <TableHead className="w-[60px] text-center">ลำดับ</TableHead>
@@ -337,7 +350,7 @@ export function ReportDashboard() {
                             <TableBody>
                                 {filteredCancelledJobs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-10 text-slate-500"> {/* 🌟 เปลี่ยน colSpan เป็น 6 */}
+                                        <TableCell colSpan={6} className="text-center py-10 text-slate-500"> 
                                             ไม่พบข้อมูลที่ค้นหา
                                         </TableCell>
                                     </TableRow>
@@ -353,9 +366,7 @@ export function ReportDashboard() {
                                                 <div className="text-xs text-slate-500">{job.customerName}</div>
                                             </TableCell>
                                             <TableCell className="text-sm text-slate-700">{job.deviceModel}</TableCell>
-
-                                            {/* 🌟 นำข้อมูลอาการเสียมาแสดง และจำกัดความยาวเพื่อไม่ให้ตารางพัง */}
-                                            {/* 🌟 แสดงข้อมูลบริการและอาการเสีย */}
+                                            
                                             <TableCell className="text-sm text-slate-600 max-w-[200px]">
                                                 <p className="truncate" title={`${job.serviceName || "ไม่ได้ระบุบริการ"} ${job.issue ? `- ${job.issue}` : ""}`}>
                                                     <span className="font-semibold text-emerald-700">[{job.serviceName || "ทั่วไป"}]</span> {job.issue || ""}
