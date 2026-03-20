@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Smartphone, Wrench, User, PenLine } from "lucide-react"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Smartphone, User, PenLine, CheckCircle2 } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
 
@@ -21,16 +22,32 @@ const COMMON_SERVICES = [
   "ปลดล็อคเครื่อง",
 ]
 
-export function CustomerBookingForm() {
+interface CustomerBookingFormProps {
+  shopId?: string;
+  shopName?: string;
+  shopLogoUrl?: string | null;
+}
+
+export function CustomerBookingForm({ 
+  shopId = "shop_test_001",
+  shopName = "ร้านปิ๊กโมบาย", 
+  shopLogoUrl = null 
+}: CustomerBookingFormProps) {
   const { toast } = useToast() 
   const [isSubmitting, setIsSubmitting] = useState(false) 
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [queueRef, setQueueRef] = useState("")
 
   const [serviceName, setServiceName] = useState<string>("")
   const [deviceModel, setDeviceModel] = useState<string>("")
   const [deviceColor, setDeviceColor] = useState<string>("")
   const [issue, setIssue] = useState<string>("")
   const [customerName, setCustomerName] = useState<string>("")
-  const [phone, setPhone] = useState<string>("") // 🌟 ข้อมูลสำคัญที่จะใช้เป็น Key
+  const [phone, setPhone] = useState<string>("") 
+
+  const getInitial = (name: string) => {
+    return name ? name.charAt(0).toUpperCase() : "S"
+  }
 
   const handleChipClick = (service: string) => {
     setServiceName(service)
@@ -41,7 +58,7 @@ export function CustomerBookingForm() {
     
     try {
       const response = await createQueue({
-        shopId: "shop_test_001", 
+        shopId: shopId, 
         customerName: customerName,
         phoneNumber: phone, 
         deviceModel: deviceModel,
@@ -52,60 +69,88 @@ export function CustomerBookingForm() {
       })
 
       if (response.success) {
-        toast({
-          title: "✅ แจ้งซ่อมสำเร็จ!",
-          // 🌟 แจ้งลูกค้าให้ชัดเจนว่าให้ใช้เบอร์โทรเช็คสถานะ
-          description: `ส่งข้อมูลให้ทางร้านแล้ว คุณสามารถใช้เบอร์ ${phone} เช็คสถานะได้ที่เมนู "เช็คสถานะ" ด้านบนครับ`,
-          duration: 6000,
-        })
-        
-        setServiceName("")
-        setDeviceModel("")
-        setDeviceColor("")
-        setIssue("")
-        setCustomerName("")
-        setPhone("")
+        // ดึงเลข JobRef มาโชว์ในหน้า Success
+        setQueueRef(response.data?.jobRef || "Q-XXXX")
+        setIsSuccess(true)
       } else {
-        toast({
-          title: "❌ เกิดข้อผิดพลาด",
-          description: response.error,
-          variant: "destructive",
-        })
+        toast({ title: "❌ เกิดข้อผิดพลาด", description: response.error, variant: "destructive" })
       }
     } catch (error) {
-      toast({
-        title: "❌ เกิดข้อผิดพลาด",
-        description: "ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง",
-        variant: "destructive",
-      })
+      toast({ title: "❌ เกิดข้อผิดพลาด", description: "ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง", variant: "destructive" })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  return (
-    <div className="mx-auto w-full max-w-md space-y-4">
-      <Card className="border-emerald-100 shadow-md">
-        <CardHeader className="bg-emerald-50/50 pb-6 text-center rounded-t-xl border-b border-emerald-100">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-            <Wrench className="h-6 w-6 text-emerald-600" />
-          </div>
-          <CardTitle className="text-2xl text-emerald-950">แจ้งซ่อมมือถือ</CardTitle>
-          <CardDescription>กรอกข้อมูลเบื้องต้นเพื่อรับคิวซ่อม</CardDescription>
-        </CardHeader>
+  // 🌟 หน้าจอเมื่อกดแจ้งซ่อมสำเร็จ
+  if (isSuccess) {
+    return (
+      <div className="w-full max-w-md mx-auto p-6 bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-500 min-h-[450px]">
+        <div className="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+          <CheckCircle2 className="h-10 w-10" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">รับคิวสำเร็จ!</h2>
+        <p className="text-slate-600 mb-6">
+          คุณสามารถใช้เบอร์โทร <span className="font-bold text-emerald-600">{phone}</span><br/>เพื่อเช็คสถานะงานซ่อมได้ตลอดเวลา
+        </p>
         
-        <CardContent className="space-y-6 pt-6">
+        <div className="bg-slate-50 border-2 border-dashed border-emerald-300 rounded-xl p-6 w-full mb-6 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+          <p className="text-sm text-slate-500 mb-1">รหัสบิลของคุณคือ</p>
+          <p className="text-4xl font-black text-emerald-700 tracking-wider">{queueRef}</p>
+        </div>
+        
+        <Button 
+          variant="outline"
+          className="w-full h-12 text-base border-slate-300 hover:bg-slate-50 text-slate-600" 
+          onClick={() => {
+            setIsSuccess(false)
+            setServiceName("")
+            setDeviceModel("")
+            setDeviceColor("")
+            setIssue("")
+            setCustomerName("")
+            setPhone("")
+          }}
+        >
+          แจ้งซ่อมเครื่องอื่นเพิ่มเติม
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-md space-y-0">
+      {/* 🌟 Header UX/UI โลโก้ & ชื่อร้าน */}
+      <div className="bg-white px-6 pt-8 pb-5 rounded-t-2xl border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
+        <Avatar className="h-16 w-16 border-[3px] border-white shadow-md mb-3 bg-white">
+          {shopLogoUrl ? (
+            <AvatarImage src={shopLogoUrl} alt={`${shopName} logo`} className="object-cover" />
+          ) : (
+            <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl font-black">
+              {getInitial(shopName)}
+            </AvatarFallback>
+          )}
+        </Avatar>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{shopName}</h1>
+        <p className="text-sm text-slate-500 mt-1 flex items-center justify-center gap-1.5">
+          ฟอร์มแจ้งซ่อมออนไลน์
+        </p>
+      </div>
+
+      <Card className="border-0 rounded-t-none rounded-b-2xl shadow-xl bg-white relative z-0">
+        <CardContent className="space-y-6 pt-6 px-5 sm:px-6">
           
           <div className="space-y-3">
             <Label htmlFor="serviceName" className="text-base font-semibold flex items-center gap-2">
-              <PenLine className="h-4 w-4" /> 1. บริการที่ต้องการ <span className="text-red-500">*</span>
+              <PenLine className="h-4 w-4 text-emerald-600" /> 1. บริการที่ต้องการ <span className="text-red-500">*</span>
             </Label>
             <Input 
               id="serviceName" 
-              placeholder="พิมพ์บริการ หรือ อาการหลักที่ต้องการซ่อม..." 
+              placeholder="พิมพ์บริการ หรือ อาการหลัก..." 
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
-              className="border-emerald-200 focus-visible:ring-emerald-500"
+              className="border-slate-200 focus-visible:ring-emerald-500 bg-slate-50"
             />
             <div className="flex flex-wrap gap-2 pt-1">
               {COMMON_SERVICES.map((service) => (
@@ -116,7 +161,7 @@ export function CustomerBookingForm() {
                   className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                     serviceName === service 
                       ? "bg-emerald-600 text-white border-emerald-600" 
-                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"
                   }`}
                 >
                   {service}
@@ -125,37 +170,38 @@ export function CustomerBookingForm() {
             </div>
           </div>
 
-          <div className="space-y-4 rounded-lg bg-slate-50 p-4 border border-slate-100">
+          <div className="space-y-4 rounded-xl bg-slate-50/50 p-4 border border-slate-100">
             <Label className="text-base font-semibold flex items-center gap-2">
-              <Smartphone className="h-4 w-4" /> 2. ข้อมูลตัวเครื่อง
+              <Smartphone className="h-4 w-4 text-emerald-600" /> 2. ข้อมูลตัวเครื่อง
             </Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="deviceModel">รุ่นมือถือ/iPad หรืออื่นๆ<span className="text-red-500">*</span></Label>
+                <Label htmlFor="deviceModel" className="text-sm">รุ่นมือถือ/iPad <span className="text-red-500">*</span></Label>
                 <Input 
                   id="deviceModel" 
                   placeholder="เช่น iPhone 13" 
                   value={deviceModel}
                   onChange={(e) => setDeviceModel(e.target.value)}
+                  className="bg-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="deviceColor">สีเครื่อง</Label>
+                <Label htmlFor="deviceColor" className="text-sm">สีเครื่อง</Label>
                 <Input 
                   id="deviceColor" 
                   placeholder="เช่น ดำ" 
                   value={deviceColor}
                   onChange={(e) => setDeviceColor(e.target.value)}
+                  className="bg-white"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="issue">รายละเอียดอาการเพิ่มเติม</Label>
+              <Label htmlFor="issue" className="text-sm">รายละเอียดเพิ่มเติม (ถ้ามี)</Label>
               <Textarea 
                 id="issue" 
-                placeholder="อธิบายอาการเพิ่มเติม (ถ้ามี) เช่น ทำตกจอแตก ทัชไม่ได้ฝั่งขวา"
-                className="resize-none"
-                rows={2}
+                placeholder="เช่น ทำตกจอแตก ทัชไม่ได้ฝั่งขวา"
+                className="resize-none bg-white min-h-[80px]"
                 value={issue}
                 onChange={(e) => setIssue(e.target.value)}
               />
@@ -164,36 +210,36 @@ export function CustomerBookingForm() {
 
           <div className="space-y-4">
             <Label className="text-base font-semibold flex items-center gap-2">
-              <User className="h-4 w-4" /> 3. ข้อมูลติดต่อ
+              <User className="h-4 w-4 text-emerald-600" /> 3. ข้อมูลติดต่อ
             </Label>
             <div className="space-y-2">
-              <Label htmlFor="name">ชื่อลูกค้า <span className="text-red-500">*</span></Label>
+              <Label htmlFor="name" className="text-sm">ชื่อลูกค้า <span className="text-red-500">*</span></Label>
               <Input 
                 id="name" 
                 placeholder="ชื่อ หรือ ชื่อเล่น" 
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
+                className="bg-slate-50 focus-visible:bg-white"
               />
             </div>
             <div className="space-y-2">
-              {/* 🌟 บังคับกรอกเบอร์โทรศัพท์ */}
-              <Label htmlFor="phone">เบอร์โทรศัพท์ <span className="text-red-500">*</span></Label>
+              <Label htmlFor="phone" className="text-sm">เบอร์โทรศัพท์ <span className="text-red-500">*</span></Label>
               <Input 
                 id="phone" 
                 type="tel" 
                 placeholder="08x-xxx-xxxx (ใช้สำหรับเช็คสถานะ)" 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                className="bg-slate-50 focus-visible:bg-white"
               />
             </div>
           </div>
         </CardContent>
 
-        <CardFooter className="bg-slate-50 border-t rounded-b-xl pt-4 pb-6">
+        <CardFooter className="bg-white border-t border-slate-50 rounded-b-2xl pt-4 pb-6 px-5 sm:px-6">
           <Button 
             onClick={handleSubmit} 
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-lg py-6 shadow-lg shadow-emerald-200" 
-            // 🌟 เพิ่มเงื่อนไข !phone เข้าไปเพื่อล็อคปุ่มถ้ายังไม่กรอกเบอร์
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-lg h-12 shadow-lg shadow-emerald-200/50 rounded-xl transition-all hover:scale-[1.02]" 
             disabled={!serviceName || !deviceModel || !customerName || !phone || isSubmitting}
           >
             {isSubmitting ? "กำลังส่งข้อมูล..." : "รับคิวแจ้งซ่อม"}
