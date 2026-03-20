@@ -5,15 +5,19 @@ import { notFound } from "next/navigation"
 export default async function CustomerPage({
   params,
 }: {
-  params: { shopSlug: string }
+  // Next.js 15 บังคับให้ params เป็น Promise
+  params: Promise<{ shopSlug: string }> 
 }) {
+  // 🌟 1. Await params ก่อนใช้งาน (กฎใหม่ของ Next.js 15)
+  const resolvedParams = await params;
+  const shopSlug = resolvedParams.shopSlug;
+
+  let shop;
+
   try {
-    // 🌟 ดึงข้อมูลเฉพาะที่จำเป็น (Select) ลดภาระ Database
-    const shop = await db.shop.findUnique({
-      // ⚠️ ถ้า DB มีฟิลด์ slug แล้ว ค่อยเปลี่ยนเป็น slug: params.shopSlug นะครับ
-      // ⚠️ ถ้ามีระบบเปิด/ปิดร้าน ค่อยเพิ่ม isActive: true 
+    shop = await db.shop.findUnique({
       where: { 
-        id: params.shopSlug, 
+        id: shopSlug, 
       },
       select: {
         id: true,
@@ -21,24 +25,25 @@ export default async function CustomerPage({
         logoUrl: true,
       },
     })
-
-    // ถ้าหาร้านไม่เจอ หรือ URL ผิด ให้แสดงหน้า 404
-    if (!shop) {
-      notFound()
-    }
-
-    return (
-      <div className="min-h-screen bg-slate-50/50 py-10 px-4 flex flex-col items-center justify-center">
-        <CustomerBookingForm
-          shopId={shop.id}
-          shopName={shop.name}
-          shopLogoUrl={shop.logoUrl}
-        />
-      </div>
-    )
   } catch (error) {
-    // 🌟 ดัก Error กรณี Database ล่ม จะได้รู้สาเหตุและหน้าเว็บไม่ Crash รุนแรง
     console.error("❌ Failed to load shop:", error)
     throw new Error("ไม่สามารถโหลดข้อมูลร้านค้าได้ในขณะนี้")
   }
+
+  // 🌟 2. ย้าย notFound() ออกมานอก try...catch !!!
+  // เพราะ notFound() จะ throw error ออกมาเพื่อพาไปหน้า 404 
+  // ถ้าอยู่ใน try...catch มันจะถูกดักไว้แล้วหน้าเว็บจะพังครับ
+  if (!shop) {
+    notFound()
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50/50 py-10 px-4 flex flex-col items-center justify-center">
+      <CustomerBookingForm
+        shopId={shop.id}
+        shopName={shop.name}
+        shopLogoUrl={shop.logoUrl}
+      />
+    </div>
+  )
 }
