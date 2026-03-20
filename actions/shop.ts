@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma"
 import { supabase } from "@/lib/supabase" 
+import { revalidatePath } from "next/cache" // 🌟 1. Import revalidatePath เข้ามา
 
 export async function getShopSettings(shopId: string) {
   try {
@@ -30,29 +31,25 @@ export async function updateShopSettings(formData: FormData) {
       return { success: false, error: "ข้อมูลไม่ครบถ้วน" }
     }
 
-    // 🌟 ถ้ามีการอัปโหลดไฟล์โลโก้ใหม่
     if (logoFile && logoFile.size > 0) {
       const fileExt = 'webp'
       const fileName = `logo-${shopId}-${Date.now()}.${fileExt}`
 
-      // 🌟 แปลง File ให้เป็น Buffer เพื่อแก้บัคการอัปโหลดผ่าน Server Action ของ Next.js
       const arrayBuffer = await logoFile.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
 
-      // อัปโหลดขึ้น Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('shop-logos')
         .upload(fileName, buffer, {
           contentType: 'image/webp',
-          upsert: true, // อนุญาตให้อัปเดตทับได้
+          upsert: true, 
         })
 
       if (uploadError) {
         console.error("Supabase Upload Error Details:", uploadError)
-        return { success: false, error: "ไม่สามารถอัพโหลดโลโก้ได้ (ติด Permission หรือไม่มี Bucket)" }
+        return { success: false, error: "ไม่สามารถอัพโหลดโลโก้ได้" }
       }
 
-      // ดึง Public URL ของรูปภาพกลับมา
       const { data: publicUrlData } = supabase.storage
         .from('shop-logos')
         .getPublicUrl(fileName)
@@ -60,7 +57,6 @@ export async function updateShopSettings(formData: FormData) {
       logoUrl = publicUrlData.publicUrl
     }
 
-    // 🌟 บันทึก URL และชื่อร้านลง Database
     const updatedShop = await db.shop.update({
       where: { id: shopId },
       data: {
@@ -68,6 +64,10 @@ export async function updateShopSettings(formData: FormData) {
         logoUrl: logoUrl, 
       },
     })
+    
+    // 🌟 2. สั่งล้าง Cache ของ Next.js เพื่อให้หน้าเว็บอัปเดตทันที
+    revalidatePath(`/shop/${shopId}`)
+    revalidatePath('/') // ล้าง cache หน้าหลักเผื่อไว้ด้วย
     
     return { success: true, data: updatedShop }
   } catch (error) {

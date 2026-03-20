@@ -1,46 +1,44 @@
-"use client"
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { db } from "@/lib/prisma"
 import { CustomerBookingForm } from "@/components/customer-booking-form"
-import { CustomerQueueStatus } from "@/components/customer-queue-status"
-import { Smartphone, Search } from "lucide-react"
+import { notFound } from "next/navigation"
 
-export default function CustomerPortalPage() {
+export default async function CustomerPage({
+  params,
+}: {
+  params: { shopSlug: string }
+}) {
+  try {
+    // 🌟 ดึงข้อมูลเฉพาะที่จำเป็น (Select) ลดภาระ Database
+    const shop = await db.shop.findUnique({
+      // ⚠️ ถ้า DB มีฟิลด์ slug แล้ว ค่อยเปลี่ยนเป็น slug: params.shopSlug นะครับ
+      // ⚠️ ถ้ามีระบบเปิด/ปิดร้าน ค่อยเพิ่ม isActive: true 
+      where: { 
+        id: params.shopSlug, 
+      },
+      select: {
+        id: true,
+        name: true,
+        logoUrl: true,
+      },
+    })
+
+    // ถ้าหาร้านไม่เจอ หรือ URL ผิด ให้แสดงหน้า 404
+    if (!shop) {
+      notFound()
+    }
+
     return (
-        <div className="min-h-screen bg-slate-50 py-8 px-4">
-            <div className="mx-auto w-full max-w-md space-y-6">
-
-                {/* หัวเว็บร้าน (จำลอง) */}
-                <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-bold text-slate-800">ยินดีต้อนรับสู่ร้านซ่อม</h1>
-                    <p className="text-sm text-slate-500">บริการซ่อมมือถือครบวงจร รวดเร็ว ทันใจ</p>
-                </div>
-
-                {/* ระบบ Tabs สลับหน้าจอ */}
-                <Tabs defaultValue="book" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-white border shadow-sm rounded-xl">
-                        <TabsTrigger value="book" className="rounded-lg data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 font-medium">
-                            <Smartphone className="h-4 w-4 mr-2" />
-                            แจ้งซ่อมเครื่อง
-                        </TabsTrigger>
-                        <TabsTrigger value="status" className="rounded-lg data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-medium">
-                            <Search className="h-4 w-4 mr-2" />
-                            เช็คสถานะ
-                        </TabsTrigger>
-                    </TabsList>
-
-                    {/* เนื้อหาแท็บแจ้งซ่อม */}
-                    <TabsContent value="book" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <CustomerBookingForm />
-                    </TabsContent>
-
-                    {/* เนื้อหาแท็บเช็คสถานะ */}
-                    <TabsContent value="status" className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <CustomerQueueStatus />
-                    </TabsContent>
-                </Tabs>
-
-            </div>
-        </div>
+      <div className="min-h-screen bg-slate-50/50 py-10 px-4 flex flex-col items-center justify-center">
+        <CustomerBookingForm
+          shopId={shop.id}
+          shopName={shop.name}
+          shopLogoUrl={shop.logoUrl}
+        />
+      </div>
     )
+  } catch (error) {
+    // 🌟 ดัก Error กรณี Database ล่ม จะได้รู้สาเหตุและหน้าเว็บไม่ Crash รุนแรง
+    console.error("❌ Failed to load shop:", error)
+    throw new Error("ไม่สามารถโหลดข้อมูลร้านค้าได้ในขณะนี้")
+  }
 }
