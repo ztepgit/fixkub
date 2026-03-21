@@ -12,7 +12,6 @@ import {
   BreadcrumbSeparator 
 } from "@/components/ui/breadcrumb"
 
-// 🌟 Import UI Components สำหรับทำ Pop-up (Dialog) และอื่นๆ
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,12 +25,11 @@ import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 
-// 🌟 Import ไอคอนและไลบรารีสร้าง QR Code
 import { QRCodeCanvas } from "qrcode.react"
 import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2 } from "lucide-react"
 
 export function DashboardHeader() {
-  const SHOP_ID = "shop_test_001" // ไอดีร้านค้า 
+  const SHOP_ID = "shop_test_001" 
 
   const [shopUrl, setShopUrl] = useState("")
   const [isShareOpen, setIsShareOpen] = useState(false)
@@ -39,7 +37,6 @@ export function DashboardHeader() {
   const { toast } = useToast()
 
   useEffect(() => {
-    // สร้าง URL ให้ตรงกับโดเมนปัจจุบัน
     if (typeof window !== 'undefined') {
       setShopUrl(`${window.location.origin}/shop/${SHOP_ID}`)
     }
@@ -67,10 +64,10 @@ export function DashboardHeader() {
     }
   }
 
+  // 🌟 นำคอมเมนต์เจ้าปัญหาออกไปแล้วครับ และคงความสูง h-20 ไว้เหมือนเดิม
   return (
-    <header className="flex flex-1 h-16 shrink-0 items-center justify-between border-b px-4 bg-white/50 backdrop-blur-sm sticky top-0 z-40">
+    <header className="flex flex-1 h-20 shrink-0 items-center justify-between border-b px-4 bg-white/50 backdrop-blur-sm sticky top-0 z-40">
       
-      {/* ฝั่งซ้าย: เมนูและ Breadcrumb (โค้ดเดิม) */}
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1 text-slate-500 hover:text-slate-800" />
         <Separator orientation="vertical" className="mr-2 h-4 bg-slate-200" />
@@ -89,10 +86,8 @@ export function DashboardHeader() {
         </Breadcrumb>
       </div>
 
-      {/* 🌟 ฝั่งขวา: ปุ่มแชร์ลิงก์ร้าน */}
       <div className="ml-auto flex items-center gap-3">
         <TooltipProvider>
-          {/* ปุ่มสำหรับหน้าจอคอม (แสดงข้อความด้วย) */}
           <Button 
             variant="outline" 
             size="sm" 
@@ -102,7 +97,6 @@ export function DashboardHeader() {
             <QrCode className="w-4 h-4 mr-2" /> แชร์ลิงก์ร้าน
           </Button>
 
-          {/* ปุ่มสำหรับหน้าจอมือถือ (แสดงแค่ไอคอน) */}
           <Button 
             variant="outline" 
             size="icon" 
@@ -113,7 +107,6 @@ export function DashboardHeader() {
           </Button>
         </TooltipProvider>
 
-        {/* 🌟 Pop-up (Dialog) เมื่อกดปุ่มแชร์ */}
         <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
           <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl">
             
@@ -129,7 +122,6 @@ export function DashboardHeader() {
                   </DialogDescription>
                 </div>
                 
-                {/* ปุ่มดวงตา (ซ่อน/แสดง QR Code) */}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -151,7 +143,6 @@ export function DashboardHeader() {
             </DialogHeader>
 
             <div className="p-6 pt-4 bg-white space-y-6">
-              {/* บริเวณแสดงภาพ QR Code หรือ Placeholder */}
               <div className="flex justify-center">
                 {isQrHidden ? (
                   <div className="flex flex-col items-center justify-center space-y-3 h-[200px] w-full bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 animate-in fade-in duration-300">
@@ -181,7 +172,6 @@ export function DashboardHeader() {
                 )}
               </div>
 
-              {/* บริเวณกล่องคัดลอกลิงก์และโหลดรูป */}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">
@@ -207,7 +197,7 @@ export function DashboardHeader() {
                   <Button 
                     className="w-full bg-blue-600 hover:bg-blue-700 shadow-sm h-11" 
                     onClick={downloadQR}
-                    disabled={isQrHidden} // โหลดไม่ได้ถ้าปิดตาอยู่
+                    disabled={isQrHidden} 
                   >
                     <Download className="h-4 w-4 mr-2" /> โหลดรูปภาพ
                   </Button>
