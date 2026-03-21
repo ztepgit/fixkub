@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,16 +11,13 @@ import {
   Search, 
   Loader2, 
   Smartphone, 
-  Clock, 
   Wrench, 
   PackageCheck, 
   AlertCircle, 
-  CheckCircle2,
   XCircle,
   ClipboardList
 } from "lucide-react"
 
-// นำเข้า Action ที่เราเตรียมไว้
 import { getQueueByRefOrPhone } from "@/actions/queue"
 
 type QueueData = {
@@ -33,24 +30,24 @@ type QueueData = {
   cancelReason?: string | null
 }
 
-export function CustomerQueueStatus() {
+// 🌟 1. เปิดประตูรับ Props shopId ตรงนี้ครับ
+export function CustomerQueueStatus({ shopId }: { shopId: string }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [jobData, setJobData] = useState<QueueData | null>(null)
   
   const { toast } = useToast()
 
-  // 🌟 ฟังก์ชันค้นหาข้อมูลบิลซ่อม
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!searchQuery.trim()) return
 
     setIsLoading(true)
-    setJobData(null) // เคลียร์ข้อมูลเก่าก่อนค้นหาใหม่
+    setJobData(null) 
 
     try {
-      // 🔴 ค้นหาจากร้านทดสอบ (อนาคตดึงค่าจาก URL param)
-      const res = await getQueueByRefOrPhone("shop_test_001", searchQuery.trim())
+      // 🌟 2. เปลี่ยนจาก "shop_test_001" เป็น shopId ที่รับมาจาก Props
+      const res = await getQueueByRefOrPhone(shopId, searchQuery.trim())
       
       if (res.success && res.data) {
         setJobData(res.data as QueueData)
@@ -76,7 +73,6 @@ export function CustomerQueueStatus() {
     }
   }
 
-  // 🌟 เปิดท่อดักฟังการเปลี่ยนแปลงแบบ Realtime เฉพาะบิลของลูกค้าคนนี้!
   useEffect(() => {
     if (!jobData?.id) return
 
@@ -88,13 +84,12 @@ export function CustomerQueueStatus() {
           event: 'UPDATE', 
           schema: 'public', 
           table: 'Queue',
-          filter: `id=eq.${jobData.id}` // ดักฟังเฉพาะ ID ของตัวเองเท่านั้น
+          filter: `id=eq.${jobData.id}` 
         },
         (payload) => {
           console.log('🔄 อัปเดตสถานะล่าสุดจากร้าน!', payload.new)
           setJobData(payload.new as QueueData)
           
-          // แจ้งเตือนลูกค้าเมื่อสถานะเปลี่ยน
           toast({
             title: "🔔 อัปเดตสถานะการซ่อม!",
             description: "ร้านซ่อมได้อัปเดตสถานะเครื่องของคุณแล้ว",
@@ -103,49 +98,37 @@ export function CustomerQueueStatus() {
       )
       .subscribe()
 
-    // ปิดท่อเมื่อลูกค้าค้นหาเบอร์อื่น หรือปิดหน้าเว็บ
     return () => {
       supabase.removeChannel(channel)
     }
   }, [jobData?.id, toast])
 
-  // --- ส่วนของ UI Timeline ---
-  
-  // ลำดับของสถานะงานซ่อมปกติ
   const statusFlow = ["PENDING", "WAITING", "PROCESSING", "REPAIRED", "COMPLETED"]
-  
-  // เช็คว่าสถานะปัจจุบันอยู่ที่ Step ไหน (0 - 4)
   const currentStepIndex = jobData ? statusFlow.indexOf(jobData.status) : -1
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-6">
+    <div className="mx-auto w-full max-w-md space-y-6 pb-6">
       
-      {/* ส่วนที่ 1: กล่องค้นหา */}
-      <Card className="border-blue-100 shadow-md">
-        <CardHeader className="bg-blue-50/50 pb-4 text-center rounded-t-xl border-b border-blue-100">
-          <CardTitle className="text-xl text-blue-950">เช็คสถานะงานซ่อม</CardTitle>
-          <CardDescription>กรอกเบอร์โทรศัพท์ หรือ เลขที่บิล เพื่อติดตามสถานะ</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <Input 
-              placeholder="เบอร์โทร เช่น 0812345678" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isLoading || !searchQuery} className="bg-blue-600 hover:bg-blue-700">
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="bg-slate-50 border-b border-slate-100 p-6 text-center">
+        <h2 className="text-xl font-bold text-slate-800 mb-1">เช็คสถานะงานซ่อม</h2>
+        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์ หรือชื่อ เพื่อติดตามสถานะ</p>
+        
+        <form onSubmit={handleSearch} className="flex gap-2 mt-4">
+          <Input 
+            placeholder="เช่น 0812345678 หรือ Q-XXXX" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-white h-12"
+          />
+          <Button type="submit" disabled={isLoading || !searchQuery} className="bg-blue-600 hover:bg-blue-700 h-12 px-6">
+            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+          </Button>
+        </form>
+      </div>
 
-      {/* ส่วนที่ 2: แสดงผลลัพธ์สถานะ */}
       {jobData && (
-        <Card className="border-slate-200 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <Card className="border-slate-200 shadow-lg mx-4 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           
-          {/* Header ข้อมูลเครื่อง */}
           <div className="bg-slate-800 p-5 text-white">
             <div className="flex justify-between items-start mb-2">
               <Badge variant="outline" className="bg-slate-700/50 text-slate-200 border-slate-600">
@@ -166,12 +149,10 @@ export function CustomerQueueStatus() {
             <p className="text-slate-400 text-sm">คุณลูกค้า: {jobData.customerName}</p>
           </div>
 
-          {/* Timeline สถานะ (แสดงเมื่อไม่ได้ยกเลิก) */}
           {jobData.status !== "CANCELLED" && jobData.status !== "ARCHIVED" && (
             <CardContent className="p-6">
               <div className="relative border-l-2 border-slate-100 ml-4 space-y-8">
                 
-                {/* Step 1: รับเรื่อง / รอคิว */}
                 <div className="relative pl-6">
                   <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 0 ? "bg-slate-500" : "bg-slate-200"}`}>
                     <ClipboardList className="h-3.5 w-3.5 text-white" />
@@ -182,7 +163,6 @@ export function CustomerQueueStatus() {
                   </div>
                 </div>
 
-                {/* Step 2: กำลังซ่อม */}
                 <div className="relative pl-6">
                   <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 2 ? "bg-blue-500" : "bg-slate-200"}`}>
                     {currentStepIndex === 2 && <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-50 animate-ping"></span>}
@@ -194,7 +174,6 @@ export function CustomerQueueStatus() {
                   </div>
                 </div>
 
-                {/* Step 3: ซ่อมเสร็จ */}
                 <div className="relative pl-6">
                   <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 3 ? "bg-emerald-500" : "bg-slate-200"}`}>
                     {currentStepIndex === 3 && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50 animate-ping"></span>}
@@ -210,7 +189,6 @@ export function CustomerQueueStatus() {
             </CardContent>
           )}
 
-          {/* กรณีเครื่องถูกตีเข้าคลัง */}
           {jobData.status === "ARCHIVED" && (
             <CardContent className="p-6 text-center space-y-3">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
@@ -223,7 +201,6 @@ export function CustomerQueueStatus() {
             </CardContent>
           )}
 
-          {/* กรณีเครื่องถูกยกเลิก */}
           {jobData.status === "CANCELLED" && (
             <CardContent className="p-6 text-center space-y-3 border-t-4 border-rose-500">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100">

@@ -156,3 +156,31 @@ export async function getQueueByRefOrPhone(shopId: string, searchQuery: string) 
     return { success: false, error: "ค้นหาข้อมูลไม่สำเร็จ ระบบขัดข้อง" };
   }
 }
+
+// ==========================================
+// 🌟 ดึงข้อมูลคิวสำหรับหน้าเช็คสถานะของลูกค้า
+// ==========================================
+export async function getCustomerQueues(shopId: string, searchKey: string) {
+  try {
+    const queues = await db.queue.findMany({
+      where: {
+        shopId,
+        // 🌟 ค้นหาได้ทั้ง เบอร์โทร, รหัสคิว, และ ชื่อลูกค้า (ตัวเล็ก/ตัวใหญ่ได้หมด)
+        OR: [
+          { phoneNumber: { contains: searchKey } },
+          { jobRef: { contains: searchKey.toUpperCase() } },
+          { customerName: { contains: searchKey, mode: 'insensitive' } } // 🌟 เพิ่มการค้นหาด้วยชื่อ
+        ]
+      },
+      // เรียงจากงานล่าสุดไปหางานเก่าสุด
+      orderBy: { createdAt: 'desc' },
+      
+      // 🌟 เอา take: 5 ออก เพื่อให้แสดงประวัติงานซ่อมทั้งหมดที่เคยมาทำกับร้านเรา
+    });
+    
+    return { success: true, data: queues };
+  } catch (error) {
+    console.error("Error fetching customer queues:", error);
+    return { success: false, error: "ไม่สามารถค้นหาข้อมูลได้ในขณะนี้" };
+  }
+}
