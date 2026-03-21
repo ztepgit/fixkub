@@ -132,30 +132,6 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
 }
 // --- วางต่อท้ายไฟล์ actions/queue.ts ---
 
-// ค้นหาคิวสำหรับลูกค้า (ค้นจากเลขบิล หรือ เบอร์โทร)
-export async function getQueueByRefOrPhone(shopId: string, searchQuery: string) {
-  try {
-    const job = await db.queue.findFirst({
-      where: {
-        shopId: shopId,
-        OR: [
-          { jobRef: { equals: searchQuery, mode: 'insensitive' } }, // ค้นหาเลขบิลแบบไม่สนตัวพิมพ์เล็ก/ใหญ่
-          { phoneNumber: searchQuery } // หรือค้นจากเบอร์โทร
-        ]
-      },
-      orderBy: { createdAt: 'desc' } // ถ้าเบอร์โทรซ้ำ ให้เอาบิลล่าสุดมาโชว์
-    });
-
-    if (!job) {
-      return { success: false, error: "ไม่พบข้อมูลใบสั่งซ่อมจากรหัสหรือเบอร์โทรนี้" };
-    }
-
-    return { success: true, data: job };
-  } catch (error) {
-    console.error("❌ Error fetching queue by ref:", error);
-    return { success: false, error: "ค้นหาข้อมูลไม่สำเร็จ ระบบขัดข้อง" };
-  }
-}
 
 // ==========================================
 // 🌟 ดึงข้อมูลคิวสำหรับหน้าเช็คสถานะของลูกค้า
