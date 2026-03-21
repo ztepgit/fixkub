@@ -355,7 +355,7 @@ export function DashboardOverview() {
                 <QrCode className="h-5 w-5 text-blue-600" />
                 ให้ลูกค้าสแกนรับคิว
               </CardTitle>
-              <CardDescription>ให้ลูกค้าสแกนเพื่อกรอกข้อมูลแจ้งซ่อมเอง</CardDescription>
+              <CardDescription>ส่งใบแจ้งซ่อมอัจฉริยะ</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center p-6 flex-1 bg-white">
               
