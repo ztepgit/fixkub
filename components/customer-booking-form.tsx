@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Smartphone, User, PenLine, CheckCircle2, Loader2, Search } from "lucide-react"
+// 🌟 1. เพิ่ม import Copy ตรงนี้ครับ
+import { Smartphone, User, PenLine, CheckCircle2, Loader2, Search, Copy } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
@@ -31,7 +32,6 @@ export function CustomerBookingForm({
 }: CustomerBookingFormProps) {
   const { toast } = useToast() 
   
-  // 🌟 State จัดการ Tab Menu
   const [activeTab, setActiveTab] = useState("booking")
 
   const [isSubmitting, setIsSubmitting] = useState(false) 
@@ -95,17 +95,33 @@ export function CustomerBookingForm({
         <p className="text-slate-600 mb-6">
           คุณสามารถใช้เบอร์โทร <span className="font-bold text-emerald-600">{phone}</span><br/>เพื่อเช็คสถานะงานซ่อมได้ตลอดเวลา
         </p>
-        <div className="bg-slate-50 border-2 border-dashed border-emerald-300 rounded-xl p-6 w-full mb-6 relative overflow-hidden">
+
+        {/* 🌟 2. ปรับกล่องรหัสบิลให้สามารถกดคัดลอกได้ */}
+        <div 
+          onClick={() => {
+            navigator.clipboard.writeText(queueRef)
+            toast({ 
+              title: "✅ คัดลอกรหัสบิลสำเร็จ", 
+              description: "สามารถนำไปวางหน้าเช็คสถานะได้เลยครับ" 
+            })
+          }}
+          className="bg-slate-50 border-2 border-dashed border-emerald-300 rounded-xl p-6 w-full mb-6 relative overflow-hidden cursor-pointer hover:bg-emerald-50 transition-all active:scale-95 group"
+        >
           <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
-          <p className="text-sm text-slate-500 mb-1">รหัสบิลของคุณคือ</p>
-          <p className="text-4xl font-black text-emerald-700 tracking-wider">{queueRef}</p>
+          <p className="text-sm text-slate-500 mb-1 group-hover:text-emerald-600 transition-colors">รหัสบิลของคุณคือ</p>
+          <div className="flex items-center justify-center gap-3">
+            <p className="text-4xl font-black text-emerald-700 tracking-wider">{queueRef}</p>
+            <Copy className="h-6 w-6 text-emerald-500 opacity-60 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <p className="text-xs text-emerald-600 mt-2 font-medium opacity-80">👉 แตะที่นี่เพื่อคัดลอกรหัส</p>
         </div>
+
         <div className="flex flex-col gap-3 w-full">
           <Button 
             className="w-full h-12 text-base bg-emerald-600 hover:bg-emerald-700 shadow-md" 
             onClick={() => {
               setIsSuccess(false)
-              setActiveTab("status") // 🌟 โยนไปหน้าเช็คสถานะเลย!
+              setActiveTab("status")
             }}
           >
             ไปหน้าเช็คสถานะ
@@ -127,14 +143,12 @@ export function CustomerBookingForm({
 
   return (
     <div className="mx-auto w-full max-w-md space-y-0 drop-shadow-2xl">
-      {/* 🌟 1. Header (รวมศูนย์) เปลี่ยนแค่ซับไตเติ้ลตาม Tab */}
       <div className="bg-white px-6 pt-8 pb-4 rounded-t-[1.5rem] border-b border-slate-100 flex flex-col items-center text-center relative z-10">
         <Avatar className="h-16 w-16 border-[3px] border-white shadow-md mb-3 bg-white">
           {currentShopLogo ? <AvatarImage src={currentShopLogo} className="object-cover" /> : <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl font-black">{getInitial(currentShopName)}</AvatarFallback>}
         </Avatar>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{currentShopName}</h1>
         
-        {/* 🌟 2. Tab Menu สุดเนียนตาสไตล์แอปมือถือ */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-5">
           <TabsList className="grid w-full grid-cols-2 bg-slate-100/80 p-1.5 rounded-xl h-14 border border-slate-200/50">
             <TabsTrigger value="booking" className="rounded-lg text-sm font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all flex items-center justify-center gap-2 h-full">
@@ -147,9 +161,6 @@ export function CustomerBookingForm({
         </Tabs>
       </div>
 
-      {/* 🌟 3. สลับเนื้อหา (Content) */}
-      
-      {/* --- ส่วนฟอร์มแจ้งซ่อม --- */}
       <div className={activeTab === "booking" ? "block" : "hidden"}>
         <Card className="border-0 rounded-t-none rounded-b-[1.5rem] bg-white relative z-0 shadow-none">
           <CardContent className="space-y-6 pt-6 px-5 sm:px-6">
@@ -190,7 +201,6 @@ export function CustomerBookingForm({
         </Card>
       </div>
 
-      {/* --- ส่วนเช็คสถานะ --- */}
       <div className={activeTab === "status" ? "block" : "hidden"}>
         <div className="bg-white rounded-b-[1.5rem] shadow-none relative z-0 overflow-hidden min-h-[450px]">
           <CustomerQueueStatus shopId={shopId} />
