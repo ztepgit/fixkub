@@ -4,10 +4,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, ShieldCheck, Zap } from "lucide-react"
 
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      
+
       {/* Navbar แบบเรียบง่าย */}
       <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
@@ -45,7 +46,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl">
-              จบปัญหาลูกค้าทักแชทถาม "พี่ซ่อมถึงไหนแล้ว?" ด้วยระบบคิวอัจฉริยะ 
+              จบปัญหาลูกค้าทักแชทถาม "พี่ซ่อมถึงไหนแล้ว?" ด้วยระบบคิวอัจฉริยะ
               รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -111,7 +112,7 @@ export default function LandingPage() {
             </div>
 
             <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
-              
+
               {/* แพ็กเกจรายเดือน */}
               <Card className="border-slate-200 shadow-sm">
                 <CardContent className="p-8">
@@ -128,7 +129,11 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button variant="outline" className="w-full text-emerald-700 border-emerald-200 hover:bg-emerald-50">เลือกแพ็กเกจนี้</Button>
+                  <Button asChild className="w-full text-base h-12 bg-blue-600 hover:bg-blue-700">
+                    <Link href="/payment?plan=monthly">
+                      เลือกแพ็กเกจนี้
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -156,7 +161,11 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">เลือกแพ็กเกจนี้</Button>
+                  <Button asChild className="w-full text-base h-12 bg-emerald-600 hover:bg-emerald-700">
+                    <Link href="/payment?plan=yearly">
+                      เลือกแพ็กเกจนี้
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
 
