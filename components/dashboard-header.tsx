@@ -65,7 +65,6 @@ export function DashboardHeader() {
   }
 
   return (
- 
     <header className="flex w-full h-16 md:h-20 shrink-0 items-center justify-between border-b px-4 md:px-6 bg-white/80 backdrop-blur-md sticky top-0 z-40">
       
       <div className="flex items-center gap-2">
@@ -107,7 +106,11 @@ export function DashboardHeader() {
         </TooltipProvider>
 
         <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-          <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl">
+          {/* 🌟 เพิ่ม onOpenAutoFocus ป้องกัน Tooltip เด้งเองตอนเปิด Pop-up */}
+          <DialogContent 
+            className="sm:max-w-[420px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
             
             <DialogHeader className={`p-6 pb-4 border-b ${isQrHidden ? 'bg-slate-50/50' : 'bg-blue-50/50'}`}>
               <div className="flex items-start justify-between pr-4">
@@ -117,7 +120,7 @@ export function DashboardHeader() {
                     {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'แชร์ให้ลูกค้าสแกน'}
                   </DialogTitle>
                   <DialogDescription className={isQrHidden ? 'text-slate-400' : 'text-blue-600/70'}>
-                    ส่งใบแจ้งซ่อมอัจฉริยะ
+                    ให้ลูกค้าสแกนเพื่อเข้าฟอร์มแจ้งซ่อมออนไลน์
                   </DialogDescription>
                 </div>
                 
