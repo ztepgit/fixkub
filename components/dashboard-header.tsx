@@ -64,9 +64,9 @@ export function DashboardHeader() {
     }
   }
 
-  // 🌟 นำคอมเมนต์เจ้าปัญหาออกไปแล้วครับ และคงความสูง h-20 ไว้เหมือนเดิม
   return (
-    <header className="flex flex-1 h-20 shrink-0 items-center justify-between border-b px-4 bg-white/50 backdrop-blur-sm sticky top-0 z-40">
+ 
+    <header className="flex w-full h-16 md:h-20 shrink-0 items-center justify-between border-b px-4 md:px-6 bg-white/80 backdrop-blur-md sticky top-0 z-40">
       
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1 text-slate-500 hover:text-slate-800" />
@@ -90,8 +90,7 @@ export function DashboardHeader() {
         <TooltipProvider>
           <Button 
             variant="outline" 
-            size="sm" 
-            className="hidden sm:flex bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800 shadow-sm transition-all"
+            className="hidden sm:flex bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800 shadow-sm transition-all h-10 px-4"
             onClick={() => setIsShareOpen(true)}
           >
             <QrCode className="w-4 h-4 mr-2" /> แชร์ลิงก์ร้าน
@@ -100,10 +99,10 @@ export function DashboardHeader() {
           <Button 
             variant="outline" 
             size="icon" 
-            className="sm:hidden bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 shadow-sm"
+            className="sm:hidden bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 shadow-sm h-10 w-10"
             onClick={() => setIsShareOpen(true)}
           >
-            <QrCode className="w-4 h-4" />
+            <QrCode className="w-5 h-5" />
           </Button>
         </TooltipProvider>
 
@@ -118,7 +117,7 @@ export function DashboardHeader() {
                     {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'แชร์ให้ลูกค้าสแกน'}
                   </DialogTitle>
                   <DialogDescription className={isQrHidden ? 'text-slate-400' : 'text-blue-600/70'}>
-                    ให้ลูกค้าสแกนเพื่อเข้าฟอร์มแจ้งซ่อมออนไลน์
+                    ส่งใบแจ้งซ่อมอัจฉริยะ
                   </DialogDescription>
                 </div>
                 
