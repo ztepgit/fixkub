@@ -1,32 +1,41 @@
 "use server"
 
 import { db } from "@/lib/prisma"
-import { 
-  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, 
-  eachDayOfInterval, eachMonthOfInterval, isSameDay, isSameMonth,
-  startOfDay, endOfDay // 🌟 นำมาใช้ครอบวันที่ให้เป็นเวลา 00:00:00 ถึง 23:59:59
+import {
+  startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear,
+  eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval, // 🌟 เพิ่มรายชั่วโมง
+  isSameDay, isSameMonth, isSameHour, // 🌟 เพิ่มตัวเช็คชั่วโมง
+  startOfDay, endOfDay
 } from "date-fns"
 
+// 🌟 Helper Function สำหรับสร้าง Date Filter ตามช่วงเวลาที่เลือก
+function getDateFilter(period?: string, customFrom?: Date, customTo?: Date, dateField: string = 'createdAt') {
+  const now = new Date();
+  if (period === 'today') {
+    return { [dateField]: { gte: startOfDay(now), lte: endOfDay(now) } };
+  } else if (period === 'week') {
+    return { [dateField]: { gte: startOfWeek(now, { weekStartsOn: 1 }), lte: endOfWeek(now, { weekStartsOn: 1 }) } };
+  } else if (period === 'month') {
+    return { [dateField]: { gte: startOfMonth(now), lte: endOfMonth(now) } };
+  } else if (period === 'year') {
+    return { [dateField]: { gte: startOfYear(now), lte: endOfYear(now) } };
+  } else if (period === 'custom' && customFrom && customTo) {
+    return { [dateField]: { gte: startOfDay(new Date(customFrom)), lte: endOfDay(new Date(customTo)) } };
+  }
+  return {}; // ถ้าไม่ตรงเงื่อนไขเลย ให้ดึงทั้งหมด
+}
+
 // ==========================================
-// 1. ดึงสถิติภาพรวม และ ตารางสาเหตุการยกเลิก (รองรับ Custom Date)
+// 1. ดึงสถิติภาพรวม และ ตารางสาเหตุการยกเลิก 
 // ==========================================
 export async function getAnalyticsSummary(shopId: string, period?: string, customFrom?: Date, customTo?: Date) {
   try {
-    // 🌟 สร้างเงื่อนไขวันที่ หากมีการส่ง custom date มา
-    let dateFilter = {};
-    if (period === 'custom' && customFrom && customTo) {
-      dateFilter = {
-        createdAt: {
-          gte: startOfDay(new Date(customFrom)),
-          lte: endOfDay(new Date(customTo))
-        }
-      };
-    }
+    const dateFilter = getDateFilter(period, customFrom, customTo, 'createdAt');
 
     const jobs = await db.queue.findMany({
-      where: { 
+      where: {
         shopId,
-        ...dateFilter // 🌟 นำเงื่อนไขวันที่ไปจับกับ query
+        ...dateFilter
       },
       select: {
         status: true,
@@ -40,11 +49,7 @@ export async function getAnalyticsSummary(shopId: string, period?: string, custo
     let cancelledJobs = 0;
 
     const cancelStats: Record<string, number> = {
-      "NO_SHOW": 0,
-      "CUSTOMER_CANCEL": 0,
-      "UNREPAIRABLE": 0,
-      "NO_PARTS": 0,
-      "UNCONTACTABLE": 0
+      "NO_SHOW": 0, "CUSTOMER_CANCEL": 0, "UNREPAIRABLE": 0, "NO_PARTS": 0, "UNCONTACTABLE": 0
     };
 
     jobs.forEach(job => {
@@ -81,16 +86,20 @@ export async function getAnalyticsSummary(shopId: string, period?: string, custo
 
 // ==========================================
 // 2. ข้อมูลสำหรับวาดกราฟ (รายได้ และ งานซ่อม vs งานเสร็จ)
-// รองรับ: 'week' | 'month' | 'year' | 'custom'
 // ==========================================
-export async function getTrendData(shopId: string, period: 'week' | 'month' | 'year' | 'custom', customFrom?: Date, customTo?: Date) {
+export async function getTrendData(shopId: string, period: 'today' | 'week' | 'month' | 'year' | 'custom', customFrom?: Date, customTo?: Date) {
   try {
     const now = new Date();
     let startDate: Date, endDate: Date;
     let intervals: Date[] = [];
 
-    if (period === 'week') {
-      startDate = startOfWeek(now, { weekStartsOn: 1 }); 
+    // 🌟 เพิ่มเงื่อนไข "วันนี้" ให้ดึงเป็นรายชั่วโมง
+    if (period === 'today') {
+      startDate = startOfDay(now);
+      endDate = endOfDay(now);
+      intervals = eachHourOfInterval({ start: startDate, end: endDate });
+    } else if (period === 'week') {
+      startDate = startOfWeek(now, { weekStartsOn: 1 });
       endDate = endOfWeek(now, { weekStartsOn: 1 });
       intervals = eachDayOfInterval({ start: startDate, end: endDate });
     } else if (period === 'month') {
@@ -102,21 +111,12 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
       endDate = endOfYear(now);
       intervals = eachMonthOfInterval({ start: startDate, end: endDate });
     } else if (period === 'custom' && customFrom && customTo) {
-      // 🌟 กรณีเลือก Custom Date Range
       startDate = startOfDay(new Date(customFrom));
       endDate = endOfDay(new Date(customTo));
-      
-      // ถ้าเลือกช่วงห่างกันมากกว่า 60 วัน ให้โชว์เป็นรายเดือนแทนรายวัน (กราฟจะได้ไม่เบียดกันเกินไป)
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-      
-      if (diffDays > 60) {
-        intervals = eachMonthOfInterval({ start: startDate, end: endDate });
-      } else {
-        intervals = eachDayOfInterval({ start: startDate, end: endDate });
-      }
+      const diffDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays > 60) intervals = eachMonthOfInterval({ start: startDate, end: endDate });
+      else intervals = eachDayOfInterval({ start: startDate, end: endDate });
     } else {
-      // Fallback เผื่อไว้
       startDate = startOfMonth(now);
       endDate = endOfMonth(now);
       intervals = eachDayOfInterval({ start: startDate, end: endDate });
@@ -145,15 +145,17 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
 
     const diffDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const isMonthlyView = period === 'year' || (period === 'custom' && diffDays > 60);
+    const isHourlyView = period === 'today'; // 🌟 ตัวเช็ครายชั่วโมง
 
     const chartData = intervals.map(date => {
       let revenue = 0;
-      let processing = 0; 
-      let repaired = 0;   
+      let processing = 0;
+      let repaired = 0;
 
       jobs.forEach(job => {
-        // ใช้ logic เช็คตามรูปแบบของกราฟ (รายเดือน หรือ รายวัน)
-        const isSame = isMonthlyView ? isSameMonth : isSameDay;
+        let isSame = isSameDay;
+        if (isHourlyView) isSame = isSameHour;
+        else if (isMonthlyView) isSame = isSameMonth;
 
         if (job.status === "COMPLETED" && job.completedAt && isSame(job.completedAt, date)) {
           revenue += (job.estimatedPrice || 0);
@@ -167,9 +169,10 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
       });
 
       let label = "";
-      if (period === 'week') label = dayNames[date.getDay()];
+      if (period === 'today') label = `${date.getHours().toString().padStart(2, '0')}:00`; // ฟอร์แมตเวลา 08:00
+      else if (period === 'week') label = dayNames[date.getDay()];
       else if (isMonthlyView) label = monthNames[date.getMonth()];
-      else label = `${date.getDate()} ${monthNames[date.getMonth()]}`; // ถ้า custom ให้โชว์วันที่ด้วย เช่น "15 ก.พ."
+      else label = `${date.getDate()} ${monthNames[date.getMonth()]}`;
 
       return {
         label,
@@ -188,36 +191,22 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
 }
 
 // ==========================================
-// 3. ดึงรายการงานที่ถูกยกเลิก (รองรับ Custom Date)
+// 3. ดึงรายการงานที่ถูกยกเลิก 
 // ==========================================
 export async function getCancelledJobsDetails(shopId: string, period?: string, customFrom?: Date, customTo?: Date) {
   try {
-    let dateFilter = {};
-    if (period === 'custom' && customFrom && customTo) {
-      dateFilter = {
-        cancelledAt: {
-          gte: startOfDay(new Date(customFrom)),
-          lte: endOfDay(new Date(customTo))
-        }
-      };
-    }
+    const dateFilter = getDateFilter(period, customFrom, customTo, 'cancelledAt');
 
     const jobs = await db.queue.findMany({
-      where: { 
-        shopId, 
+      where: {
+        shopId,
         status: "CANCELLED",
         ...dateFilter
       },
       orderBy: { cancelledAt: 'desc' },
       select: {
-        id: true,
-        jobRef: true,
-        customerName: true,
-        deviceModel: true,
-        cancelReason: true,
-        cancelledAt: true,
-        issue: true,
-        serviceName: true, 
+        id: true, jobRef: true, customerName: true, deviceModel: true,
+        cancelReason: true, cancelledAt: true, issue: true, serviceName: true,
       }
     });
     return { success: true, data: jobs };

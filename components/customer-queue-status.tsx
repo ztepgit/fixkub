@@ -16,7 +16,8 @@ import {
   AlertCircle, 
   XCircle,
   ClipboardList,
-  CheckCircle2 // 🌟 1. เพิ่ม Import ไอคอนเครื่องหมายถูก
+  CheckCircle2,
+  CalendarDays // 🌟 1. Import ไอคอนปฏิทิน
 } from "lucide-react"
 
 import { getCustomerQueues } from "@/actions/queue"
@@ -30,6 +31,7 @@ type QueueData = {
   serviceName: string | null
   status: string
   cancelReason?: string | null
+  createdAt: string | Date // 🌟 2. เพิ่มฟิลด์วันที่สร้างบิล
 }
 
 export function CustomerQueueStatus({ shopId }: { shopId: string }) {
@@ -119,11 +121,11 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
       
       <div className="bg-slate-50 border-b border-slate-100 p-6 text-center shrink-0">
         <h2 className="text-xl font-bold text-slate-800 mb-1">เช็คสถานะงานซ่อม</h2>
-        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์,ชื่อ หรือรหัสบิล เพื่อติดตามสถานะ</p>
+        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์ หรือ ชื่อ เพื่อติดตามสถานะ</p>
         
         <form onSubmit={handleSearch} className="flex gap-2 mt-4">
           <Input 
-            placeholder="เช่น 0812345678"
+            placeholder="เช่น 0812345678, Q-XXXX หรือ ชื่อ" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-white h-12"
@@ -176,6 +178,18 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                 
                 <p className="text-slate-400 text-sm">บริการ: {job.serviceName || "ตรวจเช็คทั่วไป"}</p>
                 <p className="text-slate-400 text-sm truncate">ลูกค้า: {job.customerName}</p>
+
+                {/* 🌟 3. แสดงวันที่แจ้งซ่อมตรงนี้ */}
+                <div className="mt-3 pt-3 border-t border-slate-700/50 flex items-center text-xs text-slate-400">
+                  <CalendarDays className="w-3.5 h-3.5 mr-1.5 opacity-70" />
+                  วันที่แจ้งซ่อม: {new Date(job.createdAt).toLocaleDateString('th-TH', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} น.
+                </div>
               </div>
 
               {job.status !== "CANCELLED" && job.status !== "ARCHIVED" && (
@@ -187,7 +201,6 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                         <ClipboardList className="h-3.5 w-3.5 text-white" />
                       </div>
                       <div>
-                        {/* 🌟 2. เพิ่มเครื่องหมายถูก สีเทาเข้ม ตาม Theme Step 1 */}
                         <h4 className={`font-bold flex items-center gap-1.5 ${currentStepIndex >= 0 ? "text-slate-800" : "text-slate-400"}`}>
                           1. รับเรื่อง / รอคิวซ่อม
                           {currentStepIndex >= 0 && <CheckCircle2 className="h-4 w-4 text-slate-500" />}
@@ -202,7 +215,6 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                         <Wrench className="h-3.5 w-3.5 text-white relative z-10" />
                       </div>
                       <div>
-                        {/* 🌟 3. เพิ่มเครื่องหมายถูก สีฟ้า ตาม Theme Step 2 */}
                         <h4 className={`font-bold flex items-center gap-1.5 ${currentStepIndex >= 2 ? "text-blue-700" : "text-slate-400"}`}>
                           2. ช่างกำลังดำเนินการซ่อม
                           {currentStepIndex >= 2 && <CheckCircle2 className="h-4 w-4 text-blue-600" />}
@@ -217,7 +229,6 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                         <PackageCheck className="h-3.5 w-3.5 text-white relative z-10" />
                       </div>
                       <div>
-                        {/* 🌟 4. เพิ่มเครื่องหมายถูก สีเขียว ตาม Theme Step 3 */}
                         <h4 className={`font-bold flex items-center gap-1.5 ${currentStepIndex >= 3 ? "text-emerald-600" : "text-slate-400"}`}>
                           3. ซ่อมเสร็จเรียบร้อย!
                           {currentStepIndex >= 3 && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}

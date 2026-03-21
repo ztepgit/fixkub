@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button" 
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
     Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2, 
-    Filter, ClipboardX, Eye, EyeOff, CalendarRange
+    Search, Filter, ClipboardX, Eye, EyeOff, CalendarRange 
 } from "lucide-react"
 
 import { Calendar } from "@/components/ui/calendar"
@@ -25,7 +26,7 @@ import {
     LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts'
 
-// 🌟 Import Type DateRange มาจาก react-day-picker เพื่อแก้ Type Error
+// 🌟 Import DateRange มาเพื่อแก้ Type Error!
 import { DateRange } from "react-day-picker"
 
 const COLORS = ['#f43f5e', '#f97316', '#eab308', '#8b5cf6', '#64748b'];
@@ -42,9 +43,10 @@ const translateCancelReason = (reason: string) => {
 }
 
 export function ReportDashboard() {
-    const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year' | 'custom'>('month')
+    // 🌟 1. เพิ่ม Type 'today'
+    const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today')
     
-    // 🌟 แก้ Type ของ dateRange ให้ตรงกับที่ Calendar (react-day-picker) ต้องการ
+    // 🌟 2. กำหนด Type ให้ DateRange แก้ Error แน่นอน
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date()
@@ -73,7 +75,7 @@ export function ReportDashboard() {
             const [summaryRes, trendRes, cancelRes] = await Promise.all([
                 getAnalyticsSummary("shop_test_001", timeframe, dateRange?.from, dateRange?.to),
                 getTrendData("shop_test_001", timeframe, dateRange?.from, dateRange?.to),
-                getCancelledJobsDetails("shop_test_001", timeframe, dateRange?.from, dateRange?.to)
+                getCancelledJobsDetails("shop_test_001", timeframe, dateRange?.from, dateRange?.to) 
             ])
 
             if (summaryRes.success) setSummary(summaryRes.data)
@@ -186,8 +188,9 @@ export function ReportDashboard() {
                 </Card>
             </div>
 
+            {/* ส่วนจัดการแท็บและปฏิทิน */}
             <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-3">
+                <div className="flex flex-col xl:flex-row justify-end items-end xl:items-center gap-3">
                     
                     {timeframe === 'custom' && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -217,7 +220,6 @@ export function ReportDashboard() {
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="end">
-                                    {/* 🌟 ปรับตรง onSelect ให้รับ Type ที่ถูกต้อง */}
                                     <Calendar
                                         initialFocus
                                         mode="range"
@@ -232,8 +234,10 @@ export function ReportDashboard() {
                         </div>
                     )}
 
-                    <TabsList className="grid w-[360px] grid-cols-4 bg-slate-100 border border-slate-200 h-10">
-                        <TabsTrigger value="week">สัปดาห์</TabsTrigger>
+                    {/* 🌟 3. เพิ่มแท็บ วันนี้ ด้านหน้าสุด และปรับ grid เป็น 5 คอลัมน์ */}
+                    <TabsList className="grid w-full xl:w-[420px] grid-cols-5 bg-slate-100 border border-slate-200 h-10">
+                        <TabsTrigger value="today">วันนี้</TabsTrigger>
+                        <TabsTrigger value="week">สัปดาห์นี้</TabsTrigger>
                         <TabsTrigger value="month">เดือนนี้</TabsTrigger>
                         <TabsTrigger value="year">ปีนี้</TabsTrigger>
                         <TabsTrigger value="custom" className="data-[state=active]:text-emerald-700">ปฏิทิน</TabsTrigger>
@@ -251,7 +255,7 @@ export function ReportDashboard() {
                                 <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    {timeframe === 'month' || timeframe === 'custom' ? (
+                                    {timeframe === 'month' || timeframe === 'custom' || timeframe === 'today' ? (
                                         <LineChart data={trend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                             <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
