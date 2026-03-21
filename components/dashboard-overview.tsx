@@ -27,10 +27,10 @@ import { useToast } from "@/hooks/use-toast"
 import {
   Activity, Wrench, PackageCheck, Wallet, Smartphone, Loader2, User, Banknote,
   MoreHorizontal, ClipboardList, Barcode, Hash, Phone, Clock,
-  QrCode, Copy, Download, Link // 🌟 Import ไอคอนสำหรับ QR Code
+  QrCode, Copy, Download, Link,
+  Eye, EyeOff
 } from "lucide-react"
 
-// 🌟 Import ไลบรารีสร้าง QR Code
 import { QRCodeCanvas } from "qrcode.react"
 
 import { getDashboardStats } from "@/actions/dashboard"
@@ -58,7 +58,7 @@ const formatFullDateTime = (date?: Date | string) => {
 }
 
 export function DashboardOverview() {
-  const SHOP_ID = "shop_test_001" // ไอดีร้านค้า
+  const SHOP_ID = "shop_test_001" 
 
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -69,8 +69,11 @@ export function DashboardOverview() {
   const [editImei, setEditImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   
-  // 🌟 State สำหรับเก็บ URL ของร้าน
   const [shopUrl, setShopUrl] = useState("")
+  const [isQrHidden, setIsQrHidden] = useState(false)
+  
+  // 🌟 State สำหรับควบคุมการซ่อน/แสดงข้อมูลสถิติ 4 กล่องบน
+  const [isHidden, setIsHidden] = useState(false)
 
   const { toast } = useToast()
 
@@ -86,8 +89,9 @@ export function DashboardOverview() {
   useEffect(() => {
     loadStats()
     
-    // 🌟 สร้าง URL ให้ตรงกับโดเมนปัจจุบันอัตโนมัติ (รองรับตอนขึ้น Production ด้วย)
-    setShopUrl(`${window.location.origin}/shop/${SHOP_ID}`)
+    if (typeof window !== 'undefined') {
+      setShopUrl(`${window.location.origin}/shop/${SHOP_ID}`)
+    }
 
     const channel = supabase
       .channel('dashboard_queue_changes')
@@ -134,7 +138,6 @@ export function DashboardOverview() {
     setIsSaving(false)
   }
 
-  // 🌟 ฟังก์ชันคัดลอกลิงก์
   const copyLink = () => {
     navigator.clipboard.writeText(shopUrl)
     toast({ 
@@ -143,7 +146,6 @@ export function DashboardOverview() {
     })
   }
 
-  // 🌟 ฟังก์ชันดาวน์โหลดรูปรหัส QR Code
   const downloadQR = () => {
     const canvas = document.getElementById("shop-qr-code") as HTMLCanvasElement;
     if (canvas) {
@@ -183,61 +185,80 @@ export function DashboardOverview() {
   return (
     <TooltipProvider>
       <div className="space-y-6 relative">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ภาพรวมของร้าน (Overview)</h2>
-          <p className="text-sm text-slate-500">สรุปสถิติและสถานะงานซ่อมประจำวัน</p>
+        
+        {/* 🌟 ส่วน Header ที่เพิ่มปุ่มตา (ซ่อน/แสดง) ข้อมูล */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ภาพรวมของร้าน (Overview)</h2>
+            <p className="text-sm text-slate-500">สรุปสถิติและสถานะงานซ่อมประจำวัน</p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsHidden(!isHidden)} 
+            className="text-slate-600 border-slate-300 hover:bg-slate-100 shadow-sm"
+          >
+            {isHidden ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+            {isHidden ? "ดูข้อมูล" : "ซ่อนข้อมูล"}
+          </Button>
         </div>
 
+        {/* 🌟 ปรับปรุงการ์ดทั้ง 4 ใบ ให้ซ่อนตัวเลขได้ */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="shadow-sm border-blue-100">
+          <Card className="shadow-sm border-blue-100 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-slate-600">รายการลูกค้าแจ้งซ่อมวันนี้</CardTitle>
               <Activity className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-800">{stats?.todayCount || 0} <span className="text-sm font-normal text-slate-500">รายการ</span></div>
+              <div className="text-2xl font-bold text-slate-800">
+                {isHidden ? "***" : (stats?.todayCount || 0)} <span className="text-sm font-normal text-slate-500">รายการ</span>
+              </div>
               <p className="text-xs text-slate-500 mt-1">เครื่องที่ลูกค้านำมาส่งในวันนี้</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm border-amber-100">
+          <Card className="shadow-sm border-amber-100 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-slate-600">กำลังดำเนินการ</CardTitle>
               <Wrench className="h-4 w-4 text-amber-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-800">{stats?.activeCount || 0} <span className="text-sm font-normal text-slate-500">คิว</span></div>
+              <div className="text-2xl font-bold text-slate-800">
+                {isHidden ? "***" : (stats?.activeCount || 0)} <span className="text-sm font-normal text-slate-500">คิว</span>
+              </div>
               <p className="text-xs text-slate-500 mt-1">รอตรวจสอบ และกำลังแกะซ่อม</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm border-emerald-100">
+          <Card className="shadow-sm border-emerald-100 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-slate-600">ซ่อมเสร็จแล้ว</CardTitle>
               <PackageCheck className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-800">{stats?.readyCount || 0} <span className="text-sm font-normal text-slate-500">เครื่อง</span></div>
+              <div className="text-2xl font-bold text-slate-800">
+                {isHidden ? "***" : (stats?.readyCount || 0)} <span className="text-sm font-normal text-slate-500">เครื่อง</span>
+              </div>
               <p className="text-xs text-slate-500 mt-1">ซ่อมเสร็จแล้ว รอเก็บเงิน</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm border-indigo-100 bg-indigo-50/50">
+          <Card className="shadow-sm border-indigo-100 bg-indigo-50/50 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-indigo-700">รายได้วันนี้</CardTitle>
               <Wallet className="h-4 w-4 text-indigo-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-indigo-900">฿{(stats?.revenueToday || 0).toLocaleString()}</div>
+              <div className="text-2xl font-bold text-indigo-900">
+                {isHidden ? "฿***" : `฿${(stats?.revenueToday || 0).toLocaleString()}`}
+              </div>
               <p className="text-xs text-indigo-600/70 mt-1">เก็บเงินแล้ว</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* 🌟 ปรับ Layout เป็น Grid: ซ้ายแสดงรายการคิว ขวาแสดง QR Code */}
         <div className="grid gap-6 lg:grid-cols-3">
           
-          {/* ฝั่งซ้าย: ประวัติการแจ้งซ่อม (กินพื้นที่ 2 ส่วน) */}
           <Card className="shadow-sm border-slate-200 lg:col-span-2">
             <CardHeader>
               <CardTitle>รายการอัปเดตล่าสุด</CardTitle>
@@ -348,48 +369,78 @@ export function DashboardOverview() {
             </CardContent>
           </Card>
 
-          {/* 🌟 ฝั่งขวา: การ์ด QR Code ให้ลูกค้าสแกน (กินพื้นที่ 1 ส่วน) */}
-          <Card className="shadow-sm border-slate-200 flex flex-col lg:col-span-1 border-t-4 border-t-blue-500">
-            <CardHeader className="bg-slate-50/50 border-b pb-4">
-              <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                <QrCode className="h-5 w-5 text-blue-600" />
-                ให้ลูกค้าสแกนรับคิว
-              </CardTitle>
-              <CardDescription>ส่งใบแจ้งซ่อมอัจฉริยะ</CardDescription>
+          <Card className={`shadow-sm flex flex-col lg:col-span-1 transition-all duration-500 ${isQrHidden ? 'border-slate-200 border-t-4 border-t-slate-300 bg-slate-50/30' : 'border-slate-200 border-t-4 border-t-blue-500'}`}>
+            <CardHeader className="border-b pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
+              <div className="space-y-1">
+                <CardTitle className={`text-lg flex items-center gap-2 ${isQrHidden ? 'text-slate-500' : 'text-slate-800'}`}>
+                  <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400' : 'text-blue-600'}`} />
+                  {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'ให้ลูกค้าสแกนรับคิว'}
+                </CardTitle>
+                <CardDescription className={isQrHidden ? 'text-slate-400' : ''}>
+                  {isQrHidden ? 'กดปุ่มขวาบนเพื่อแสดงอีกครั้ง' : 'ส่งใบแจ้งซ่อมอัจฉริยะ'}
+                </CardDescription>
+              </div>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-8 w-8 rounded-full ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`} 
+                    onClick={() => setIsQrHidden(!isQrHidden)}
+                  >
+                    {isQrHidden ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isQrHidden ? "แสดง QR Code" : "ซ่อน QR Code"}</p>
+                </TooltipContent>
+              </Tooltip>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center p-6 flex-1 bg-white">
+            
+            <CardContent className="flex flex-col items-center justify-center p-6 flex-1 relative">
               
-              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4 transition-transform hover:scale-105 duration-300">
-                {/* 🌟 แสดง QR Code */}
-                {shopUrl ? (
-                  <QRCodeCanvas
-                    id="shop-qr-code"
-                    value={shopUrl}
-                    size={180}
-                    bgColor={"#ffffff"}
-                    fgColor={"#0f172a"}
-                    level={"H"}
-                    includeMargin={false}
-                  />
-                ) : (
-                  <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+              {isQrHidden ? (
+                <div className="flex flex-col items-center justify-center space-y-3 h-[254px] w-full rounded-lg animate-in fade-in duration-300">
+                  <div className="h-20 w-20 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white shadow-sm">
+                    <QrCode className="h-10 w-10 text-slate-300 opacity-60" />
                   </div>
-                )}
-              </div>
-              
-              <p className="text-xs text-slate-500 mb-6 text-center px-4">
-                ดาวน์โหลดไปพรินต์ หรือให้ลูกค้าสแกนจากหน้าจอนี้ได้ทันที
-              </p>
-              
-              <div className="w-full space-y-3">
-                <Button variant="outline" className="w-full h-11 text-slate-700 font-medium" onClick={copyLink}>
-                  <Link className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์ร้าน
-                </Button>
-                <Button className="w-full h-11 bg-blue-600 hover:bg-blue-700 shadow-sm" onClick={downloadQR}>
-                  <Download className="h-4 w-4 mr-2" /> ดาวน์โหลด QR Code
-                </Button>
-              </div>
+                  <p className="text-sm font-medium text-slate-400">ภาพ QR Code ถูกซ่อนไว้</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center w-full animate-in fade-in duration-300">
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4 transition-transform hover:scale-105 duration-300">
+                    {shopUrl ? (
+                      <QRCodeCanvas
+                        id="shop-qr-code"
+                        value={shopUrl}
+                        size={180}
+                        bgColor={"#ffffff"}
+                        fgColor={"#0f172a"}
+                        level={"H"}
+                        includeMargin={false}
+                      />
+                    ) : (
+                      <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 mb-6 text-center px-4">
+                    ดาวน์โหลดไปพรินต์ หรือให้ลูกค้าสแกนจากหน้าจอนี้ได้ทันที
+                  </p>
+                  
+                  <div className="w-full space-y-3">
+                    <Button variant="outline" className="w-full h-11 text-slate-700 font-medium" onClick={copyLink}>
+                      <Link className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์ร้าน
+                    </Button>
+                    <Button className="w-full h-11 bg-blue-600 hover:bg-blue-700 shadow-sm" onClick={downloadQR}>
+                      <Download className="h-4 w-4 mr-2" /> ดาวน์โหลด QR Code
+                    </Button>
+                  </div>
+                </div>
+              )}
 
             </CardContent>
           </Card>
