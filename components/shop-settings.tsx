@@ -1,25 +1,36 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { UploadCloud, Save, Store, Loader2, Info } from "lucide-react"
+import { 
+  UploadCloud, Save, Store, Loader2, Info, 
+  QrCode, Copy, Download, Link as LinkIcon,
+  Eye, EyeOff // 🌟 1. Import ไอคอนตาเปิด/ปิด
+} from "lucide-react"
+
+// 🌟 2. Import Tooltip มาใช้งาน
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getShopSettings, updateShopSettings } from "@/actions/shop"
+import { QRCodeCanvas } from "qrcode.react"
 
-// 🌟 รับ shopId ผ่าน Props เพื่อเตรียมรองรับระบบ Login แบบ Multi-tenant
 export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) {
   const [shopName, setShopName] = useState("กำลังโหลด...")
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  
-  // 🌟 เก็บไฟล์ Blob ที่ผ่านการบีบอัดแล้ว เพื่อส่งให้ Backend
   const [logoFile, setLogoFile] = useState<Blob | null>(null) 
-  
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  
+  const [shopUrl, setShopUrl] = useState("")
+  
+  // 🌟 3. State สำหรับซ่อน/แสดง QR Code
+  const [isQrHidden, setIsQrHidden] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -36,6 +47,10 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
       setIsLoading(false)
     }
     loadSettings()
+
+    if (typeof window !== 'undefined') {
+      setShopUrl(`${window.location.origin}/shop/${shopId}`)
+    }
   }, [shopId])
 
   const processImage = (file: File) => {
@@ -58,11 +73,10 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
           ctx.fillRect(0, 0, MAX_SIZE, MAX_SIZE)
           ctx.drawImage(img, startX, startY, size, size, 0, 0, MAX_SIZE, MAX_SIZE)
           
-          // 🌟 เปลี่ยนจาก Base64 เป็นการสร้าง Blob (ก้อนไฟล์) เพื่อเตรียมอัปโหลด!
           canvas.toBlob((blob) => {
             if (blob) {
-              setLogoFile(blob) // เก็บไฟล์เตรียมส่ง
-              setLogoPreview(URL.createObjectURL(blob)) // สร้าง URL ชั่วคราวเพื่อ Preview หน้าจอ
+              setLogoFile(blob)
+              setLogoPreview(URL.createObjectURL(blob))
             }
           }, "image/webp", 0.8)
         }
@@ -86,16 +100,13 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
   const handleSave = async () => {
     setIsSaving(true)
     
-    // 🌟 ใช้ FormData เพื่อแพ็กไฟล์รูปและ Text ส่งไปพร้อมกัน
     const formData = new FormData()
     formData.append("shopId", shopId)
     formData.append("name", shopName)
     
     if (logoFile) {
-      // แนบไฟล์โลโก้ใหม่ไป
       formData.append("logo", logoFile, "logo.webp")
     } else if (logoPreview) {
-      // ถ้าไม่ได้แก้รูป ส่ง URL เดิมไปเฉยๆ
       formData.append("existingLogoUrl", logoPreview)
     }
     
@@ -114,132 +125,258 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
     return name && name !== "กำลังโหลด..." ? name.charAt(0).toUpperCase() : "S"
   }
 
-  // โค้ดส่วน UI ด้านล่างเหมือนเดิมเลยครับ แค่เปลี่ยนชื่อตัวแปรนิดหน่อย
+  const copyLink = () => {
+    navigator.clipboard.writeText(shopUrl)
+    toast({ 
+      title: "✅ คัดลอกลิงก์สำเร็จ", 
+      description: "นำไปวางในเพจ Facebook, LINE หรือส่งให้ลูกค้าได้เลย" 
+    })
+  }
+
+  const downloadQR = () => {
+    const canvas = document.getElementById("settings-qr-code") as HTMLCanvasElement;
+    if (canvas) {
+      const url = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `QR-Code-แจ้งซ่อม-${shopId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: "📥 ดาวน์โหลดสำเร็จ", description: "รูป QR Code ถูกบันทึกลงในเครื่องแล้ว" })
+    }
+  }
+
+  // 🌟 4. คลุมด้วย TooltipProvider ทั้งหมด
   return (
-    <div className="grid gap-8 md:grid-cols-2 max-w-5xl mx-auto py-6">
-      {/* ส่วนตั้งค่าฝั่งซ้าย */}
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
-          <p className="text-sm text-slate-500">ปรับแต่งชื่อและโลโก้เพื่อแสดงผลบนฟอร์มของลูกค้า</p>
+    <TooltipProvider>
+      <div className="grid gap-8 md:grid-cols-2 max-w-5xl mx-auto py-6">
+        
+        {/* ฝั่งซ้าย: กล่องตั้งค่า และ กล่อง QR Code */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
+            <p className="text-sm text-slate-500">ปรับแต่งชื่อและโลโก้เพื่อแสดงผลบนฟอร์มของลูกค้า</p>
+          </div>
+
+          {/* กล่อง 1: ตั้งค่าชื่อและโลโก้ */}
+          <Card className="border-slate-200 shadow-sm relative overflow-hidden">
+            {isLoading && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
+              </div>
+            )}
+            <CardContent className="pt-6 space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="shopName" className="font-semibold text-slate-700">ชื่อร้านค้า (Display Name)</Label>
+                <Input 
+                  id="shopName" 
+                  value={shopName} 
+                  onChange={(e) => setShopName(e.target.value)} 
+                  placeholder="เช่น ร้าน A Mobile Repair" 
+                  className="text-lg h-12 focus-visible:ring-emerald-500"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold text-slate-700">โลโก้ร้าน (Shop Logo)</Label>
+                  <span className="text-xs text-slate-500 bg-emerald-50 text-emerald-700 px-2 py-1 rounded flex items-center">
+                    <Info className="h-3 w-3 mr-1" />
+                    เพิ่มความน่าเชื่อถือ
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-6">
+                  <Avatar className="h-20 w-20 border-2 border-slate-100 shadow-sm">
+                    {logoPreview ? (
+                      <AvatarImage src={logoPreview} alt="Shop Logo" className="object-cover bg-white" />
+                    ) : (
+                      <AvatarFallback className="bg-emerald-100 text-emerald-700 text-3xl font-bold">
+                        {getInitial(shopName)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  
+                  <div className="space-y-2 flex-1">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isLoading}
+                      className="w-full flex items-center gap-2 border-slate-300 border-dashed hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                    >
+                      <UploadCloud className="h-4 w-4" /> อัปโหลดรูปภาพ
+                    </Button>
+                    <Input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                    <p className="text-xs text-slate-400">ระบบจะทำการย่อรูปให้อัตโนมัติเพื่อความรวดเร็ว</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="bg-slate-50 border-t py-4">
+              <Button onClick={handleSave} disabled={isSaving || isLoading} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* 🌟 กล่อง 2: ช่องทางแจ้งซ่อม (QR Code & URL) เพิ่มปุ่มดวงตา */}
+          <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 ${isQrHidden ? 'border-slate-200 border-t-4 border-t-slate-300 bg-slate-50/30' : 'border-slate-200 border-t-4 border-t-blue-500'}`}>
+            <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
+              <div className="space-y-1">
+                <CardTitle className={`text-lg flex items-center gap-2 ${isQrHidden ? 'text-slate-500' : 'text-slate-800'}`}>
+                  <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400' : 'text-blue-600'}`} />
+                  {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'ช่องทางแจ้งซ่อม (Booking URL & QR)'}
+                </CardTitle>
+                <CardDescription className={isQrHidden ? 'text-slate-400' : ''}>
+                  {isQrHidden ? 'กดปุ่มขวาบนเพื่อแสดงอีกครั้ง' : 'แชร์ลิงก์ให้ลูกค้า หรือดาวน์โหลด QR Code นำไปทำป้ายตั้งโต๊ะ'}
+                </CardDescription>
+              </div>
+
+              {/* 🌟 ปุ่มสลับ ซ่อน/แสดง */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-8 w-8 rounded-full shrink-0 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`} 
+                    onClick={() => setIsQrHidden(!isQrHidden)}
+                  >
+                    {isQrHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isQrHidden ? "แสดง QR Code" : "ซ่อน QR Code"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </CardHeader>
+
+            <CardContent className="pt-6 relative">
+              <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+                
+                {/* 🌟 โชว์รูป QR Code หรือ Placeholder */}
+                {isQrHidden ? (
+                  <div className="flex flex-col items-center justify-center h-[156px] w-[156px] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 animate-in fade-in duration-300 shrink-0">
+                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white shadow-sm mb-2">
+                      <QrCode className="h-6 w-6 text-slate-300 opacity-60" />
+                    </div>
+                    <p className="text-[10px] font-medium text-slate-400">QR Code ถูกซ่อน</p>
+                  </div>
+                ) : (
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 transition-transform hover:scale-105 duration-300 shrink-0 animate-in fade-in duration-300">
+                    {shopUrl ? (
+                      <QRCodeCanvas
+                        id="settings-qr-code"
+                        value={shopUrl}
+                        size={130}
+                        bgColor={"#ffffff"}
+                        fgColor={"#0f172a"}
+                        level={"H"}
+                        includeMargin={false}
+                      />
+                    ) : (
+                      <div className="w-[130px] h-[130px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* ส่วนแสดงลิงก์และปุ่มกด */}
+                <div className="flex-1 w-full space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      ลิงก์ร้านค้าของคุณ (URL)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        readOnly 
+                        value={shopUrl} 
+                        className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy" 
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                      />
+                      <Button variant="outline" size="icon" onClick={copyLink} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200">
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 w-full pt-1">
+                    <Button variant="outline" className="flex-1 text-slate-700 h-10 border-slate-300 hover:bg-slate-50" onClick={copyLink}>
+                      <LinkIcon className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์
+                    </Button>
+                    <Button 
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 shadow-sm" 
+                      onClick={downloadQR}
+                      disabled={isQrHidden} // 🌟 โหลดไม่ได้ถ้าปิดตาอยู่
+                    >
+                      <Download className="h-4 w-4 mr-2" /> โหลดคิวอาร์โค้ด
+                    </Button>
+                  </div>
+                </div>
+
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
 
-        <Card className="border-slate-200 shadow-sm relative overflow-hidden">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
-            </div>
-          )}
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="shopName" className="font-semibold text-slate-700">ชื่อร้านค้า (Display Name)</Label>
-              <Input 
-                id="shopName" 
-                value={shopName} 
-                onChange={(e) => setShopName(e.target.value)} 
-                placeholder="เช่น ร้าน A Mobile Repair" 
-                className="text-lg h-12 focus-visible:ring-emerald-500"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="font-semibold text-slate-700">โลโก้ร้าน (Shop Logo)</Label>
-                <span className="text-xs text-slate-500 bg-emerald-50 text-emerald-700 px-2 py-1 rounded flex items-center">
-                  <Info className="h-3 w-3 mr-1" />
-                  เพิ่มความน่าเชื่อถือ
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-6">
-                <Avatar className="h-20 w-20 border-2 border-slate-100 shadow-sm">
+        {/* ฝั่งขวา: พรีวิวหน้าจอมือถือ */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-center md:justify-start">
+            <Label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center">
+              <Store className="h-4 w-4 mr-2" />
+              ตัวอย่างหน้าจอฝั่งลูกค้า
+            </Label>
+          </div>
+          
+          <div className="mx-auto md:ml-0 w-full max-w-[340px] bg-slate-100 border-[8px] border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[500px] flex flex-col pointer-events-none select-none">
+            <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 w-32 mx-auto rounded-b-xl z-20"></div>
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50">
+              <div className="bg-white px-5 pt-10 pb-4 rounded-t-[2rem] border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
+                <Avatar className="h-14 w-14 border-2 border-white shadow-md mb-2 bg-white">
                   {logoPreview ? (
-                    <AvatarImage src={logoPreview} alt="Shop Logo" className="object-cover bg-white" />
+                    <AvatarImage src={logoPreview} alt="Preview Logo" className="object-cover" />
                   ) : (
-                    <AvatarFallback className="bg-emerald-100 text-emerald-700 text-3xl font-bold">
+                    <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xl font-bold">
                       {getInitial(shopName)}
                     </AvatarFallback>
                   )}
                 </Avatar>
-                
-                <div className="space-y-2 flex-1">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading}
-                    className="w-full flex items-center gap-2 border-slate-300 border-dashed hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                  >
-                    <UploadCloud className="h-4 w-4" /> อัปโหลดรูปภาพ
-                  </Button>
-                  <Input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                  <p className="text-xs text-slate-400">ระบบจะทำการย่อรูปให้อัตโนมัติเพื่อความรวดเร็ว</p>
-                </div>
+                <h3 className="font-bold text-slate-800 text-base truncate w-full px-2">{shopName && shopName !== "กำลังโหลด..." ? shopName : "ชื่อร้านของคุณ"}</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">ฟอร์มแจ้งซ่อมออนไลน์</p>
               </div>
-            </div>
-          </CardContent>
-          <CardFooter className="bg-slate-50 border-t py-4">
-            <Button onClick={handleSave} disabled={isSaving || isLoading} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base">
-              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-
-      {/* พรีวิวฝั่งขวา */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-center md:justify-start">
-          <Label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center">
-            <Store className="h-4 w-4 mr-2" />
-            ตัวอย่างหน้าจอฝั่งลูกค้า
-          </Label>
-        </div>
-        
-        <div className="mx-auto md:ml-0 w-full max-w-[340px] bg-slate-100 border-[8px] border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[500px] flex flex-col pointer-events-none select-none">
-          <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 w-32 mx-auto rounded-b-xl z-20"></div>
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50">
-            <div className="bg-white px-5 pt-10 pb-4 rounded-t-[2rem] border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
-              <Avatar className="h-14 w-14 border-2 border-white shadow-md mb-2 bg-white">
-                {logoPreview ? (
-                  <AvatarImage src={logoPreview} alt="Preview Logo" className="object-cover" />
-                ) : (
-                  <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xl font-bold">
-                    {getInitial(shopName)}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <h3 className="font-bold text-slate-800 text-base truncate w-full px-2">{shopName && shopName !== "กำลังโหลด..." ? shopName : "ชื่อร้านของคุณ"}</h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">ฟอร์มแจ้งซ่อมออนไลน์</p>
-            </div>
-            
-            {/* โครงฟอร์มจำลอง */}
-            <div className="p-4 space-y-4 bg-white mx-3 mt-3 rounded-xl shadow-sm border border-slate-50">
-              <div className="space-y-2">
-                <div className="h-3 w-20 bg-slate-200 rounded"></div>
-                <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
-                <div className="flex gap-1.5 pt-1">
-                  <div className="h-6 w-14 bg-emerald-100 rounded-full"></div>
-                  <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
-                  <div className="h-6 w-12 bg-slate-100 rounded-full"></div>
-                </div>
-              </div>
-              <div className="space-y-2 pt-2 border-t border-slate-50">
-                <div className="h-3 w-24 bg-slate-200 rounded"></div>
-                <div className="grid grid-cols-2 gap-2">
+              
+              <div className="p-4 space-y-4 bg-white mx-3 mt-3 rounded-xl shadow-sm border border-slate-50">
+                <div className="space-y-2">
+                  <div className="h-3 w-20 bg-slate-200 rounded"></div>
                   <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
-                  <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
+                  <div className="flex gap-1.5 pt-1">
+                    <div className="h-6 w-14 bg-emerald-100 rounded-full"></div>
+                    <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+                    <div className="h-6 w-12 bg-slate-100 rounded-full"></div>
+                  </div>
                 </div>
-                <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-md mt-2"></div>
-              </div>
-              <div className="pt-2 border-t border-slate-50">
-                <div className="h-10 w-full bg-emerald-500 rounded-lg"></div>
+                <div className="space-y-2 pt-2 border-t border-slate-50">
+                  <div className="h-3 w-24 bg-slate-200 rounded"></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
+                    <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
+                  </div>
+                  <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-md mt-2"></div>
+                </div>
+                <div className="pt-2 border-t border-slate-50">
+                  <div className="h-10 w-full bg-emerald-500 rounded-lg"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+        
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
