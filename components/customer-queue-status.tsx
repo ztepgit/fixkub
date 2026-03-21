@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +18,6 @@ import {
   ClipboardList
 } from "lucide-react"
 
-// 🌟 เปลี่ยนมาใช้ getCustomerQueues ที่คืนค่ากลับมาหลายบิลได้
 import { getCustomerQueues } from "@/actions/queue"
 
 type QueueData = {
@@ -26,6 +25,7 @@ type QueueData = {
   jobRef: string | null
   customerName: string
   deviceModel: string
+  deviceColor: string | null // 🌟 1. เพิ่มฟิลด์สีตรงนี้
   serviceName: string | null
   status: string
   cancelReason?: string | null
@@ -34,7 +34,6 @@ type QueueData = {
 export function CustomerQueueStatus({ shopId }: { shopId: string }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  // 🌟 เปลี่ยนเป็น Array เพื่อเก็บหลายเครื่อง
   const [jobList, setJobList] = useState<QueueData[] | null>(null) 
   
   const { toast } = useToast()
@@ -74,11 +73,9 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
     }
   }
 
-  // 🌟 เปิดท่อดักฟังการเปลี่ยนแปลงของ "ทุกเครื่อง" ที่กำลังแสดงอยู่
   useEffect(() => {
     if (!jobList || jobList.length === 0) return
 
-    // ดึง ID ของเครื่องทั้งหมดออกมาเก็บไว้เช็ค
     const jobIds = jobList.map(job => job.id)
 
     const channel = supabase
@@ -92,11 +89,9 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
         },
         (payload) => {
           const updatedJob = payload.new as QueueData
-          // ถ้า ID ที่อัปเดต ตรงกับเครื่องใดเครื่องหนึ่งที่แสดงอยู่
           if (jobIds.includes(updatedJob.id)) {
             console.log('🔄 สถานะเปลี่ยน!', updatedJob)
             
-            // อัปเดตข้อมูลเฉพาะเครื่องนั้นใน Array
             setJobList(prev => 
               prev ? prev.map(job => job.id === updatedJob.id ? updatedJob : job) : prev
             )
@@ -114,14 +109,13 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
       supabase.removeChannel(channel)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobList?.map(j => j.id).join(','), toast]) // Re-run เฉพาะตอนที่ชุดรายการเครื่องเปลี่ยนไป
+  }, [jobList?.map(j => j.id).join(','), toast])
 
   const statusFlow = ["PENDING", "WAITING", "PROCESSING", "REPAIRED", "COMPLETED"]
 
   return (
     <div className="mx-auto w-full max-w-md space-y-0 pb-6 flex flex-col h-full max-h-[85vh]">
       
-      {/* 🌟 กล่องค้นหา (ฟิกซ์ไว้ด้านบน) */}
       <div className="bg-slate-50 border-b border-slate-100 p-6 text-center shrink-0">
         <h2 className="text-xl font-bold text-slate-800 mb-1">เช็คสถานะงานซ่อม</h2>
         <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์ หรือ ชื่อ เพื่อติดตามสถานะ</p>
@@ -139,7 +133,6 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
         </form>
       </div>
 
-      {/* 🌟 รายการบิลซ่อม (Scroll เลื่อนได้) */}
       <div className="flex-1 overflow-y-auto px-4 pt-6 pb-12 space-y-6">
         
         {jobList?.length === 0 && (
@@ -167,10 +160,20 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                     <Badge variant="destructive">ยกเลิกแล้ว</Badge>
                   )}
                 </div>
+                
+                {/* 🌟 2. เพิ่มการแสดงผลสีตัวเครื่องตรงนี้ครับ */}
                 <h3 className="text-xl font-bold flex items-center gap-2 mb-1">
                   <Smartphone className="h-5 w-5 text-blue-400 shrink-0" />
-                  <span className="truncate">{job.deviceModel}</span>
+                  <span className="truncate">
+                    {job.deviceModel}
+                    {job.deviceColor && (
+                      <span className="text-blue-200 font-normal text-base ml-1.5">
+                        (สี{job.deviceColor.replace(/^สี/, '')})
+                      </span>
+                    )}
+                  </span>
                 </h3>
+                
                 <p className="text-slate-400 text-sm">บริการ: {job.serviceName || "ตรวจเช็คทั่วไป"}</p>
                 <p className="text-slate-400 text-sm truncate">ลูกค้า: {job.customerName}</p>
               </div>
