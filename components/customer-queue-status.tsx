@@ -18,7 +18,8 @@ import {
   ClipboardList
 } from "lucide-react"
 
-import { getQueueByRefOrPhone } from "@/actions/queue"
+// 🌟 เปลี่ยนมาใช้ getCustomerQueues ที่คืนค่ากลับมาหลายบิลได้
+import { getCustomerQueues } from "@/actions/queue"
 
 type QueueData = {
   id: string
@@ -30,11 +31,11 @@ type QueueData = {
   cancelReason?: string | null
 }
 
-// 🌟 1. เปิดประตูรับ Props shopId ตรงนี้ครับ
 export function CustomerQueueStatus({ shopId }: { shopId: string }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [jobData, setJobData] = useState<QueueData | null>(null)
+  // 🌟 เปลี่ยนเป็น Array เพื่อเก็บหลายเครื่อง
+  const [jobList, setJobList] = useState<QueueData[] | null>(null) 
   
   const { toast } = useToast()
 
@@ -43,22 +44,22 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
     if (!searchQuery.trim()) return
 
     setIsLoading(true)
-    setJobData(null) 
+    setJobList(null) 
 
     try {
-      // 🌟 2. เปลี่ยนจาก "shop_test_001" เป็น shopId ที่รับมาจาก Props
-      const res = await getQueueByRefOrPhone(shopId, searchQuery.trim())
+      const res = await getCustomerQueues(shopId, searchQuery.trim())
       
-      if (res.success && res.data) {
-        setJobData(res.data as QueueData)
+      if (res.success && res.data && res.data.length > 0) {
+        setJobList(res.data as QueueData[])
         toast({
           title: "✅ พบข้อมูลของคุณ",
-          description: `กำลังแสดงสถานะล่าสุดของเครื่อง ${res.data.deviceModel}`,
+          description: `พบประวัติงานซ่อมทั้งหมด ${res.data.length} รายการ`,
         })
       } else {
+        setJobList([])
         toast({
           title: "❌ ไม่พบข้อมูล",
-          description: res.error || "กรุณาตรวจสอบเบอร์โทรศัพท์หรือเลขที่บิลอีกครั้ง",
+          description: "ไม่พบประวัติงานซ่อมจากชื่อหรือเบอร์โทรนี้",
           variant: "destructive",
         })
       }
@@ -73,27 +74,38 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
     }
   }
 
+  // 🌟 เปิดท่อดักฟังการเปลี่ยนแปลงของ "ทุกเครื่อง" ที่กำลังแสดงอยู่
   useEffect(() => {
-    if (!jobData?.id) return
+    if (!jobList || jobList.length === 0) return
+
+    // ดึง ID ของเครื่องทั้งหมดออกมาเก็บไว้เช็ค
+    const jobIds = jobList.map(job => job.id)
 
     const channel = supabase
-      .channel(`queue_status_${jobData.id}`)
+      .channel('queue_status_multiple')
       .on(
         'postgres_changes',
         { 
           event: 'UPDATE', 
           schema: 'public', 
-          table: 'Queue',
-          filter: `id=eq.${jobData.id}` 
+          table: 'Queue'
         },
         (payload) => {
-          console.log('🔄 อัปเดตสถานะล่าสุดจากร้าน!', payload.new)
-          setJobData(payload.new as QueueData)
-          
-          toast({
-            title: "🔔 อัปเดตสถานะการซ่อม!",
-            description: "ร้านซ่อมได้อัปเดตสถานะเครื่องของคุณแล้ว",
-          })
+          const updatedJob = payload.new as QueueData
+          // ถ้า ID ที่อัปเดต ตรงกับเครื่องใดเครื่องหนึ่งที่แสดงอยู่
+          if (jobIds.includes(updatedJob.id)) {
+            console.log('🔄 สถานะเปลี่ยน!', updatedJob)
+            
+            // อัปเดตข้อมูลเฉพาะเครื่องนั้นใน Array
+            setJobList(prev => 
+              prev ? prev.map(job => job.id === updatedJob.id ? updatedJob : job) : prev
+            )
+            
+            toast({
+              title: "🔔 สถานะอัปเดต!",
+              description: `เครื่อง ${updatedJob.deviceModel} มีการเปลี่ยนสถานะ`,
+            })
+          }
         }
       )
       .subscribe()
@@ -101,21 +113,22 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [jobData?.id, toast])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobList?.map(j => j.id).join(','), toast]) // Re-run เฉพาะตอนที่ชุดรายการเครื่องเปลี่ยนไป
 
   const statusFlow = ["PENDING", "WAITING", "PROCESSING", "REPAIRED", "COMPLETED"]
-  const currentStepIndex = jobData ? statusFlow.indexOf(jobData.status) : -1
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-6 pb-6">
+    <div className="mx-auto w-full max-w-md space-y-0 pb-6 flex flex-col h-full max-h-[85vh]">
       
-      <div className="bg-slate-50 border-b border-slate-100 p-6 text-center">
+      {/* 🌟 กล่องค้นหา (ฟิกซ์ไว้ด้านบน) */}
+      <div className="bg-slate-50 border-b border-slate-100 p-6 text-center shrink-0">
         <h2 className="text-xl font-bold text-slate-800 mb-1">เช็คสถานะงานซ่อม</h2>
-        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์ หรือชื่อ เพื่อติดตามสถานะ</p>
+        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์ หรือ ชื่อ เพื่อติดตามสถานะ</p>
         
         <form onSubmit={handleSearch} className="flex gap-2 mt-4">
           <Input 
-            placeholder="เช่น 0812345678 หรือ Q-XXXX" 
+            placeholder="เช่น 0812345678, Q-XXXX หรือ ชื่อ" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-white h-12"
@@ -126,102 +139,116 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
         </form>
       </div>
 
-      {jobData && (
-        <Card className="border-slate-200 shadow-lg mx-4 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* 🌟 รายการบิลซ่อม (Scroll เลื่อนได้) */}
+      <div className="flex-1 overflow-y-auto px-4 pt-6 pb-12 space-y-6">
+        
+        {jobList?.length === 0 && (
+           <div className="text-center text-slate-400 mt-10">
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>ไม่พบรายการซ่อมของคุณ</p>
+           </div>
+        )}
+
+        {jobList && jobList.map((job) => {
+          const currentStepIndex = statusFlow.indexOf(job.status)
           
-          <div className="bg-slate-800 p-5 text-white">
-            <div className="flex justify-between items-start mb-2">
-              <Badge variant="outline" className="bg-slate-700/50 text-slate-200 border-slate-600">
-                {jobData.jobRef || "รอรันเลขบิล"}
-              </Badge>
-              {jobData.status === "COMPLETED" && (
-                <Badge className="bg-emerald-500 hover:bg-emerald-600">ปิดจ๊อบแล้ว</Badge>
+          return (
+            <Card key={job.id} className="border-slate-200 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              <div className="bg-slate-800 p-5 text-white">
+                <div className="flex justify-between items-start mb-2">
+                  <Badge variant="outline" className="bg-slate-700/50 text-slate-200 border-slate-600">
+                    {job.jobRef || "รอรันเลขบิล"}
+                  </Badge>
+                  {job.status === "COMPLETED" && (
+                    <Badge className="bg-emerald-500 hover:bg-emerald-600">ปิดจ๊อบแล้ว</Badge>
+                  )}
+                  {job.status === "CANCELLED" && (
+                    <Badge variant="destructive">ยกเลิกแล้ว</Badge>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold flex items-center gap-2 mb-1">
+                  <Smartphone className="h-5 w-5 text-blue-400 shrink-0" />
+                  <span className="truncate">{job.deviceModel}</span>
+                </h3>
+                <p className="text-slate-400 text-sm">บริการ: {job.serviceName || "ตรวจเช็คทั่วไป"}</p>
+                <p className="text-slate-400 text-sm truncate">ลูกค้า: {job.customerName}</p>
+              </div>
+
+              {job.status !== "CANCELLED" && job.status !== "ARCHIVED" && (
+                <CardContent className="p-6">
+                  <div className="relative border-l-2 border-slate-100 ml-4 space-y-8">
+                    
+                    <div className="relative pl-6">
+                      <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 0 ? "bg-slate-500" : "bg-slate-200"}`}>
+                        <ClipboardList className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className={`font-bold ${currentStepIndex >= 0 ? "text-slate-800" : "text-slate-400"}`}>1. รับเรื่อง / รอคิวซ่อม</h4>
+                        <p className="text-xs text-slate-500 mt-1">ทางร้านรับเครื่องเข้าระบบแล้ว</p>
+                      </div>
+                    </div>
+
+                    <div className="relative pl-6">
+                      <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 2 ? "bg-blue-500" : "bg-slate-200"}`}>
+                        {currentStepIndex === 2 && <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-50 animate-ping"></span>}
+                        <Wrench className="h-3.5 w-3.5 text-white relative z-10" />
+                      </div>
+                      <div>
+                        <h4 className={`font-bold ${currentStepIndex >= 2 ? "text-blue-700" : "text-slate-400"}`}>2. ช่างกำลังดำเนินการซ่อม</h4>
+                        <p className="text-xs text-slate-500 mt-1">กำลังแกะเครื่องและเปลี่ยนอะไหล่</p>
+                      </div>
+                    </div>
+
+                    <div className="relative pl-6">
+                      <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 3 ? "bg-emerald-500" : "bg-slate-200"}`}>
+                        {currentStepIndex === 3 && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50 animate-ping"></span>}
+                        <PackageCheck className="h-3.5 w-3.5 text-white relative z-10" />
+                      </div>
+                      <div>
+                        <h4 className={`font-bold ${currentStepIndex >= 3 ? "text-emerald-600" : "text-slate-400"}`}>3. ซ่อมเสร็จเรียบร้อย!</h4>
+                        <p className="text-xs text-slate-500 mt-1">เครื่องพร้อมใช้งาน มารับได้เลยครับ</p>
+                      </div>
+                    </div>
+
+                  </div>
+                </CardContent>
               )}
-              {jobData.status === "CANCELLED" && (
-                <Badge variant="destructive">ยกเลิกแล้ว</Badge>
+
+              {job.status === "ARCHIVED" && (
+                <CardContent className="p-6 text-center space-y-3">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+                    <AlertCircle className="h-8 w-8 text-amber-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800">เครื่องอยู่ในคลัง</h3>
+                  <p className="text-sm text-slate-600">
+                    เครื่องซ่อมเสร็จและถูกเก็บรักษาไว้<br/>กรุณาติดต่อร้านเพื่อขอรับเครื่อง
+                  </p>
+                </CardContent>
               )}
-            </div>
-            <h3 className="text-xl font-bold flex items-center gap-2 mb-1">
-              <Smartphone className="h-5 w-5 text-blue-400" />
-              {jobData.deviceModel}
-            </h3>
-            <p className="text-slate-400 text-sm">บริการ: {jobData.serviceName || "ตรวจเช็คทั่วไป"}</p>
-            <p className="text-slate-400 text-sm">คุณลูกค้า: {jobData.customerName}</p>
-          </div>
 
-          {jobData.status !== "CANCELLED" && jobData.status !== "ARCHIVED" && (
-            <CardContent className="p-6">
-              <div className="relative border-l-2 border-slate-100 ml-4 space-y-8">
-                
-                <div className="relative pl-6">
-                  <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 0 ? "bg-slate-500" : "bg-slate-200"}`}>
-                    <ClipboardList className="h-3.5 w-3.5 text-white" />
+              {job.status === "CANCELLED" && (
+                <CardContent className="p-6 text-center space-y-3 border-t-4 border-rose-500">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100">
+                    <XCircle className="h-8 w-8 text-rose-600" />
                   </div>
-                  <div>
-                    <h4 className={`font-bold ${currentStepIndex >= 0 ? "text-slate-800" : "text-slate-400"}`}>1. รับเรื่อง / รอคิวซ่อม</h4>
-                    <p className="text-xs text-slate-500 mt-1">ทางร้านรับเครื่องเข้าระบบแล้ว</p>
+                  <h3 className="text-lg font-bold text-slate-800">รายการถูกยกเลิก</h3>
+                  <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm inline-block">
+                    สาเหตุ: {
+                      job.cancelReason === "NO_SHOW" ? "ไม่นำเครื่องมาส่งตามนัด" :
+                      job.cancelReason === "UNREPAIRABLE" ? "ซ่อมไม่ได้/บอร์ดเสีย" :
+                      job.cancelReason === "NO_PARTS" ? "ไม่มีอะไหล่" :
+                      job.cancelReason === "CUSTOMER_CANCEL" ? "ลูกค้ายกเลิก" :
+                      job.cancelReason === "UNCONTACTABLE" ? "ติดต่อไม่ได้" :
+                      "ยกเลิกโดยร้าน"
+                    }
                   </div>
-                </div>
-
-                <div className="relative pl-6">
-                  <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 2 ? "bg-blue-500" : "bg-slate-200"}`}>
-                    {currentStepIndex === 2 && <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-50 animate-ping"></span>}
-                    <Wrench className="h-3.5 w-3.5 text-white relative z-10" />
-                  </div>
-                  <div>
-                    <h4 className={`font-bold ${currentStepIndex >= 2 ? "text-blue-700" : "text-slate-400"}`}>2. ช่างกำลังดำเนินการซ่อม</h4>
-                    <p className="text-xs text-slate-500 mt-1">กำลังแกะเครื่องและเปลี่ยนอะไหล่</p>
-                  </div>
-                </div>
-
-                <div className="relative pl-6">
-                  <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 3 ? "bg-emerald-500" : "bg-slate-200"}`}>
-                    {currentStepIndex === 3 && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50 animate-ping"></span>}
-                    <PackageCheck className="h-3.5 w-3.5 text-white relative z-10" />
-                  </div>
-                  <div>
-                    <h4 className={`font-bold ${currentStepIndex >= 3 ? "text-emerald-600" : "text-slate-400"}`}>3. ซ่อมเสร็จเรียบร้อย!</h4>
-                    <p className="text-xs text-slate-500 mt-1">เครื่องพร้อมใช้งาน มารับได้เลยครับ</p>
-                  </div>
-                </div>
-
-              </div>
-            </CardContent>
-          )}
-
-          {jobData.status === "ARCHIVED" && (
-            <CardContent className="p-6 text-center space-y-3">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
-                <AlertCircle className="h-8 w-8 text-amber-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800">เครื่องอยู่ในคลัง</h3>
-              <p className="text-sm text-slate-600">
-                เครื่องของคุณซ่อมเสร็จเรียบร้อยแล้วและถูกเก็บรักษาไว้ในคลัง<br/>กรุณาติดต่อร้านเพื่อขอรับเครื่องครับ
-              </p>
-            </CardContent>
-          )}
-
-          {jobData.status === "CANCELLED" && (
-            <CardContent className="p-6 text-center space-y-3 border-t-4 border-rose-500">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100">
-                <XCircle className="h-8 w-8 text-rose-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800">รายการนี้ถูกยกเลิกแล้ว</h3>
-              <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm inline-block">
-                สาเหตุ: {
-                  jobData.cancelReason === "NO_SHOW" ? "ไม่นำเครื่องมาส่งตามนัด" :
-                  jobData.cancelReason === "UNREPAIRABLE" ? "เครื่องอาการหนัก ไม่สามารถซ่อมได้" :
-                  jobData.cancelReason === "NO_PARTS" ? "ไม่มีอะไหล่สำหรับรุ่นนี้" :
-                  jobData.cancelReason === "CUSTOMER_CANCEL" ? "ลูกค้ายกเลิกการซ่อม" :
-                  jobData.cancelReason === "UNCONTACTABLE" ? "ติดต่อไม่ได้ / ทิ้งเครื่อง" :
-                  "ยกเลิกโดยทางร้าน"
-                }
-              </div>
-            </CardContent>
-          )}
-
-        </Card>
-      )}
+                </CardContent>
+              )}
+            </Card>
+          )
+        })}
+      </div>
     </div>
   )
 }
