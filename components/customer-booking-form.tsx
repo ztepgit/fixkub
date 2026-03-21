@@ -91,7 +91,7 @@ export function CustomerBookingForm({
         <div className="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
           <CheckCircle2 className="h-10 w-10" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">รับคิวสำเร็จ!</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">แจ้งซ่อมสำเร็จ!</h2>
         <p className="text-slate-600 mb-6">
           คุณสามารถใช้เบอร์โทร <span className="font-bold text-emerald-600">{phone}</span><br/>เพื่อเช็คสถานะงานซ่อมได้ตลอดเวลา
         </p>
