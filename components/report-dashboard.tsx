@@ -4,20 +4,29 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button" // 🌟 Import Button
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
     Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2, 
-    Search, Filter, ClipboardX, Eye, EyeOff // 🌟 Import Eye, EyeOff
+    Filter, ClipboardX, Eye, EyeOff, CalendarRange
 } from "lucide-react"
+
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { th } from "date-fns/locale"
+import { cn } from "@/lib/utils"
+
 import { getAnalyticsSummary, getTrendData, getCancelledJobsDetails } from "@/actions/report"
 
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts'
+
+// 🌟 Import Type DateRange มาจาก react-day-picker เพื่อแก้ Type Error
+import { DateRange } from "react-day-picker"
 
 const COLORS = ['#f43f5e', '#f97316', '#eab308', '#8b5cf6', '#64748b'];
 
@@ -33,31 +42,38 @@ const translateCancelReason = (reason: string) => {
 }
 
 export function ReportDashboard() {
-    const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('month')
+    const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year' | 'custom'>('month')
+    
+    // 🌟 แก้ Type ของ dateRange ให้ตรงกับที่ Calendar (react-day-picker) ต้องการ
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: new Date(new Date().setDate(new Date().getDate() - 30)),
+        to: new Date()
+    })
+
     const [summary, setSummary] = useState<any>(null)
     const [trend, setTrend] = useState<any[]>([])
-
-    // 🌟 State สำหรับการซ่อนข้อมูล
     const [isHidden, setIsHidden] = useState(false)
-
-    // State สำหรับตารางยกเลิกงาน
     const [cancelledList, setCancelledList] = useState<any[]>([])
     const [searchQuery, setSearchQuery] = useState("")
     const [filterReason, setFilterReason] = useState("ALL")
-
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        loadData()
-    }, [timeframe])
+        if (timeframe !== 'custom') {
+            loadData()
+        } else if (timeframe === 'custom' && dateRange?.from && dateRange?.to) {
+            loadData()
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [timeframe, dateRange?.from, dateRange?.to])
 
     const loadData = async () => {
         setIsLoading(true)
         try {
             const [summaryRes, trendRes, cancelRes] = await Promise.all([
-                getAnalyticsSummary("shop_test_001"),
-                getTrendData("shop_test_001", timeframe),
-                getCancelledJobsDetails("shop_test_001") // ดึงรายการยกเลิก
+                getAnalyticsSummary("shop_test_001", timeframe, dateRange?.from, dateRange?.to),
+                getTrendData("shop_test_001", timeframe, dateRange?.from, dateRange?.to),
+                getCancelledJobsDetails("shop_test_001", timeframe, dateRange?.from, dateRange?.to)
             ])
 
             if (summaryRes.success) setSummary(summaryRes.data)
@@ -69,7 +85,6 @@ export function ReportDashboard() {
         setIsLoading(false)
     }
 
-    // คำนวณเปอร์เซ็นต์ซ่อมสำเร็จ
     const successRate = summary?.totalJobs > 0
         ? Math.round((summary.completedJobs / summary.totalJobs) * 100) : 0
 
@@ -78,15 +93,12 @@ export function ReportDashboard() {
         value: item.count
     })) || []
 
-    // ฟิลเตอร์ตาราง
     const filteredCancelledJobs = cancelledList.filter(job => {
         const matchesSearch =
             (job.jobRef || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
             (job.customerName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
             (job.deviceModel || "").toLowerCase().includes(searchQuery.toLowerCase());
-
         const matchesFilter = filterReason === "ALL" || job.cancelReason === filterReason;
-
         return matchesSearch && matchesFilter;
     });
 
@@ -101,7 +113,6 @@ export function ReportDashboard() {
 
     return (
         <div className="space-y-6 pb-8">
-            {/* 🌟 1. ปรับส่วน Header เพื่อใส่ปุ่มซ่อน/ดูข้อมูล */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">รายงานและสถิติ (Analytics)</h2>
@@ -117,11 +128,10 @@ export function ReportDashboard() {
                 </Button>
             </div>
 
-            {/* 🌟 2. การ์ดสรุปยอด All-Time (ใส่เงื่อนไข isHidden) */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-slate-600">รายได้รวมตลอดกาล</CardTitle>
+                        <CardTitle className="text-sm font-medium text-slate-600">รายได้รวมช่วงนี้</CardTitle>
                         <Wallet className="h-4 w-4 text-indigo-600" />
                     </CardHeader>
                     <CardContent>
@@ -176,13 +186,57 @@ export function ReportDashboard() {
                 </Card>
             </div>
 
-            {/* กราฟ */}
             <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
-                <div className="flex justify-end">
-                    <TabsList className="grid w-[300px] grid-cols-3 bg-slate-100 border border-slate-200">
-                        <TabsTrigger value="week">สัปดาห์นี้</TabsTrigger>
+                <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-3">
+                    
+                    {timeframe === 'custom' && (
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-[260px] justify-start text-left font-medium border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100",
+                                            !dateRange && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarRange className="mr-2 h-4 w-4 text-emerald-600" />
+                                        {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>
+                                                    {format(dateRange.from, "d MMM yyy", { locale: th })} -{" "}
+                                                    {format(dateRange.to, "d MMM yyy", { locale: th })}
+                                                </>
+                                            ) : (
+                                                format(dateRange.from, "d MMM yyy", { locale: th })
+                                            )
+                                        ) : (
+                                            <span>เลือกวันเริ่มต้น - สิ้นสุด</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    {/* 🌟 ปรับตรง onSelect ให้รับ Type ที่ถูกต้อง */}
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={dateRange?.from}
+                                        selected={dateRange}
+                                        onSelect={(range: DateRange | undefined) => setDateRange(range)}
+                                        numberOfMonths={2}
+                                        locale={th}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    )}
+
+                    <TabsList className="grid w-[360px] grid-cols-4 bg-slate-100 border border-slate-200 h-10">
+                        <TabsTrigger value="week">สัปดาห์</TabsTrigger>
                         <TabsTrigger value="month">เดือนนี้</TabsTrigger>
                         <TabsTrigger value="year">ปีนี้</TabsTrigger>
+                        <TabsTrigger value="custom" className="data-[state=active]:text-emerald-700">ปฏิทิน</TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -197,7 +251,7 @@ export function ReportDashboard() {
                                 <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    {timeframe === 'month' ? (
+                                    {timeframe === 'month' || timeframe === 'custom' ? (
                                         <LineChart data={trend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                             <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
@@ -264,13 +318,13 @@ export function ReportDashboard() {
                             <CardTitle className="text-lg text-rose-700 flex items-center gap-2">
                                 <AlertCircle className="h-5 w-5" /> วิเคราะห์สาเหตุยกเลิกงาน
                             </CardTitle>
-                            <CardDescription>ข้อมูลรวมตลอดกาล (All-Time)</CardDescription>
+                            <CardDescription>สัดส่วนการยกเลิกในช่วงเวลานี้</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {pieData.length === 0 ? (
                                 <div className="h-[280px] flex flex-col items-center justify-center text-slate-400 space-y-2">
                                     <CheckCircle2 className="h-10 w-10 text-emerald-400 opacity-50" />
-                                    <p>ยังไม่มีงานที่ถูกยกเลิกในระบบ 🎉</p>
+                                    <p>ยังไม่มีงานที่ถูกยกเลิกในช่วงนี้ 🎉</p>
                                 </div>
                             ) : (
                                 <div className="flex flex-col md:flex-row items-center h-[280px]">
@@ -304,16 +358,15 @@ export function ReportDashboard() {
                 </div>
             </Tabs>
 
-            {/* ตารางรายการยกเลิกงาน */}
             <Card className="shadow-sm border-slate-200 mt-6">
                 <CardHeader className="border-b bg-slate-50/50 pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <ClipboardX className="h-5 w-5 text-rose-600" />
-                                รายการงานที่ถูกยกเลิกทั้งหมด
+                                รายการงานที่ถูกยกเลิก
                             </CardTitle>
-                            <CardDescription className="mt-1">ค้นหาและกรองประวัติการยกเลิกงานเพื่อปรับปรุงบริการ (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
+                            <CardDescription className="mt-1">ค้นหาและกรองประวัติการยกเลิกงาน (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
                         </div>
                       
                         <div className="flex items-center gap-3">

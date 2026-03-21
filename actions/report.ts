@@ -3,16 +3,31 @@
 import { db } from "@/lib/prisma"
 import { 
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, 
-  eachDayOfInterval, eachMonthOfInterval, isSameDay, isSameMonth 
+  eachDayOfInterval, eachMonthOfInterval, isSameDay, isSameMonth,
+  startOfDay, endOfDay // 🌟 นำมาใช้ครอบวันที่ให้เป็นเวลา 00:00:00 ถึง 23:59:59
 } from "date-fns"
 
 // ==========================================
-// 1. ดึงสถิติภาพรวม และ ตารางสาเหตุการยกเลิก (All-Time)
+// 1. ดึงสถิติภาพรวม และ ตารางสาเหตุการยกเลิก (รองรับ Custom Date)
 // ==========================================
-export async function getAnalyticsSummary(shopId: string) {
+export async function getAnalyticsSummary(shopId: string, period?: string, customFrom?: Date, customTo?: Date) {
   try {
+    // 🌟 สร้างเงื่อนไขวันที่ หากมีการส่ง custom date มา
+    let dateFilter = {};
+    if (period === 'custom' && customFrom && customTo) {
+      dateFilter = {
+        createdAt: {
+          gte: startOfDay(new Date(customFrom)),
+          lte: endOfDay(new Date(customTo))
+        }
+      };
+    }
+
     const jobs = await db.queue.findMany({
-      where: { shopId },
+      where: { 
+        shopId,
+        ...dateFilter // 🌟 นำเงื่อนไขวันที่ไปจับกับ query
+      },
       select: {
         status: true,
         estimatedPrice: true,
@@ -24,7 +39,6 @@ export async function getAnalyticsSummary(shopId: string) {
     let completedJobs = 0;
     let cancelledJobs = 0;
 
-    // ตัวแปรเก็บจำนวนแยกตามสาเหตุ
     const cancelStats: Record<string, number> = {
       "NO_SHOW": 0,
       "CUSTOMER_CANCEL": 0,
@@ -45,7 +59,6 @@ export async function getAnalyticsSummary(shopId: string) {
       }
     });
 
-    // แปลง Object ให้เป็น Array และเรียงลำดับจากสาเหตุที่เกิดบ่อยสุดไปน้อยสุด
     const formattedCancelReasons = Object.entries(cancelStats)
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count);
@@ -57,7 +70,7 @@ export async function getAnalyticsSummary(shopId: string) {
         totalJobs: jobs.length,
         completedJobs,
         cancelledJobs,
-        cancelReasons: formattedCancelReasons // 🌟 นำไปใช้สร้างตารางได้เลย
+        cancelReasons: formattedCancelReasons
       }
     };
   } catch (error) {
@@ -68,30 +81,47 @@ export async function getAnalyticsSummary(shopId: string) {
 
 // ==========================================
 // 2. ข้อมูลสำหรับวาดกราฟ (รายได้ และ งานซ่อม vs งานเสร็จ)
-// รองรับ: 'week' | 'month' | 'year'
+// รองรับ: 'week' | 'month' | 'year' | 'custom'
 // ==========================================
-export async function getTrendData(shopId: string, period: 'week' | 'month' | 'year') {
+export async function getTrendData(shopId: string, period: 'week' | 'month' | 'year' | 'custom', customFrom?: Date, customTo?: Date) {
   try {
     const now = new Date();
     let startDate: Date, endDate: Date;
-    let intervals: Date[];
+    let intervals: Date[] = [];
 
-    // 🌟 กำหนดช่วงเวลา และแบ่งแท่งกราฟ (iso8601 สัปดาห์เริ่มวันจันทร์)
     if (period === 'week') {
       startDate = startOfWeek(now, { weekStartsOn: 1 }); 
       endDate = endOfWeek(now, { weekStartsOn: 1 });
-      intervals = eachDayOfInterval({ start: startDate, end: endDate }); // แท่งกราฟ 7 วัน
+      intervals = eachDayOfInterval({ start: startDate, end: endDate });
     } else if (period === 'month') {
       startDate = startOfMonth(now);
       endDate = endOfMonth(now);
-      intervals = eachDayOfInterval({ start: startDate, end: endDate }); // แท่งกราฟ 28-31 วัน
-    } else { // year
+      intervals = eachDayOfInterval({ start: startDate, end: endDate });
+    } else if (period === 'year') {
       startDate = startOfYear(now);
       endDate = endOfYear(now);
-      intervals = eachMonthOfInterval({ start: startDate, end: endDate }); // แท่งกราฟ 12 เดือน
+      intervals = eachMonthOfInterval({ start: startDate, end: endDate });
+    } else if (period === 'custom' && customFrom && customTo) {
+      // 🌟 กรณีเลือก Custom Date Range
+      startDate = startOfDay(new Date(customFrom));
+      endDate = endOfDay(new Date(customTo));
+      
+      // ถ้าเลือกช่วงห่างกันมากกว่า 60 วัน ให้โชว์เป็นรายเดือนแทนรายวัน (กราฟจะได้ไม่เบียดกันเกินไป)
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      
+      if (diffDays > 60) {
+        intervals = eachMonthOfInterval({ start: startDate, end: endDate });
+      } else {
+        intervals = eachDayOfInterval({ start: startDate, end: endDate });
+      }
+    } else {
+      // Fallback เผื่อไว้
+      startDate = startOfMonth(now);
+      endDate = endOfMonth(now);
+      intervals = eachDayOfInterval({ start: startDate, end: endDate });
     }
 
-    // ดึงงานที่มีความเคลื่อนไหวในช่วงเวลานี้เท่านั้น
     const jobs = await db.queue.findMany({
       where: {
         shopId,
@@ -113,35 +143,33 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
     const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
     const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
-    // 🌟 หยอดข้อมูลลงในแต่ละแท่งกราฟ
+    const diffDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const isMonthlyView = period === 'year' || (period === 'custom' && diffDays > 60);
+
     const chartData = intervals.map(date => {
       let revenue = 0;
-      let processing = 0; // รับแกะซ่อม
-      let repaired = 0;   // ซ่อมเสร็จ
+      let processing = 0; 
+      let repaired = 0;   
 
       jobs.forEach(job => {
-        // ถ้าเป็นกราฟรายปี ให้เช็คว่า "เดือนตรงกันไหม" ถ้าเป็นวัน/สัปดาห์ ให้เช็ค "วันตรงกันไหม"
-        const isSame = period === 'year' ? isSameMonth : isSameDay;
+        // ใช้ logic เช็คตามรูปแบบของกราฟ (รายเดือน หรือ รายวัน)
+        const isSame = isMonthlyView ? isSameMonth : isSameDay;
 
-        // 1. คำนวณรายได้ (ต้องสถานะ COMPLETED และวันที่จบงานตรงกับแท่งกราฟ)
         if (job.status === "COMPLETED" && job.completedAt && isSame(job.completedAt, date)) {
           revenue += (job.estimatedPrice || 0);
         }
-        // 2. จำนวนงานที่เริ่มซ่อม (PROCESSING)
         if (job.startedAt && isSame(job.startedAt, date)) {
           processing++;
         }
-        // 3. จำนวนงานที่ซ่อมเสร็จ (REPAIRED)
         if (job.repairedAt && isSame(job.repairedAt, date)) {
           repaired++;
         }
       });
 
-      // จัดฟอร์แมตแกน X (Label) ให้สวยงาม
       let label = "";
       if (period === 'week') label = dayNames[date.getDay()];
-      else if (period === 'month') label = date.getDate().toString();
-      else label = monthNames[date.getMonth()];
+      else if (isMonthlyView) label = monthNames[date.getMonth()];
+      else label = `${date.getDate()} ${monthNames[date.getMonth()]}`; // ถ้า custom ให้โชว์วันที่ด้วย เช่น "15 ก.พ."
 
       return {
         label,
@@ -160,12 +188,26 @@ export async function getTrendData(shopId: string, period: 'week' | 'month' | 'y
 }
 
 // ==========================================
-// 3. ดึงรายการงานที่ถูกยกเลิกทั้งหมด (สำหรับตาราง)
+// 3. ดึงรายการงานที่ถูกยกเลิก (รองรับ Custom Date)
 // ==========================================
-export async function getCancelledJobsDetails(shopId: string) {
+export async function getCancelledJobsDetails(shopId: string, period?: string, customFrom?: Date, customTo?: Date) {
   try {
+    let dateFilter = {};
+    if (period === 'custom' && customFrom && customTo) {
+      dateFilter = {
+        cancelledAt: {
+          gte: startOfDay(new Date(customFrom)),
+          lte: endOfDay(new Date(customTo))
+        }
+      };
+    }
+
     const jobs = await db.queue.findMany({
-      where: { shopId, status: "CANCELLED" },
+      where: { 
+        shopId, 
+        status: "CANCELLED",
+        ...dateFilter
+      },
       orderBy: { cancelledAt: 'desc' },
       select: {
         id: true,
@@ -175,7 +217,7 @@ export async function getCancelledJobsDetails(shopId: string) {
         cancelReason: true,
         cancelledAt: true,
         issue: true,
-        serviceName: true, // 🌟 เพิ่มบรรทัดนี้เข้ามาครับ!
+        serviceName: true, 
       }
     });
     return { success: true, data: jobs };
