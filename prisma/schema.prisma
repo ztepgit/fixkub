@@ -38,14 +38,14 @@ model Shop {
   maxActiveJobs      Int       @default(10)
 
   // --- Billing & Subscription ---
-  plan               PlanType  @default(FREE_TRIAL)
-  trialEndsAt        DateTime?
+  planType           PlanType   @default(FREE_TRIAL)
+  planStatus         PlanStatus @default(ACTIVE)
   
-  // 🌟 [เพิ่มใหม่] ต้องมี "วันที่เริ่มรอบบิล" เพื่อเอาไปคำนวณหักลบเวลาที่ใช้ไป (Prorate)
-  subscriptionStartsAt DateTime? 
-  subscriptionEndsAt   DateTime?
+  trialEndsAt        DateTime?  // วันที่หมดช่วงทดลองใช้ฟรี
+  subscriptionStartsAt DateTime? // วันที่เริ่มจ่ายเงินรอบล่าสุด (เอาไว้คำนวณ Prorate)
+  expiresAt          DateTime?  // 🌟 วันหมดอายุของแพ็กเกจ (ใช้ตัวนี้คำนวณทบวัน)
   
-  isActive           Boolean   @default(true)
+  isActive           Boolean    @default(true)
 
   // --- Agent & Commission Tracking ---
   agentId            String?   
@@ -53,12 +53,33 @@ model Shop {
   isCommissionPaid   Boolean   @default(false) 
 
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @default(now()) @updatedAt // 🌟 แก้บรรทัดนี้
+  updatedAt          DateTime  @updatedAt // 🌟 เอา @default(now()) ออก เพราะ @updatedAt จัดการให้แล้ว
 
+  // --- Relations ---
   owners             ShopOwner[]
   services           Service[]
   queues             Queue[]
   payments           PaymentTransaction[]
+  subscriptions      SubscriptionHistory[]
+}
+
+// ==========================================
+// 2.1 SUBSCRIPTION HISTORY (ประวัติการต่ออายุแพ็กเกจ)
+// ==========================================
+model SubscriptionHistory {
+  id                 String    @id @default(uuid())
+  shopId             String
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  planType           PlanType  // แพ็กเกจที่ซื้อ (BASIC_MONTHLY / BASIC_YEARLY)
+  amountPaid         Float     // จำนวนเงินที่จ่าย (เช่น 199.00, 1690.00)
+  
+  purchasedAt        DateTime  @default(now()) // วันที่จ่ายเงิน
+  previousExpiresAt  DateTime? // วันหมดอายุเดิมก่อนจ่าย
+  newExpiresAt       DateTime  // วันหมดอายุใหม่หลังจ่าย
+  
+  slipUrl            String?   // ลิงก์สลิปโอนเงิน (ถ้ามี)
+  status             String    @default("COMPLETED") // COMPLETED, PENDING, FAILED
 }
 
 // ==========================================
@@ -87,45 +108,49 @@ model Service {
   price        Float?
   estimatedMin Int?
   isActive     Boolean @default(true)
-  @@index([shopId]) // 🌟 แนะนำให้เติม
+
+  @@index([shopId])
 }
 
 // ==========================================
 // 5. QUEUE (ใบสั่งซ่อม / Job Ticket)
 // ==========================================
 model Queue {
-  id            String      @id @default(cuid())
-  shopId        String
-  shop          Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id             String      @id @default(cuid())
+  shopId         String
+  shop           Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  jobRef        String?     
-  customerName  String      
-  phoneNumber   String?     
-  deviceModel   String?     
-  deviceColor   String?     
-  issue         String?
+  jobRef         String?     
+  customerName   String      
+  phoneNumber    String?     
+  deviceModel    String?     
+  deviceColor    String?     
+  issue          String?
 
-  // 🌟 [ปรับปรุง] เรื่องราคาและข้อมูลเฉพาะเครื่องของช่าง
-  estimatedPrice Float?     // ราคาประเมินเบื้องต้น (ตรงกับ UI)
-  repairCost     Float?     // ราคาซ่อมจริง (เผื่อเอาไว้สรุปยอดตอนจบงาน)
-  serialNumber   String?    // 🌟 เพิ่ม S/N
-  imei           String?    // 🌟 เพิ่ม IMEI     
+  // --- ข้อมูลสำหรับช่าง ---
+  estimatedPrice Float?      // ราคาประเมินเบื้องต้น
+  repairCost     Float?      // ราคาซ่อมจริง (เผื่อเอาไว้สรุปยอดตอนจบงาน)
+  serialNumber   String?     // S/N ตัวเครื่อง
+  imei           String?     // IMEI ตัวเครื่อง     
   
-  serviceName   String?     
-  isManualEntry Boolean     @default(false)
+  serviceName    String?     
+  isManualEntry  Boolean     @default(false)
 
-  status        QueueStatus @default(PENDING)
+  status         QueueStatus @default(PENDING)
 
-  // 🌟 [เพิ่มใหม่] สำหรับระบบยกเลิกงานและถังขยะ (Recycle Bin)
-  cancelReason  CancelReason? // เก็บเหตุผลที่ยกเลิก
-  cancelledAt   DateTime?     // เก็บ Timestamp ที่กดยกเลิก (cancel_at)
+  // --- ข้อมูลการยกเลิกงาน ---
+  cancelReason   CancelReason? 
+  cancelledAt    DateTime?      
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @default(now()) @updatedAt // 🌟 อัพเดทเวลาอัตโนมัติเมื่อมีการแก้ไขข้อมูลใดๆ
-  acceptedAt    DateTime?
-  startedAt     DateTime?   
-  repairedAt    DateTime?   
-  completedAt   DateTime?
+  // --- Timestamps ---
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt 
+  acceptedAt     DateTime?
+  startedAt      DateTime?   
+  repairedAt     DateTime?   
+  completedAt    DateTime?
+
+  // 🌟 Index สำหรับดึงข้อมูล Top 50 แบบ Priority ได้เร็วที่สุด
   @@index([shopId, status, updatedAt(sort: Desc)])
 }
 
@@ -137,10 +162,9 @@ model PaymentTransaction {
   shopId        String
   shop          Shop     @relation(fields: [shopId], references: [id])
   
-  // 🌟 [ปรับปรุง] แตก Field เพื่อเก็บประวัติการหักส่วนลด Prorate แบบโปร่งใส
-  amount        Float    // ยอดสุทธิที่ลูกค้าโอนจริง (เช่น 2645)
-  baseAmount    Float?   // ราคาเต็มของแพ็กเกจที่เลือก (เช่น 3490)
-  prorateCredit Float?   // เครดิตที่หักลบให้จากแพ็กเกจเดิม (เช่น 845)
+  amount        Float    // ยอดสุทธิที่ลูกค้าโอนจริง
+  baseAmount    Float?   // ราคาเต็มของแพ็กเกจที่เลือก
+  prorateCredit Float?   // เครดิตที่หักลบให้จากแพ็กเกจเดิม
   isUpgrade     Boolean  @default(false) // เป็นบิลอัปเกรดหรือไม่
   
   plan          PlanType 
@@ -149,32 +173,36 @@ model PaymentTransaction {
   status        PaymentStatus @default(PENDING) 
   
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now()) @updatedAt // 🌟 แนะนำให้เติม: เวลาที่มีการแก้ไขบิล (เช่น admin กด approve)
+  updatedAt     DateTime @updatedAt 
   approvedAt    DateTime?
-  @@index([shopId]) // 🌟 แนะนำให้เติม
+
+  @@index([shopId]) 
 }
 
 // ==========================================
 // ENUMS
 // ==========================================
 
-// 🌟 [เพิ่มใหม่] เหตุผลการยกเลิกงาน (Cancel Reason)
 enum CancelReason {
-  NO_SHOW             // ลูกค้าไม่มา (ใช้ใน Board 1, 2)
-  CUSTOMER_CANCEL     // ลูกค้าไม่ซ่อมแล้ว (ใช้ใน Board 1, 2, 3)
-  UNREPAIRABLE        // ซ่อมไม่ได้ (ใช้ใน Board 3)
-  NO_PARTS            // ไม่มีอะไหล่ (ใช้ใน Board 3)
-  UNCONTACTABLE
+  NO_SHOW             // ลูกค้าไม่มา
+  CUSTOMER_CANCEL     // ลูกค้าไม่ซ่อมแล้ว
+  UNREPAIRABLE        // ซ่อมไม่ได้
+  NO_PARTS            // ไม่มีอะไหล่
+  UNCONTACTABLE       // ติดต่อไม่ได้
 }
 
-// 🌟 [ปรับปรุง] แยก Basic กับ Pro ให้ชัดเจน
 enum PlanType {
   FREE_TRIAL
-  BASIC_MONTHLY  // เปลี่ยนชื่อจาก MONTHLY ให้ชัดเจน
-  BASIC_YEARLY   // เปลี่ยนชื่อจาก YEARLY ให้ชัดเจน
-  PRO_MONTHLY    // เผื่ออนาคต
-  PRO_YEARLY     // แพ็กเกจที่แจ้งเตือน LINE
+  BASIC_MONTHLY  
+  BASIC_YEARLY   
+  PRO_MONTHLY    
+  PRO_YEARLY     
   LIFETIME
+}
+
+enum PlanStatus {
+  ACTIVE
+  EXPIRED
 }
 
 enum Role {
