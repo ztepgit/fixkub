@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,57 +11,70 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Wrench, Banknote, Barcode, Hash, MoreHorizontal } from "lucide-react"
+import { Wrench, Banknote, Barcode, Hash, Loader2 } from "lucide-react"
 
-// Mock ข้อมูลที่ถูกส่งมาจากการ์ดคิวงาน
-const mockQueueData = {
-  queueNumber: "Q-014",
-  serviceName: "เปลี่ยนจอ",
-  deviceModel: "iPhone 13",
-  deviceColor: "ดำ",
-  issue: "จอแตกมุมขวาล่าง ทัชไม่ได้บางจุด",
-  customerName: "คุณเอก",
-  phone: "081-234-5678",
-  status: "รอประเมินราคา",
+// 🌟 1. กำหนด Interface รับค่ามาจาก QueueBoard
+interface QueueDetailDialogProps {
+  job: any
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (jobId: string, data: { estimatedPrice: string, serialNumber: string, imei: string }) => Promise<void>
 }
 
-export function QueueDetailDialog() {
-  const [isOpen, setIsOpen] = useState(false)
+export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDetailDialogProps) {
   
   // State สำหรับข้อมูลที่ช่างต้องกรอกเพิ่ม
   const [estimatedPrice, setEstimatedPrice] = useState("")
   const [serialNumber, setSerialNumber] = useState("")
   const [imei, setImei] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleSave = () => {
-    // TODO: เรียก Server Action เพื่ออัปเดตข้อมูลลง Database
-    console.log("บันทึกข้อมูลช่าง:", { estimatedPrice, serialNumber, imei })
+  // 🌟 2. ดึงค่าเดิมของคิวนี้มาใส่ในช่อง Input อัตโนมัติเวลาเปิดขึ้นมา
+  useEffect(() => {
+    if (job) {
+      setEstimatedPrice(job.estimatedPrice || "")
+      setSerialNumber(job.serialNumber || "")
+      setImei(job.imei || "")
+    }
+  }, [job])
+
+  const handleSave = async () => {
+    if (!job) return
+    setIsSaving(true)
     
-    // บันทึกเสร็จแล้วปิด Dialog
-    setIsOpen(false)
+    // ส่งข้อมูลกลับไปให้ QueueBoard จัดการต่อ
+    await onSave(job.id, { estimatedPrice, serialNumber, imei })
+    
+    setIsSaving(false)
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      {/* ปุ่ม Trigger นี้ใช้สำหรับเทส ถ้าใช้งานจริงบนการ์ดคิว 
-        เราจะเอา Dialog ไปครอบ DropdownMenuItem "รายละเอียด" แทนครับ
-      */}
-      <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <MoreHorizontal className="h-4 w-4" /> จำลองปุ่มเปิดรายละเอียด
-        </Button>
-      </DialogTrigger>
+  // 🌟 ฟังก์ชันแปลสถานะเป็นภาษาไทย
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case "PENDING": return "รอยืนยัน"
+      case "WAITING": return "รอคิวซ่อม"
+      case "PROCESSING": return "กำลังซ่อม"
+      case "REPAIRED": return "ซ่อมเสร็จแล้ว"
+      case "COMPLETED": return "ปิดจ๊อบ"
+      case "CANCELLED": return "ยกเลิกแล้ว"
+      case "ARCHIVED": return "เข้าคลังดอง"
+      default: return status
+    }
+  }
 
+  if (!job) return null // ถ้าไม่มีงานที่เลือก ไม่ต้องเรนเดอร์อะไร
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
             <DialogTitle className="text-xl">
-              รายละเอียดคิว <span className="text-blue-600">{mockQueueData.queueNumber}</span>
+              รายละเอียดคิว <span className="text-blue-600">{job.jobRef || "รอรันเลขบิล"}</span>
             </DialogTitle>
             <span className="text-xs font-medium px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full">
-              {mockQueueData.status}
+              {translateStatus(job.status)}
             </span>
           </div>
           <DialogDescription>
@@ -70,28 +83,28 @@ export function QueueDetailDialog() {
         </DialogHeader>
 
         <div className="grid gap-6 py-4">
-          {/* Section 1: ข้อมูลเบื้องต้น (แบบอ่านอย่างเดียว เน้นดูง่ายๆ) */}
+          {/* Section 1: ข้อมูลเบื้องต้น */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-y-4 gap-x-2">
               <div>
                 <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
                 <p className="font-medium text-slate-900">
-                  {mockQueueData.customerName} {mockQueueData.phone && <span className="text-slate-500 font-normal">({mockQueueData.phone})</span>}
+                  {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 font-normal text-xs ml-1">({job.phoneNumber || job.phone})</span>}
                 </p>
               </div>
               <div>
                 <span className="text-slate-500 block mb-1 text-xs">บริการ / อาการ</span>
-                <p className="font-medium text-blue-700">{mockQueueData.serviceName}</p>
+                <p className="font-medium text-blue-700">{job.serviceName || "ทั่วไป"}</p>
               </div>
               <div>
                 <span className="text-slate-500 block mb-1 text-xs">รุ่นเครื่อง</span>
                 <p className="font-medium text-slate-900">
-                  {mockQueueData.deviceModel} {mockQueueData.deviceColor && <span className="text-slate-500 font-normal">(สี{mockQueueData.deviceColor})</span>}
+                  {job.deviceModel} {job.deviceColor && <span className="text-slate-500 font-normal text-xs ml-1">(สี{job.deviceColor})</span>}
                 </p>
               </div>
               <div>
                 <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
-                <p className="font-medium text-slate-900">{mockQueueData.issue || "-"}</p>
+                <p className="font-medium text-slate-900 line-clamp-2" title={job.issue}>{job.issue || "-"}</p>
               </div>
             </div>
           </div>
@@ -145,8 +158,9 @@ export function QueueDetailDialog() {
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => setIsOpen(false)}>ปิดหน้าต่าง</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>ปิดหน้าต่าง</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             บันทึกข้อมูล
           </Button>
         </DialogFooter>

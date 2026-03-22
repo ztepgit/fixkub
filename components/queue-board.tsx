@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase"
+// ลบ import supabase ออกไป เพราะเราย้าย logic ไปไว้ใน hook `useJobSync` หมดแล้ว
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,29 +34,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import {
-  Smartphone,
-  Wrench,
-  Clock,
-  Plus,
-  PackageCheck,
-  MoreHorizontal,
-  ClipboardList,
-  XCircle,
-  Trash2,
-  RotateCcw,
-  AlertCircle,
-  Archive,
-  Banknote,
-  Barcode,
-  Hash,
-  Loader2,
-  CheckCircle2,
-  UserX,
-  Phone,
-  Search
+  Smartphone, Wrench, Clock, Plus, PackageCheck, MoreHorizontal, ClipboardList,
+  XCircle, Trash2, RotateCcw, AlertCircle, Archive, Banknote, Barcode, Hash,
+  Loader2, CheckCircle2, UserX, Phone, Search
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
-import { getQueues, updateQueueStatus } from "@/actions/queue"
+import { updateQueueStatus } from "@/actions/queue"
+
+// 🌟 Import Store ที่เราสร้างไว้
+import { useJobStore } from "@/store/useJobStore"
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
 
@@ -109,74 +95,32 @@ const formatFullDateTime = (date?: Date | string) => {
 }
 
 export function QueueBoard() {
-  const [jobs, setJobs] = useState<RepairJob[]>([])
-  const [trashedJobs, setTrashedJobs] = useState<RepairJob[]>([])
-  const [archivedJobs, setArchivedJobs] = useState<RepairJob[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
+  // 🌟 ดึงข้อมูลและ Action จาก Zustand Store แทนการใช้ useState เดิม
+  const allJobs = useJobStore((state) => state.jobs)
+  const upsertJob = useJobStore((state) => state.upsertJob)
+  const removeJob = useJobStore((state) => state.removeJob) // เอาไว้ใช้ลบงานออกจากบอร์ด
+  const lastSyncAt = useJobStore((state) => state.lastSyncAt)
+
+  // 🌟 Derived State: แบ่งหมวดหมู่ข้อมูลโดยอัตโนมัติจาก allJobs ใน Store
+  const activeJobs = allJobs.filter(j => !["CANCELLED", "COMPLETED", "ARCHIVED"].includes(j.status)) as RepairJob[]
+  const trashedJobs = allJobs.filter(j => j.status === "CANCELLED") as RepairJob[]
+  const archivedJobs = allJobs.filter(j => j.status === "ARCHIVED") as RepairJob[]
+
+  // State ยิบย่อยสำหรับคุม Modal ยังคงไว้เหมือนเดิม
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-
   const [jobToCancel, setJobToCancel] = useState<RepairJob | null>(null)
   const [cancelReason, setCancelReason] = useState<CancelReason | "">("")
-
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
-
   const [jobToView, setJobToView] = useState<RepairJob | null>(null)
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("")
   const [trashSearchQuery, setTrashSearchQuery] = useState("")
-
-  const { toast } = useToast()
-
-  const loadQueues = async () => {
-    setIsLoading(true)
-    const response = await getQueues("shop_test_001")
-    if (response.success && response.data) {
-      const formattedData = response.data.map((job: any) => ({
-        ...job,
-        jobRef: job.jobRef || `Q-${job.id.slice(-4).toUpperCase()}`,
-      }))
-
-      const activeJobs = formattedData.filter((j: any) =>
-        j.status !== "CANCELLED" &&
-        j.status !== "COMPLETED" &&
-        j.status !== "ARCHIVED"
-      )
-      const cancelledJobs = formattedData.filter((j: any) => j.status === "CANCELLED")
-      const archived = formattedData.filter((j: any) => j.status === "ARCHIVED")
-
-      setJobs(activeJobs)
-      setTrashedJobs(cancelledJobs)
-      setArchivedJobs(archived)
-    } else {
-      toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถโหลดข้อมูลคิวได้", variant: "destructive" })
-    }
-    setIsLoading(false)
-  }
-
-  useEffect(() => {
-    loadQueues()
-
-    const channel = supabase
-      .channel('queue_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Queue' },
-        (payload) => {
-          loadQueues()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
 
   useEffect(() => {
     if (jobToView) {
@@ -186,6 +130,7 @@ export function QueueBoard() {
     }
   }, [jobToView])
 
+  // 🌟 ฟังก์ชันเลื่อนการ์ดคิว (Optimistic Update)
   const moveJob = async (jobId: string, currentStatus: string) => {
     const statusFlow: Record<string, string> = {
       "PENDING": "WAITING",
@@ -194,72 +139,76 @@ export function QueueBoard() {
       "REPAIRED": "COMPLETED"
     }
     const nextStatus = statusFlow[currentStatus]
+    const job = allJobs.find(j => j.id === jobId)
+    if (!job || !nextStatus) return
 
+    // 1. Optimistic Update (อัปเดต Store ให้ UI เด้งทันที)
+    const optimisticJob = { ...job, status: nextStatus as any, updatedAt: new Date().toISOString() }
+    
     if (nextStatus === "COMPLETED") {
-      setJobs(jobs.filter(j => j.id !== jobId))
+      optimisticJob.completedAt = new Date().toISOString()
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องเรียบร้อยแล้ว" })
-      await updateQueueStatus(jobId, nextStatus, { completedAt: new Date() })
-    } else {
-      setJobs(jobs.map(j => j.id === jobId ? { ...j, status: nextStatus as any } : j))
-      const res = await updateQueueStatus(jobId, nextStatus)
-      if (!res.success) {
-        toast({ title: "Error", description: "บันทึกข้อมูลไม่สำเร็จ กรุณารีเฟรชหน้าจอ", variant: "destructive" })
-        loadQueues()
-      }
+      // (ถ้าต้องการให้งาน Completed หายไปจาก Store เลย ก็เรียก removeJob(jobId) แทน upsertJob ก็ได้ครับ แต่ตอนนี้เก็บไว้เป็นสถิติ)
+    }
+
+    upsertJob(optimisticJob)
+
+    // 2. ส่ง API เบื้องหลัง
+    const updateData = nextStatus === "COMPLETED" ? { completedAt: new Date() } : undefined
+    const res = await updateQueueStatus(jobId, nextStatus, updateData)
+    
+    if (!res.success) {
+      toast({ title: "Error", description: "บันทึกข้อมูลไม่สำเร็จ ระบบกำลังซิงค์ใหม่", variant: "destructive" })
+      upsertJob({ ...job }) // Fallback กลับมาสถานะเดิม
     }
   }
 
+  // 🌟 บันทึกรายละเอียดการประเมินราคา
   const handleSaveDetails = async () => {
     if (!jobToView) return
     setIsSaving(true)
 
-    const res = await updateQueueStatus(jobToView.id, jobToView.status, {
+    const updatedData = {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
-    })
-
-    if (res.success) {
-      setJobs(jobs.map(j => j.id === jobToView.id ? {
-        ...j,
-        estimatedPrice: editPrice,
-        serialNumber: editSn,
-        imei: editImei
-      } as any : j))
-
-      toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิว ${jobToView.jobRef} เรียบร้อยแล้ว` })
-      setJobToView(null)
-    } else {
-      toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
     }
 
+    // Optimistic Update
+    upsertJob({ ...jobToView, ...updatedData, updatedAt: new Date().toISOString() })
+    toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิวเรียบร้อยแล้ว` })
+    setJobToView(null)
+
+    const res = await updateQueueStatus(jobToView.id, jobToView.status, updatedData)
+    if (!res.success) {
+      toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
+    }
     setIsSaving(false)
   }
 
+  // 🌟 ยกเลิกงาน
   const confirmCancelJob = async () => {
     if (!jobToCancel || !cancelReason) return
 
-    const cancelledJob: RepairJob = {
-      ...jobToCancel,
-      status: "CANCELLED",
+    const updateData = {
       cancelReason: cancelReason as CancelReason,
-      cancelledAt: new Date()
+      cancelledAt: new Date().toISOString()
     }
 
-    setJobs(prev => prev.filter(j => j.id !== jobToCancel.id))
-    setTrashedJobs(prev => [cancelledJob, ...prev])
-
+    // Optimistic Update: เปลี่ยนสถานะเป็น CANCELLED 
+    upsertJob({ ...jobToCancel, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() })
+    
     setJobToCancel(null)
     setCancelReason("")
+    toast({ title: "🗑️ ยกเลิกงานเรียบร้อย", description: `ย้ายคิวไปที่ถังขยะแล้ว`, duration: 3000 })
 
     await updateQueueStatus(jobToCancel.id, "CANCELLED", {
       cancelReason: cancelReason,
       cancelledAt: new Date()
     })
-
-    toast({ title: "🗑️ ยกเลิกงานเรียบร้อย", description: `ย้ายคิว ${jobToCancel.jobRef} ไปที่ถังขยะแล้ว`, duration: 5000 })
   }
 
+  // 🌟 คืนค่างานจากถังขยะ
   const restoreJob = async (jobId: string) => {
     const jobToRestore = trashedJobs.find(j => j.id === jobId)
     if (!jobToRestore) return
@@ -267,82 +216,74 @@ export function QueueBoard() {
     const isUncontactable = jobToRestore.cancelReason === "UNCONTACTABLE"
     const targetStatus = isUncontactable ? "ARCHIVED" : "PENDING"
 
-    const restoredJob = {
+    // Optimistic Update
+    upsertJob({
       ...jobToRestore,
       status: targetStatus as any,
       cancelReason: undefined,
-      cancelledAt: undefined
-    }
-
-    setTrashedJobs(prev => prev.filter(j => j.id !== jobId))
-
-    if (isUncontactable) {
-      setArchivedJobs(prev => [...prev, restoredJob])
-    } else {
-      setJobs(prev => [...prev, restoredJob])
-    }
-
-    await updateQueueStatus(jobId, targetStatus, { cancelReason: null, cancelledAt: null })
+      cancelledAt: undefined,
+      updatedAt: new Date().toISOString()
+    })
 
     toast({
       title: "🔄 คืนค่างานสำเร็จ",
-      description: isUncontactable
-        ? `รายการ ${jobToRestore.jobRef} ถูกดึงกลับเข้าคลังแล้ว`
-        : `คิว ${jobToRestore.jobRef} กลับสู่กระดานคิวแล้ว`,
+      description: isUncontactable ? "ถูกดึงกลับเข้าคลังแล้ว" : "กลับสู่กระดานคิวแล้ว",
       duration: 3000,
     })
+
+    await updateQueueStatus(jobId, targetStatus, { cancelReason: null, cancelledAt: null })
   }
 
   const confirmDeletePermanently = () => {
     if (!jobToDelete) return
-    setTrashedJobs(prev => prev.filter(j => j.id !== jobToDelete.id))
-    toast({ variant: "destructive", title: "🗑️ ลบข้อมูลถาวรแล้ว", description: `คิว ${jobToDelete.jobRef} ถูกลบออกจากระบบอย่างถาวร` })
+    // Optimistic Delete: ลบออกจาก Store เลย
+    removeJob(jobToDelete.id)
+    toast({ variant: "destructive", title: "🗑️ ลบข้อมูลถาวรแล้ว", description: `คิวถูกลบออกจากระบบอย่างถาวร` })
     setJobToDelete(null)
+    // ตรงนี้ถ้ามี API ลบถาวรก็เรียกใช้ได้เลยครับ
   }
 
   const confirmEmptyTrash = () => {
-    setTrashedJobs([])
+    trashedJobs.forEach(job => removeJob(job.id))
     toast({ variant: "destructive", title: "💥 เทถังขยะเรียบร้อยแล้ว", description: "งานที่ถูกยกเลิกทั้งหมดถูกลบถาวรแล้ว" })
     setIsConfirmEmptyOpen(false)
   }
 
   const handleMoveToArchive = async (jobId: string, jobRef: string) => {
-    setJobs(jobs.filter(j => j.id !== jobId))
-    toast({ title: "📦 ย้ายเครื่องเข้าคลัง", description: `รายการ ${jobRef} ถูกย้ายไปยังคลังเครื่องค้างแล้ว`, duration: 3000 })
-    const res = await updateQueueStatus(jobId, "ARCHIVED")
-    if (!res.success) loadQueues()
+    const job = allJobs.find(j => j.id === jobId)
+    if (job) {
+      upsertJob({ ...job, status: "ARCHIVED", updatedAt: new Date().toISOString() })
+      toast({ title: "📦 ย้ายเครื่องเข้าคลัง", description: `รายการถูกย้ายไปยังคลังเครื่องค้างแล้ว`, duration: 3000 })
+      await updateQueueStatus(jobId, "ARCHIVED")
+    }
   }
 
   const unarchiveJob = async (jobId: string) => {
     const jobToUnarchive = archivedJobs.find(j => j.id === jobId)
-    if (!jobToUnarchive) return
-    setArchivedJobs(prev => prev.filter(j => j.id !== jobId))
-    setJobs(prev => [...prev, { ...jobToUnarchive, status: "REPAIRED" as any }])
-    await updateQueueStatus(jobId, "REPAIRED")
-    toast({ title: "🔄 ดึงกลับหน้ากระดาน", description: `รายการ ${jobToUnarchive.jobRef} ถูกดึงกลับมาที่ช่องรอรับแล้ว` })
+    if (jobToUnarchive) {
+      upsertJob({ ...jobToUnarchive, status: "REPAIRED", updatedAt: new Date().toISOString() })
+      toast({ title: "🔄 ดึงกลับหน้ากระดาน", description: `รายการถูกดึงกลับมาที่ช่องรอรับแล้ว` })
+      await updateQueueStatus(jobId, "REPAIRED")
+    }
   }
 
   const completeArchivedJob = async (jobId: string) => {
-    setArchivedJobs(prev => prev.filter(j => j.id !== jobId))
-    toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องจากคลังเรียบร้อยแล้ว" })
-    await updateQueueStatus(jobId, "COMPLETED", { completedAt: new Date() })
+    const job = archivedJobs.find(j => j.id === jobId)
+    if (job) {
+      upsertJob({ ...job, status: "COMPLETED", completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+      toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องจากคลังเรียบร้อยแล้ว" })
+      await updateQueueStatus(jobId, "COMPLETED", { completedAt: new Date() })
+    }
   }
 
   const markAsUncontactable = async (jobId: string, jobRef: string) => {
     const job = archivedJobs.find(j => j.id === jobId)
-    if (!job) return
-
-    const abandonedJob = { ...job, status: "CANCELLED" as const, cancelReason: "UNCONTACTABLE" as CancelReason, cancelledAt: new Date() }
-
-    setArchivedJobs(prev => prev.filter(j => j.id !== jobId))
-    setTrashedJobs(prev => [abandonedJob, ...prev])
-
-    toast({ title: "❌ ส่งไปถังขยะ", description: `รายการ ${jobRef} ถูกบันทึกว่าติดต่อไม่ได้` })
-
-    await updateQueueStatus(jobId, "CANCELLED", {
-      cancelReason: "UNCONTACTABLE",
-      cancelledAt: new Date()
-    })
+    if (job) {
+      const updateData = { cancelReason: "UNCONTACTABLE" as CancelReason, cancelledAt: new Date().toISOString() }
+      upsertJob({ ...job, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() })
+      toast({ title: "❌ ส่งไปถังขยะ", description: `รายการถูกบันทึกว่าติดต่อไม่ได้` })
+      await updateQueueStatus(jobId, "CANCELLED", { cancelReason: "UNCONTACTABLE", cancelledAt: new Date() })
+    }
   }
 
   const translateStatus = (status: string) => {
@@ -355,23 +296,21 @@ export function QueueBoard() {
     }
   }
 
-  // 🌟 Logic กรองข้อมูลคลังดองตามคำค้นหา (เบอร์โทร, ชื่อ, รุ่นเครื่อง, รหัสคิว)
   const filteredArchivedJobs = archivedJobs.filter(job => {
     if (!archiveSearchQuery) return true;
     const searchLower = archiveSearchQuery.toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(searchLower) ||
            (job.customerName || "").toLowerCase().includes(searchLower) ||
-           (job.deviceModel || "").toLowerCase().includes(searchLower) || // 🌟 ค้นหาด้วยรุ่นเครื่อง
+           (job.deviceModel || "").toLowerCase().includes(searchLower) || 
            (job.jobRef || "").toLowerCase().includes(searchLower);
   });
 
-  // 🌟 Logic กรองข้อมูลถังขยะตามคำค้นหา (เบอร์โทร, ชื่อ, รุ่นเครื่อง, รหัสคิว)
   const filteredTrashedJobs = trashedJobs.filter(job => {
     if (!trashSearchQuery) return true;
     const searchLower = trashSearchQuery.toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(searchLower) ||
            (job.customerName || "").toLowerCase().includes(searchLower) ||
-           (job.deviceModel || "").toLowerCase().includes(searchLower) || // 🌟 ค้นหาด้วยรุ่นเครื่อง
+           (job.deviceModel || "").toLowerCase().includes(searchLower) || 
            (job.jobRef || "").toLowerCase().includes(searchLower);
   });
 
@@ -382,11 +321,10 @@ export function QueueBoard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">กระดานคิวงานซ่อม</h2>
-            <p className="text-sm text-slate-500">อัปเดตสถานะงานซ่อมได้ง่ายๆ</p>
+            <p className="text-sm text-slate-500">อัปเดตสถานะงานซ่อมได้ง่ายๆ (Hybrid Sync)</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
 
-            {/* 🌟 Sheet คลังเครื่องค้าง */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
@@ -499,7 +437,6 @@ export function QueueBoard() {
               </SheetContent>
             </Sheet>
 
-            {/* 🌟 ถังขยะ */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300">
@@ -624,7 +561,7 @@ export function QueueBoard() {
                   onCancel={() => setIsCreateOpen(false)}
                   onSuccess={() => {
                     setIsCreateOpen(false)
-                    loadQueues()
+                    // ไม่ต้องเรียก loadQueues แล้ว ให้รอ Realtime/Polling ส่งข้อมูลใหม่มาเข้า Store
                   }}
                 />
               </DialogContent>
@@ -632,9 +569,10 @@ export function QueueBoard() {
           </div>
         </div>
 
-        {/* กระดาน Kanban */}
+        {/* 🌟 กระดาน Kanban ที่อ่านข้อมูลจาก Store ตรงๆ */}
         <div className="flex-1 overflow-x-hidden md:overflow-x-auto pb-4">
-          {isLoading ? (
+          {/* ถ้า jobs ยังไม่โหลดและ lastSync เป็น 0 แปลว่ากำลังดึง cache หรือ DB รอบแรก */}
+          {allJobs.length === 0 && lastSyncAt === 0 ? (
             <div className="flex h-[450px] w-full items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
               <p>กำลังโหลดข้อมูลคิว...</p>
@@ -642,7 +580,7 @@ export function QueueBoard() {
           ) : (
             <div className="flex flex-col md:flex-row gap-4 h-full md:items-start md:justify-center">
               {COLUMNS.map((col) => {
-                const columnJobs = jobs.filter(j => j.status === col.id)
+                const columnJobs = activeJobs.filter(j => j.status === col.id)
                 const Icon = col.icon
                 return (
                   <div key={col.id} className={`w-full md:w-[320px] md:shrink-0 rounded-xl border-2 flex flex-col h-[450px] md:h-full overflow-hidden ${col.color}`}>
@@ -918,6 +856,19 @@ export function QueueBoard() {
               <Button variant="destructive" className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700" onClick={confirmCancelJob} disabled={!cancelReason}>
                 ยืนยันการยกเลิกคิว
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isConfirmEmptyOpen} onOpenChange={setIsConfirmEmptyOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>ยืนยันการล้างถังขยะ?</DialogTitle>
+              <DialogDescription>การกระทำนี้ไม่สามารถย้อนกลับได้ ข้อมูลที่ลบจะหายไปอย่างถาวร</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsConfirmEmptyOpen(false)}>ยกเลิก</Button>
+              <Button variant="destructive" onClick={confirmEmptyTrash}>ยืนยันลบถาวร</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
