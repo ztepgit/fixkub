@@ -18,7 +18,6 @@ export const createShopSchema = z.object({
   ]),
   trialDays: z.coerce.number().min(0).max(90).default(30),
   startImmediately: z.boolean().default(false),
-  maxActiveJobs: z.coerce.number().min(1).max(1000).default(10),
   agentCode: z.string().optional().or(z.literal("")),
   isActive: z.boolean().default(true)
 })
@@ -54,15 +53,25 @@ export async function createShopAction(input: CreateShopInput) {
     let expiresAt = null
     let subscriptionStartsAt = null
 
-    // 4. คำนวณวันหมดอายุ และช่วงทดลองใช้
+    // 4. คำนวณวันหมดอายุ
     if (!data.startImmediately) {
-      // ให้สิทธิ์ Trial
-      trialEndsAt = new Date(now.getTime() + data.trialDays * 86400000) // 86,400,000 ms = 1 วัน
-      expiresAt = trialEndsAt // ช่วง Trial ถือเป็นวันหมดอายุชั่วคราว
+      // 🌟 กรณีที่ 1: ให้สิทธิ์ทดลองใช้ฟรี (เปิดสวิตช์เป็น ปิด)
+      trialEndsAt = new Date(now.getTime() + data.trialDays * 86400000) 
+      expiresAt = trialEndsAt 
     } else {
-      // ไม่ใช้ Trial, เริ่มคิดเงินทันที
+      // 🌟 กรณีที่ 2: เริ่มบิลทันที (เปิดสวิตช์เป็น เปิด)
       subscriptionStartsAt = now
-      // (ระบบคำนวณ expiresAt จะทำตอนจ่ายเงินจริงในระบบ Subscription อีกที)
+      
+      // ให้ระบบคำนวณวันหมดอายุตามแพ็กเกจที่ Super Admin เลือกให้เลย!
+      if (data.planType.includes("MONTHLY")) {
+        expiresAt = new Date(now.setMonth(now.getMonth() + 1)) // +1 เดือน
+      } else if (data.planType.includes("YEARLY")) {
+        expiresAt = new Date(now.setFullYear(now.getFullYear() + 1)) // +1 ปี
+      } else if (data.planType === "LIFETIME") {
+        expiresAt = new Date(now.setFullYear(now.getFullYear() + 99)) // ตลอดชีพ
+      } else {
+        expiresAt = now // Fallback
+      }
     }
 
     // 5. 🌟 บันทึกข้อมูลด้วย Transaction (สร้างร้าน + สร้างเจ้าของ ต้องสำเร็จทั้งคู่)
@@ -75,7 +84,6 @@ export async function createShopAction(input: CreateShopInput) {
           slug: data.slug,
           logoUrl: data.logoUrl || null,
           themeColor: data.themeColor,
-          maxActiveJobs: data.maxActiveJobs,
           planType: data.planType,
           trialEndsAt,
           subscriptionStartsAt,

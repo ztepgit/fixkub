@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,6 @@ export default function SuperAdminCreateShopPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 1. ตั้งค่า React Hook Form พร้อมเชื่อม Zod
   const form = useForm<CreateShopInput>({
     resolver: zodResolver(createShopSchema),
     defaultValues: {
@@ -33,27 +32,23 @@ export default function SuperAdminCreateShopPage() {
       planType: "FREE_TRIAL",
       trialDays: 30,
       startImmediately: false,
-      maxActiveJobs: 10,
       agentCode: "",
       isActive: true,
     }
   })
 
-  // 2. UX: Auto-generate Slug จากชื่อร้าน
   const watchName = form.watch("name")
   useEffect(() => {
-    // ถ้าผู้ใช้ยังไม่เคยแก้ช่อง slug ด้วยตัวเอง ให้ gen อัตโนมัติ
     if (watchName && !form.formState.dirtyFields.slug) {
       const generatedSlug = watchName
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-') // แทนที่อักษรพิเศษ/เว้นวรรคด้วย -
-        .replace(/(^-|-$)/g, '')     // ลบขีดกลางหน้า/หลังสุด
+        .replace(/[^a-z0-9]+/g, '-') 
+        .replace(/(^-|-$)/g, '')     
       
       form.setValue("slug", generatedSlug, { shouldValidate: true })
     }
   }, [watchName, form])
 
-  // 3. ฟังก์ชัน Submit ไปยัง Backend
   const onSubmit = async (values: CreateShopInput) => {
     setIsSubmitting(true)
     try {
@@ -61,9 +56,7 @@ export default function SuperAdminCreateShopPage() {
       
       if (res.success) {
         toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: `เพิ่มร้าน ${values.name} เข้าระบบเรียบร้อยแล้ว` })
-        // Redirect ไปหน้า List ร้านค้า (สมมติว่ามีหน้า /super-admin/shops)
-        // router.push("/super-admin/shops") 
-        form.reset() // ใช้ reset ชั่วคราวไปก่อนถ้าย้ายหน้าไม่ได้
+        form.reset() 
       } else {
         toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
       }
@@ -88,6 +81,7 @@ export default function SuperAdminCreateShopPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           
           <div className="grid gap-6 md:grid-cols-2">
+            
             {/* SECTION: Basic Info */}
             <Card className="border-slate-200 shadow-sm md:col-span-2">
               <CardHeader className="bg-slate-50/50 border-b pb-4">
@@ -173,17 +167,17 @@ export default function SuperAdminCreateShopPage() {
             {/* SECTION: Plan / Billing */}
             <Card className="border-slate-200 shadow-sm md:col-span-2">
               <CardHeader className="bg-slate-50/50 border-b pb-4">
-                <CardTitle className="text-lg flex items-center gap-2"><Settings className="h-5 w-5 text-emerald-600"/> แพ็กเกจและการจำกัดสิทธิ์ (Billing & Limits)</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2"><Settings className="h-5 w-5 text-emerald-600"/> แพ็กเกจและการเปิดใช้งาน (Billing)</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2 pt-6">
                 
-                <div className="space-y-4">
+                <div className="space-y-4 border-r pr-6 border-slate-100">
                   <FormField control={form.control} name="planType" render={({ field }) => (
                     <FormItem>
                       <FormLabel>แพ็กเกจเริ่มต้น</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger><SelectValue placeholder="เลือกแพ็กเกจ" /></SelectTrigger>
+                          <SelectTrigger className="h-11"><SelectValue placeholder="เลือกแพ็กเกจ" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="FREE_TRIAL">ทดลองใช้ฟรี (Free Trial)</SelectItem>
@@ -200,7 +194,7 @@ export default function SuperAdminCreateShopPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="startImmediately" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-slate-50/50">
                         <div className="space-y-0.5">
                           <FormLabel>เริ่มบิลทันที</FormLabel>
                           <FormDescription className="text-[10px]">ข้ามการทดลองฟรี</FormDescription>
@@ -212,30 +206,21 @@ export default function SuperAdminCreateShopPage() {
                     <FormField control={form.control} name="trialDays" render={({ field }) => (
                       <FormItem>
                         <FormLabel>จำนวนวัน Trial</FormLabel>
-                        <FormControl><Input type="number" disabled={form.watch("startImmediately")} {...field} /></FormControl>
+                        <FormControl><Input type="number" disabled={form.watch("startImmediately")} className="h-11 font-medium" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <FormField control={form.control} name="maxActiveJobs" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>จำกัดจำนวนคิวที่รับได้สูงสุด (Active Jobs)</FormLabel>
-                      <FormControl><Input type="number" {...field} /></FormControl>
-                      <FormDescription>จำนวนคิวที่ยังซ่อมไม่เสร็จ (กันร้านใช้งานเกินแพ็กเกจ)</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-
+                <div className="flex flex-col justify-center">
                   <FormField control={form.control} name="isActive" render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-emerald-800">เปิดใช้งานร้านค้า (Active)</FormLabel>
+                    <FormItem className="flex flex-row items-center justify-between rounded-xl border-2 border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                      <div className="space-y-1">
+                        <FormLabel className="text-emerald-800 text-lg">เปิดใช้งานร้านค้า</FormLabel>
                         <FormDescription className="text-emerald-600/80">อนุญาตให้ร้านค้านี้เข้าสู่ระบบได้ทันที</FormDescription>
                       </div>
-                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-emerald-600 scale-125 mr-2" /></FormControl>
                     </FormItem>
                   )} />
                 </div>
