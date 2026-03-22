@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -30,12 +30,22 @@ export default function SuperAdminCreateShopPage() {
       themeColor: "#10b981",
       ownerEmail: "",
       planType: "FREE_TRIAL",
-      trialDays: 30,
+      trialDays: 30, // 🌟 ใช้ช่องนี้เป็นทั้ง Trial ปกติ และ วันแถม(Bonus)
       startImmediately: false,
       agentCode: "",
       isActive: true,
     }
   })
+
+  // 🌟 Watch ค่าแพ็กเกจ เพื่อใช้ควบคุม UI สวิตช์
+  const watchPlanType = form.watch("planType")
+
+  useEffect(() => {
+    // 🌟 ลอจิกที่ 1: ถ้าเลือก FREE_TRIAL บังคับให้สวิตช์เริ่มบิล "ปิด" อัตโนมัติ
+    if (watchPlanType === "FREE_TRIAL") {
+      form.setValue("startImmediately", false)
+    }
+  }, [watchPlanType, form])
 
   const watchName = form.watch("name")
   useEffect(() => {
@@ -194,19 +204,33 @@ export default function SuperAdminCreateShopPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="startImmediately" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-slate-50/50">
+                      <FormItem className={`flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm transition-colors ${watchPlanType === 'FREE_TRIAL' ? 'bg-slate-100 opacity-60 cursor-not-allowed' : 'bg-slate-50/50'}`}>
                         <div className="space-y-0.5">
-                          <FormLabel>เริ่มบิลทันที</FormLabel>
-                          <FormDescription className="text-[10px]">ข้ามการทดลองฟรี</FormDescription>
+                          <FormLabel className={watchPlanType === 'FREE_TRIAL' ? 'text-slate-400' : 'text-slate-700'}>
+                            เปิดบิลรับเงินทันที
+                          </FormLabel>
+                          <FormDescription className="text-[10px]">
+                            {watchPlanType === 'FREE_TRIAL' 
+                              ? 'ไม่สามารถใช้ร่วมกับแพ็กเกจฟรี' 
+                              : 'ระบบจะนำแพ็กเกจไปทบกับวันแถมฟรี'}
+                          </FormDescription>
                         </div>
-                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        <FormControl>
+                          <Switch 
+                            checked={field.value} 
+                            onCheckedChange={field.onChange} 
+                            disabled={watchPlanType === "FREE_TRIAL"} 
+                            className="data-[state=checked]:bg-blue-600"
+                          />
+                        </FormControl>
                       </FormItem>
                     )} />
 
                     <FormField control={form.control} name="trialDays" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>จำนวนวัน Trial</FormLabel>
-                        <FormControl><Input type="number" disabled={form.watch("startImmediately")} className="h-11 font-medium" {...field} /></FormControl>
+                        <FormLabel>{watchPlanType === "FREE_TRIAL" ? "จำนวนวันทดลองใช้" : "จำนวนวันแถม (Bonus Days)"}</FormLabel>
+                        {/* 🌟 ปลดล็อค disabled ออก เพื่อให้กรอกวันแถมได้เสมอ! */}
+                        <FormControl><Input type="number" className="h-11 font-medium" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />

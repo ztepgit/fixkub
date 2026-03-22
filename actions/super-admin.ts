@@ -2,8 +2,9 @@
 
 import { db } from "@/lib/prisma"
 import { z } from "zod"
+// 🌟 แนะนำให้ดึง Type มาจาก Prisma ด้วยเพื่อความแม่นยำ
+import { PlanType } from "@prisma/client"
 
-// 🌟 Zod Schema (ใช้แชร์ร่วมกันระหว่าง FE และ BE)
 export const createShopSchema = z.object({
   name: z.string().min(2, "ชื่อร้านต้องมีอย่างน้อย 2 ตัวอักษร"),
   slug: z.string()
@@ -26,10 +27,8 @@ export type CreateShopInput = z.infer<typeof createShopSchema>
 
 export async function createShopAction(input: CreateShopInput) {
   try {
-    // 1. Validate ข้อมูลฝั่ง Server อีกรอบ (Security)
     const data = createShopSchema.parse(input)
 
-    // 2. เช็ค Slug ซ้ำ
     const exists = await db.shop.findUnique({
       where: { slug: data.slug }
     })
@@ -37,7 +36,6 @@ export async function createShopAction(input: CreateShopInput) {
       return { success: false, error: "URL (Slug) นี้มีผู้ใช้งานแล้ว กรุณาเปลี่ยนใหม่" }
     }
 
-    // 3. ค้นหา Agent (ถ้ามีการใส่ Code มา)
     let agent = null
     if (data.agentCode) {
       agent = await db.agent.findUnique({
@@ -50,41 +48,39 @@ export async function createShopAction(input: CreateShopInput) {
 
     const now = new Date()
     let trialEndsAt = null
-    let expiresAt = null
+    let expiresAt = new Date(now)
     let subscriptionStartsAt = null
 
-    // 4. คำนวณวันหมดอายุ
-    if (!data.startImmediately) {
-      // 🌟 กรณีที่ 1: ให้สิทธิ์ทดลองใช้ฟรี (เปิดสวิตช์เป็น ปิด)
-      trialEndsAt = new Date(now.getTime() + data.trialDays * 86400000) 
-      expiresAt = trialEndsAt 
-    } else {
-      // 🌟 กรณีที่ 2: เริ่มบิลทันที (เปิดสวิตช์เป็น เปิด)
-      subscriptionStartsAt = now
-      
-      // ให้ระบบคำนวณวันหมดอายุตามแพ็กเกจที่ Super Admin เลือกให้เลย!
-      if (data.planType.includes("MONTHLY")) {
-        expiresAt = new Date(now.setMonth(now.getMonth() + 1)) // +1 เดือน
-      } else if (data.planType.includes("YEARLY")) {
-        expiresAt = new Date(now.setFullYear(now.getFullYear() + 1)) // +1 ปี
+    // สเต็ป 4.1: ให้สิทธิ์ทดลองใช้ฟรี
+    if (data.trialDays > 0) {
+      expiresAt.setDate(expiresAt.getDate() + data.trialDays) 
+      trialEndsAt = new Date(expiresAt) 
+    }
+
+    // สเต็ป 4.2: ถ้า "เริ่มบิลทันที" ทบวันตามแพ็กเกจ
+    if (data.startImmediately) {
+      subscriptionStartsAt = now 
+
+      // 🌟 ใช้การเทียบค่าตรงๆ แทน .includes() เพื่อไม่ให้ TypeScript บ่น
+      if (data.planType === "BASIC_MONTHLY" || data.planType === "PRO_MONTHLY") {
+        expiresAt.setMonth(expiresAt.getMonth() + 1)
+      } else if (data.planType === "BASIC_YEARLY" || data.planType === "PRO_YEARLY") {
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1)
       } else if (data.planType === "LIFETIME") {
-        expiresAt = new Date(now.setFullYear(now.getFullYear() + 99)) // ตลอดชีพ
-      } else {
-        expiresAt = now // Fallback
+        expiresAt.setFullYear(expiresAt.getFullYear() + 99)
       }
     }
 
-    // 5. 🌟 บันทึกข้อมูลด้วย Transaction (สร้างร้าน + สร้างเจ้าของ ต้องสำเร็จทั้งคู่)
+    // 5. บันทึกข้อมูลด้วย Transaction
     const newShop = await db.$transaction(async (tx) => {
       
-      // 5.1 สร้างร้านค้า
       const shop = await tx.shop.create({
         data: {
           name: data.name,
           slug: data.slug,
           logoUrl: data.logoUrl || null,
           themeColor: data.themeColor,
-          planType: data.planType,
+          planType: data.planType as PlanType, // คอนเฟิร์ม Type ให้ Prisma
           trialEndsAt,
           subscriptionStartsAt,
           expiresAt,
@@ -93,7 +89,6 @@ export async function createShopAction(input: CreateShopInput) {
         }
       })
 
-      // 5.2 สร้าง Account เจ้าของร้าน
       await tx.shopOwner.create({
         data: {
           email: data.ownerEmail,
@@ -101,6 +96,20 @@ export async function createShopAction(input: CreateShopInput) {
           role: "OWNER"
         }
       })
+
+      // 🌟 [แนะนำเพิ่ม] ถ้าแอดมินสั่งเริ่มแพ็กเกจจ่ายเงินทันที ให้สร้างประวัติบิลหลอกๆ ไว้ด้วย
+      if (data.startImmediately && data.planType !== "FREE_TRIAL") {
+        await tx.subscriptionHistory.create({
+          data: {
+            shopId: shop.id,
+            planType: data.planType as PlanType,
+            amountPaid: 0, // ยอด 0 บาท เพราะเปิดโดยแอดมิน
+            newExpiresAt: expiresAt,
+            status: "COMPLETED",
+            slipUrl: "SYSTEM_GRANTED", // ทำเครื่องหมายไว้ว่าสร้างจากระบบหลังบ้าน
+          }
+        })
+      }
 
       return shop
     })
