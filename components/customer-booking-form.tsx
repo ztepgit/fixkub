@@ -1,18 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-// 🌟 1. เพิ่ม import Copy ตรงนี้ครับ
 import { Smartphone, User, PenLine, CheckCircle2, Loader2, Search, Copy } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerQueueStatus } from "@/components/customer-queue-status"
+
+// 🌟 Import Store ที่เพิ่งสร้างใหม่
+import { useShopSync } from "@/hooks/useShopSync"
 
 const COMMON_SERVICES = [
   "เปลี่ยนจอ", "เปลี่ยนแบต", "ติดฟิล์ม", "ชาร์จไม่เข้า",
@@ -30,16 +32,17 @@ export function CustomerBookingForm({
   shopName = "ร้านปิ๊กโมบาย", 
   shopLogoUrl = null 
 }: CustomerBookingFormProps) {
-  const { toast } = useToast() 
   
-  const [activeTab, setActiveTab] = useState("booking")
+  // 🌟 ดึงข้อมูลร้านผ่าน Hook (มันจะโหลด Cache -> Fetch -> ฟัง Realtime ให้อัตโนมัติ)
+  const shop = useShopSync(shopId)
+  const displayShopName = shop?.name || shopName
+  const displayShopLogo = shop?.logoUrl || shopLogoUrl
 
+  const { toast } = useToast() 
+  const [activeTab, setActiveTab] = useState("booking")
   const [isSubmitting, setIsSubmitting] = useState(false) 
   const [isSuccess, setIsSuccess] = useState(false)
   const [queueRef, setQueueRef] = useState("")
-
-  const [currentShopName, setCurrentShopName] = useState(shopName)
-  const [currentShopLogo, setCurrentShopLogo] = useState<string | null>(shopLogoUrl)
 
   const [serviceName, setServiceName] = useState<string>("")
   const [deviceModel, setDeviceModel] = useState<string>("")
@@ -47,13 +50,6 @@ export function CustomerBookingForm({
   const [issue, setIssue] = useState<string>("")
   const [customerName, setCustomerName] = useState<string>("")
   const [phone, setPhone] = useState<string>("") 
-
-  useEffect(() => {
-    const savedName = localStorage.getItem("shopName")
-    const savedLogo = localStorage.getItem("shopLogo")
-    if (savedName) setCurrentShopName(savedName)
-    if (savedLogo) setCurrentShopLogo(savedLogo)
-  }, [])
 
   const getInitial = (name: string) => {
     return name ? name.charAt(0).toUpperCase() : "S"
@@ -84,7 +80,6 @@ export function CustomerBookingForm({
     }
   }
 
-  // 🌟 หน้าจอเมื่อกดแจ้งซ่อมสำเร็จ
   if (isSuccess) {
     return (
       <div className="w-full max-w-md mx-auto p-6 bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-500 min-h-[450px]">
@@ -96,14 +91,10 @@ export function CustomerBookingForm({
           คุณสามารถใช้เบอร์โทร <span className="font-bold text-emerald-600">{phone}</span><br/>เพื่อเช็คสถานะงานซ่อมได้ตลอดเวลา
         </p>
 
-        {/* 🌟 2. ปรับกล่องรหัสบิลให้สามารถกดคัดลอกได้ */}
         <div 
           onClick={() => {
             navigator.clipboard.writeText(queueRef)
-            toast({ 
-              title: "✅ คัดลอกรหัสบิลสำเร็จ", 
-              description: "สามารถนำไปวางหน้าเช็คสถานะได้เลยครับ" 
-            })
+            toast({ title: "✅ คัดลอกรหัสบิลสำเร็จ", description: "สามารถนำไปวางหน้าเช็คสถานะได้เลยครับ" })
           }}
           className="bg-slate-50 border-2 border-dashed border-emerald-300 rounded-xl p-6 w-full mb-6 relative overflow-hidden cursor-pointer hover:bg-emerald-50 transition-all active:scale-95 group"
         >
@@ -119,10 +110,7 @@ export function CustomerBookingForm({
         <div className="flex flex-col gap-3 w-full">
           <Button 
             className="w-full h-12 text-base bg-emerald-600 hover:bg-emerald-700 shadow-md" 
-            onClick={() => {
-              setIsSuccess(false)
-              setActiveTab("status")
-            }}
+            onClick={() => { setIsSuccess(false); setActiveTab("status") }}
           >
             ไปหน้าเช็คสถานะ
           </Button>
@@ -144,10 +132,18 @@ export function CustomerBookingForm({
   return (
     <div className="mx-auto w-full max-w-md space-y-0 drop-shadow-2xl">
       <div className="bg-white px-6 pt-8 pb-4 rounded-t-[1.5rem] border-b border-slate-100 flex flex-col items-center text-center relative z-10">
+        
+        {/* 🌟 แสดงชื่อและโลโก้จาก Store อัตโนมัติ (เปลี่ยนปุ๊บ เด้งปั๊บ) */}
         <Avatar className="h-16 w-16 border-[3px] border-white shadow-md mb-3 bg-white">
-          {currentShopLogo ? <AvatarImage src={currentShopLogo} className="object-cover" /> : <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl font-black">{getInitial(currentShopName)}</AvatarFallback>}
+          {displayShopLogo ? (
+            <AvatarImage src={displayShopLogo} className="object-cover bg-white" />
+          ) : (
+            <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl font-black">
+              {getInitial(displayShopName)}
+            </AvatarFallback>
+          )}
         </Avatar>
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{currentShopName}</h1>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{displayShopName}</h1>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-5">
           <TabsList className="grid w-full grid-cols-2 bg-slate-100/80 p-1.5 rounded-xl h-14 border border-slate-200/50">

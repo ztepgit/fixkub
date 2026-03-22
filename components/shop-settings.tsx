@@ -9,45 +9,45 @@ import { useToast } from "@/hooks/use-toast"
 import { 
   UploadCloud, Save, Store, Loader2, Info, 
   QrCode, Copy, Download, Link as LinkIcon,
-  Eye, EyeOff // 🌟 1. Import ไอคอนตาเปิด/ปิด
+  Eye, EyeOff
 } from "lucide-react"
 
-// 🌟 2. Import Tooltip มาใช้งาน
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { getShopSettings, updateShopSettings } from "@/actions/shop"
+import { updateShopSettings } from "@/actions/shop"
 import { QRCodeCanvas } from "qrcode.react"
 
+// 🌟 Import Store และ Sync Hook
+import { useShopSync } from "@/hooks/useShopSync"
+import { useShopStore } from "@/store/useShopStore"
+
 export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) {
-  const [shopName, setShopName] = useState("กำลังโหลด...")
+  // 🌟 1. ดูดข้อมูลจาก Sync Hook ตลอดเวลา
+  const shop = useShopSync(shopId)
+  const updateShop = useShopStore((s) => s.updateShop)
+
+  const [shopName, setShopName] = useState("")
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<Blob | null>(null) 
+  
+  const [isLoaded, setIsLoaded] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  
   const [shopUrl, setShopUrl] = useState("")
-  
-  // 🌟 3. State สำหรับซ่อน/แสดง QR Code
   const [isQrHidden, setIsQrHidden] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
+  // 🌟 2. เมื่อ Store โหลดค่ามาเสร็จ ให้ยัดลงฟอร์ม
   useEffect(() => {
-    const loadSettings = async () => {
-      setIsLoading(true)
-      const res = await getShopSettings(shopId)
-      if (res.success && res.data) {
-        setShopName(res.data.name || "ยังไม่ได้ตั้งชื่อร้าน")
-        if (res.data.logoUrl) setLogoPreview(res.data.logoUrl)
-      } else {
-        setShopName("ร้านปิ๊กโมบาย")
-      }
-      setIsLoading(false)
+    if (shop && !isLoaded) {
+      setShopName(shop.name)
+      setLogoPreview(shop.logoUrl)
+      setIsLoaded(true) // โหลดแค่ครั้งแรกเพื่อไม่ให้ไปกวนตอนพิมพ์
     }
-    loadSettings()
+  }, [shop, isLoaded])
 
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       setShopUrl(`${window.location.origin}/shop/${shopId}`)
     }
@@ -100,6 +100,9 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
   const handleSave = async () => {
     setIsSaving(true)
     
+    // 🌟 3. Optimistic Update! กดปุ๊บ UI เปลี่ยนทันที ไม่ต้องรอเน็ต
+    updateShop({ name: shopName, logoUrl: logoPreview })
+    
     const formData = new FormData()
     formData.append("shopId", shopId)
     formData.append("name", shopName)
@@ -110,9 +113,12 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
       formData.append("existingLogoUrl", logoPreview)
     }
     
+    // 🌟 4. อัปเดตข้อมูลจริงๆ ลง Database
     const res = await updateShopSettings(formData)
 
-    if (res.success) {
+    if (res.success && res.data) {
+      // อัปเดตซ้ำด้วย URL จริงที่ได้จาก Supabase Storage
+      updateShop({ name: res.data.name, logoUrl: res.data.logoUrl }) 
       toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตข้อมูลร้านค้าเรียบร้อยแล้ว" })
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
@@ -127,10 +133,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
 
   const copyLink = () => {
     navigator.clipboard.writeText(shopUrl)
-    toast({ 
-      title: "✅ คัดลอกลิงก์สำเร็จ", 
-      description: "นำไปวางในเพจ Facebook, LINE หรือส่งให้ลูกค้าได้เลย" 
-    })
+    toast({ title: "✅ คัดลอกลิงก์สำเร็จ", description: "นำไปวางในเพจ Facebook, LINE หรือส่งให้ลูกค้าได้เลย" })
   }
 
   const downloadQR = () => {
@@ -147,21 +150,18 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
     }
   }
 
-  // 🌟 4. คลุมด้วย TooltipProvider ทั้งหมด
   return (
     <TooltipProvider>
       <div className="grid gap-8 md:grid-cols-2 max-w-5xl mx-auto py-6">
         
-        {/* ฝั่งซ้าย: กล่องตั้งค่า และ กล่อง QR Code */}
         <div className="space-y-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
             <p className="text-sm text-slate-500">ปรับแต่งชื่อและโลโก้เพื่อแสดงผลบนฟอร์มของลูกค้า</p>
           </div>
 
-          {/* กล่อง 1: ตั้งค่าชื่อและโลโก้ */}
           <Card className="border-slate-200 shadow-sm relative overflow-hidden">
-            {isLoading && (
+            {!isLoaded && (
               <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
               </div>
@@ -175,7 +175,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                   onChange={(e) => setShopName(e.target.value)} 
                   placeholder="เช่น ร้าน A Mobile Repair" 
                   className="text-lg h-12 focus-visible:ring-emerald-500"
-                  disabled={isLoading}
+                  disabled={!isLoaded}
                 />
               </div>
 
@@ -183,8 +183,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                 <div className="flex items-center justify-between">
                   <Label className="font-semibold text-slate-700">โลโก้ร้าน (Shop Logo)</Label>
                   <span className="text-xs text-slate-500 bg-emerald-50 text-emerald-700 px-2 py-1 rounded flex items-center">
-                    <Info className="h-3 w-3 mr-1" />
-                    เพิ่มความน่าเชื่อถือ
+                    <Info className="h-3 w-3 mr-1" /> เพิ่มความน่าเชื่อถือ
                   </span>
                 </div>
                 
@@ -204,7 +203,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                       type="button" 
                       variant="outline" 
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={isLoading}
+                      disabled={!isLoaded}
                       className="w-full flex items-center gap-2 border-slate-300 border-dashed hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                     >
                       <UploadCloud className="h-4 w-4" /> อัปโหลดรูปภาพ
@@ -216,14 +215,13 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
               </div>
             </CardContent>
             <CardFooter className="bg-slate-50 border-t py-4">
-              <Button onClick={handleSave} disabled={isSaving || isLoading} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
+              <Button onClick={handleSave} disabled={isSaving || !isLoaded} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
                 {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
               </Button>
             </CardFooter>
           </Card>
 
-          {/* 🌟 กล่อง 2: ช่องทางแจ้งซ่อม (QR Code & URL) เพิ่มปุ่มดวงตา */}
           <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 ${isQrHidden ? 'border-slate-200 border-t-4 border-t-slate-300 bg-slate-50/30' : 'border-slate-200 border-t-4 border-t-blue-500'}`}>
             <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
               <div className="space-y-1">
@@ -236,7 +234,6 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                 </CardDescription>
               </div>
 
-              {/* 🌟 ปุ่มสลับ ซ่อน/แสดง */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -248,59 +245,34 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                     {isQrHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isQrHidden ? "แสดง QR Code" : "ซ่อน QR Code"}</p>
-                </TooltipContent>
+                <TooltipContent><p>{isQrHidden ? "แสดง QR Code" : "ซ่อน QR Code"}</p></TooltipContent>
               </Tooltip>
             </CardHeader>
 
             <CardContent className="pt-6 relative">
               <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
                 
-                {/* 🌟 โชว์รูป QR Code หรือ Placeholder */}
                 {isQrHidden ? (
                   <div className="flex flex-col items-center justify-center h-[156px] w-[156px] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 animate-in fade-in duration-300 shrink-0">
-                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white shadow-sm mb-2">
-                      <QrCode className="h-6 w-6 text-slate-300 opacity-60" />
-                    </div>
+                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white shadow-sm mb-2"><QrCode className="h-6 w-6 text-slate-300 opacity-60" /></div>
                     <p className="text-[10px] font-medium text-slate-400">QR Code ถูกซ่อน</p>
                   </div>
                 ) : (
                   <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 transition-transform hover:scale-105 duration-300 shrink-0 animate-in fade-in duration-300">
                     {shopUrl ? (
-                      <QRCodeCanvas
-                        id="settings-qr-code"
-                        value={shopUrl}
-                        size={130}
-                        bgColor={"#ffffff"}
-                        fgColor={"#0f172a"}
-                        level={"H"}
-                        includeMargin={false}
-                      />
+                      <QRCodeCanvas id="settings-qr-code" value={shopUrl} size={130} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} />
                     ) : (
-                      <div className="w-[130px] h-[130px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
-                      </div>
+                      <div className="w-[130px] h-[130px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center"><Loader2 className="h-8 w-8 text-slate-300 animate-spin" /></div>
                     )}
                   </div>
                 )}
                 
-                {/* ส่วนแสดงลิงก์และปุ่มกด */}
                 <div className="flex-1 w-full space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-                      ลิงก์ร้านค้าของคุณ (URL)
-                    </Label>
+                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">ลิงก์ร้านค้าของคุณ (URL)</Label>
                     <div className="flex gap-2">
-                      <Input 
-                        readOnly 
-                        value={shopUrl} 
-                        className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy" 
-                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                      />
-                      <Button variant="outline" size="icon" onClick={copyLink} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200">
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                      <Input readOnly value={shopUrl} className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy" onClick={(e) => (e.target as HTMLInputElement).select()} />
+                      <Button variant="outline" size="icon" onClick={copyLink} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200"><Copy className="h-4 w-4" /></Button>
                     </div>
                   </div>
                   
@@ -308,11 +280,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                     <Button variant="outline" className="flex-1 text-slate-700 h-10 border-slate-300 hover:bg-slate-50" onClick={copyLink}>
                       <LinkIcon className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์
                     </Button>
-                    <Button 
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 shadow-sm" 
-                      onClick={downloadQR}
-                      disabled={isQrHidden} // 🌟 โหลดไม่ได้ถ้าปิดตาอยู่
-                    >
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 shadow-sm" onClick={downloadQR} disabled={isQrHidden}>
                       <Download className="h-4 w-4 mr-2" /> โหลดคิวอาร์โค้ด
                     </Button>
                   </div>
@@ -321,10 +289,8 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
               </div>
             </CardContent>
           </Card>
-
         </div>
 
-        {/* ฝั่งขวา: พรีวิวหน้าจอมือถือ */}
         <div className="space-y-4">
           <div className="flex items-center justify-center md:justify-start">
             <Label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center">
