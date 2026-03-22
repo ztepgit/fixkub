@@ -161,16 +161,84 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
   }
 }
 
+
 export async function getTop50Jobs(shopId: string) {
   try {
+    // 🌟 ดึงข้อมูลโดยใช้ประโยชน์จาก Index: ดึงเฉพาะ Active งานและงานล่าสุด
     const jobs = await db.queue.findMany({
-      where: { shopId },
-      orderBy: { createdAt: 'desc' }, // ดึงล่าสุดมาก่อน
-      take: 50, // จำกัด 50 แถวเสมอ (ลดภาระ DB)
+      where: { 
+        shopId,
+        // ดึงงานที่ยังไม่เสร็จเป็นหลักก่อน เพื่อให้บอร์ดไม่โล่ง
+        status: { in: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] }
+      },
+      orderBy: { updatedAt: 'desc' }, 
+      take: 100, // ดึงมาเผื่อเรียง
     })
-    return { success: true, data: jobs }
+
+    // ถ้างาน Active มีไม่ถึง 50 ให้ดึงงานอื่นๆ มาเติมให้ครบ (กันบอร์ดโล่ง)
+    if (jobs.length < 50) {
+      const otherJobs = await db.queue.findMany({
+        where: { shopId, status: { notIn: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] } },
+        orderBy: { updatedAt: 'desc' },
+        take: 50 - jobs.length
+      })
+      jobs.push(...otherJobs)
+    }
+
+    // 🌟 จัดเรียง Priority บน Server เล็กน้อยก่อนส่งให้ Client
+    const getPriority = (status: string) => {
+      switch (status) {
+        case "PROCESSING": return 1 
+        case "WAITING": return 2    
+        case "PENDING": return 3    
+        case "REPAIRED": return 4   
+        case "COMPLETED": return 5  
+        case "ARCHIVED": return 6   
+        case "CANCELLED": return 7  
+        default: return 8
+      }
+    }
+
+    const sortedJobs = jobs.sort((a, b) => {
+      const pDiff = getPriority(a.status) - getPriority(b.status)
+      if (pDiff !== 0) return pDiff
+      return b.updatedAt.getTime() - a.updatedAt.getTime()
+    }).slice(0, 50) // ส่งไปแค่ Top 50 ตามเป้าหมาย
+
+    return { success: true, data: sortedJobs }
   } catch (error) {
     console.error("Error fetching top 50 jobs:", error)
     return { success: false, error: "ไม่สามารถโหลดข้อมูลคิวล่าสุดได้" }
+  }
+}
+
+// 🌟 ฟังก์ชันแยกสำหรับหน้า "ค้นหา / ดูประวัติ" โดยเฉพาะ (รองรับ Pagination)
+export async function searchJobHistory(shopId: string, query: string, page = 1, limit = 20) {
+  try {
+    const skip = (page - 1) * limit;
+    const searchFilter = query ? {
+      OR: [
+        { jobRef: { contains: query, mode: 'insensitive' as const } },
+        { customerName: { contains: query, mode: 'insensitive' as const } },
+        { phoneNumber: { contains: query } },
+        { phone: { contains: query } },
+        { deviceModel: { contains: query, mode: 'insensitive' as const } },
+      ]
+    } : {};
+
+    const [jobs, total] = await Promise.all([
+      db.queue.findMany({
+        where: { shopId, ...searchFilter },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.queue.count({ where: { shopId, ...searchFilter } })
+    ]);
+
+    return { success: true, data: { jobs, total, page, totalPages: Math.ceil(total / limit) } };
+  } catch (error) {
+    console.error("Error searching history:", error);
+    return { success: false, error: "ค้นหาข้อมูลล้มเหลว" };
   }
 }

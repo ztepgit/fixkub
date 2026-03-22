@@ -112,7 +112,7 @@ model Queue {
   imei           String?    // 🌟 เพิ่ม IMEI     
   
   serviceName   String?     
-  isManualEntry Boolean     @default(false) 
+  isManualEntry Boolean     @default(false)
 
   status        QueueStatus @default(PENDING)
 
@@ -126,7 +126,7 @@ model Queue {
   startedAt     DateTime?   
   repairedAt    DateTime?   
   completedAt   DateTime?
-  @@index([shopId]) // 🌟 แนะนำให้เติม
+  @@index([shopId, status, updatedAt(sort: Desc)])
 }
 
 // ==========================================
