@@ -160,3 +160,17 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
     return { success: false, error: "ไม่สามารถค้นหาข้อมูลได้ในขณะนี้" };
   }
 }
+
+export async function getTop50Jobs(shopId: string) {
+  try {
+    const jobs = await db.queue.findMany({
+      where: { shopId },
+      orderBy: { createdAt: 'desc' }, // ดึงล่าสุดมาก่อน
+      take: 50, // จำกัด 50 แถวเสมอ (ลดภาระ DB)
+    })
+    return { success: true, data: jobs }
+  } catch (error) {
+    console.error("Error fetching top 50 jobs:", error)
+    return { success: false, error: "ไม่สามารถโหลดข้อมูลคิวล่าสุดได้" }
+  }
+}

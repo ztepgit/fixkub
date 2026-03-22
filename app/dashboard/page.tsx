@@ -1,18 +1,29 @@
+"use client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { QueueBoard } from "@/components/queue-board"
 import { DashboardOverview } from "@/components/dashboard-overview"
 import { ReportDashboard } from "@/components/report-dashboard"
 import { ShopSettings } from "@/components/shop-settings"
 import { SidebarProvider } from "@/components/ui/sidebar"
+// 🌟 Import Hook ที่สร้างใหม่
+import { useJobSync } from "@/hooks/useJobSync"
 
 // 🌟 1. Import Icons จาก lucide-react เพื่อความสวยงามแบบมืออาชีพ
 import { LayoutDashboard, ClipboardList, BarChart3, Settings } from "lucide-react"
 
 import { DashboardHeader } from "@/components/dashboard-header"
 
+// Component สำหรับสั่งให้ Sync ทำงานเบื้องหลัง
+function JobSyncManager({ shopId }: { shopId: string }) {
+  useJobSync(shopId)
+  return null
+}
+
 export default function MainPage() {
+  const SHOP_ID = "shop_test_001" // 🌟 กำหนดรหัสร้านค้าคงที่สำหรับการทดสอบ
   return (
     <SidebarProvider>
+      <JobSyncManager shopId={SHOP_ID} />
       <div className="min-h-screen flex flex-col w-full bg-slate-50/30">
 
         {/* วาง Header ไว้บนสุดของเพจ (ปุ่มแชร์ QR Code จะอยู่ตรงนี้) */}
