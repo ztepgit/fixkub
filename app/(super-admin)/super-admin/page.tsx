@@ -14,7 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save } from "lucide-react"
 
-import { createShopAction, createShopSchema, CreateShopInput } from "@/actions/super-admin"
+import { createShopAction } from "@/actions/super-admin"
+import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 import { updatePaymentSettings, getSystemSettings } from "@/actions/setting"
 
 export default function SuperAdminCreateShopPage() {

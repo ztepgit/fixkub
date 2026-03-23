@@ -1,33 +1,9 @@
 "use server"
 
 import { db } from "@/lib/prisma"
-import { z } from "zod"
 // 🌟 แนะนำให้ดึง Type มาจาก Prisma ด้วยเพื่อความแม่นยำ
 import { PlanType } from "@prisma/client"
-
-export const createShopSchema = z.object({
-  name: z.string().min(2, "ชื่อร้านต้องมีอย่างน้อย 2 ตัวอักษร"),
-  slug: z.string()
-    .min(3, "Slug ต้องมีอย่างน้อย 3 ตัวอักษร")
-    .regex(/^[a-z0-9-]+$/, "Slug ต้องเป็นตัวพิมพ์เล็ก ตัวเลข หรือขีดกลาง (-) เท่านั้น"),
-  logoUrl: z.string().url("รูปแบบ URL ไม่ถูกต้อง").optional().or(z.literal("")),
-  themeColor: z.string().default("#10b981"),
-  ownerEmail: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
-  // 🌟 เพิ่ม 2 บรรทัดนี้
-  promptpayId: z.string().optional().or(z.literal("")),
-  accountName: z.string().optional().or(z.literal("")),
-
-  planType: z.enum([
-    "FREE_TRIAL", "BASIC_MONTHLY", "BASIC_YEARLY", 
-    "PRO_MONTHLY", "PRO_YEARLY", "LIFETIME"
-  ]),
-  trialDays: z.coerce.number().min(0).max(90).default(30),
-  startImmediately: z.boolean().default(false),
-  agentCode: z.string().optional().or(z.literal("")),
-  isActive: z.boolean().default(true)
-})
-
-export type CreateShopInput = z.infer<typeof createShopSchema>
+import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 
 export async function createShopAction(input: CreateShopInput) {
   try {
@@ -57,13 +33,13 @@ export async function createShopAction(input: CreateShopInput) {
 
     // สเต็ป 4.1: ให้สิทธิ์ทดลองใช้ฟรี
     if (data.trialDays > 0) {
-      expiresAt.setDate(expiresAt.getDate() + data.trialDays) 
-      trialEndsAt = new Date(expiresAt) 
+      expiresAt.setDate(expiresAt.getDate() + data.trialDays)
+      trialEndsAt = new Date(expiresAt)
     }
 
     // สเต็ป 4.2: ถ้า "เริ่มบิลทันที" ทบวันตามแพ็กเกจ
     if (data.startImmediately) {
-      subscriptionStartsAt = now 
+      subscriptionStartsAt = now
 
       // 🌟 ใช้การเทียบค่าตรงๆ แทน .includes() เพื่อไม่ให้ TypeScript บ่น
       if (data.planType === "BASIC_MONTHLY" || data.planType === "PRO_MONTHLY") {
@@ -77,15 +53,14 @@ export async function createShopAction(input: CreateShopInput) {
 
     // 5. บันทึกข้อมูลด้วย Transaction
     const newShop = await db.$transaction(async (tx) => {
-      
+
       const shop = await tx.shop.create({
         data: {
           name: data.name,
           slug: data.slug,
           logoUrl: data.logoUrl || null,
           themeColor: data.themeColor,
-          promptpayId: data.promptpayId || null,
-          accountName: data.accountName || null,
+          // 🌟 ลบ promptpayId และ accountName ออกจากตรงนี้แล้ว เพราะมันไปอยู่ SystemSetting แทนครับ
           planType: data.planType as PlanType, // คอนเฟิร์ม Type ให้ Prisma
           trialEndsAt,
           subscriptionStartsAt,
