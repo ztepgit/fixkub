@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+// 🌟 เพิ่มบรรทัดนี้เข้ามา เพื่อใช้ Label ธรรมดาใน Tab 2
+import { Label } from "@/components/ui/label" 
 import { useToast } from "@/hooks/use-toast"
 import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save } from "lucide-react"
 
@@ -283,7 +285,8 @@ export default function SuperAdminCreateShopPage() {
             <CardContent className="space-y-6 pt-6">
               
               <div className="space-y-2">
-                <FormLabel>PromptPay ID <span className="text-red-500">*</span></FormLabel>
+                {/* 🌟 เปลี่ยนเป็น Label ธรรมดา */}
+                <Label>PromptPay ID <span className="text-red-500">*</span></Label>
                 <Input 
                   value={promptpayId} 
                   onChange={(e) => setPromptpayId(e.target.value)} 
@@ -294,7 +297,8 @@ export default function SuperAdminCreateShopPage() {
               </div>
 
               <div className="space-y-2">
-                <FormLabel>ชื่อบัญชี (Account Name) <span className="text-red-500">*</span></FormLabel>
+                {/* 🌟 เปลี่ยนเป็น Label ธรรมดา */}
+                <Label>ชื่อบัญชี (Account Name) <span className="text-red-500">*</span></Label>
                 <Input 
                   value={accountName} 
                   onChange={(e) => setAccountName(e.target.value)} 
