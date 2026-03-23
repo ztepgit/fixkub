@@ -10,11 +10,14 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy,Store } from "lucide-react"
+import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy, Store } from "lucide-react"
 
 // 🌟 Import Library สำหรับสร้าง QR Code 
 import generatePayload from "promptpay-qr"
 import { QRCodeCanvas } from "qrcode.react"
+
+// 🌟 Import Action ดึงข้อมูลจาก Database
+import { getSystemSettings } from "@/actions/setting"
 
 function PaymentForm() {
   const searchParams = useSearchParams()
@@ -24,11 +27,16 @@ function PaymentForm() {
   const [paymentMethod, setPaymentMethod] = useState("promptpay")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [isCopied, setIsCopied] = useState(false) // State สำหรับปุ่ม Copy
+  const [isCopied, setIsCopied] = useState(false) 
 
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [shopName, setShopName] = useState("")
   const [phone, setPhone] = useState("")
+
+  // 🌟 State สำหรับเก็บข้อมูลพร้อมเพย์จาก Database
+  const [promptpayId, setPromptpayId] = useState("")
+  const [accountName, setAccountName] = useState("")
+  const [isLoadingPaymentInfo, setIsLoadingPaymentInfo] = useState(true)
 
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
@@ -44,14 +52,24 @@ function PaymentForm() {
     features: ["สร้างบิลซ่อมไม่จำกัด", "ป้าย QR Code ตั้งโต๊ะ", "ฟรี อัปเดตฟีเจอร์ใหม่", "ซัพพอร์ตด่วน (Priority)"]
   }
 
-  // 🌟 1. ดึงข้อมูลบัญชีพร้อมเพย์ของระบบ (ในอนาคตดึงมาจาก API / Database)
-  const promptpayId = "0812345678" // เบอร์พร้อมเพย์ของคุณปิ๊ก หรือของบริษัท
-  const accountName = "บจก. อีซี่คิว โซลูชั่น" 
+  // 🌟 ดึงข้อมูลพร้อมเพย์จาก Database ตอนโหลดหน้าเพจ
+  useEffect(() => {
+    const fetchPaymentInfo = async () => {
+      const res = await getSystemSettings()
+      if (res.success && res.data) {
+        setPromptpayId(res.data.promptpayId || "")
+        setAccountName(res.data.accountName || "")
+      }
+      setIsLoadingPaymentInfo(false)
+    }
+    fetchPaymentInfo()
+  }, [])
 
-  // 🌟 2. Generate Payload สำหรับ QR Code ทันทีที่โหลด
-  const qrPayload = generatePayload(promptpayId, { amount: packageDetails.price })
+  // 🌟 Generate Payload สำหรับ QR Code (ถ้า promptpayId ไม่ว่าง)
+  const qrPayload = promptpayId ? generatePayload(promptpayId, { amount: packageDetails.price }) : ""
 
   const handleCopyPromptPay = () => {
+    if (!promptpayId) return
     navigator.clipboard.writeText(promptpayId)
     setIsCopied(true)
     toast({ title: "✅ คัดลอกสำเร็จ", description: "คัดลอกเลขพร้อมเพย์เรียบร้อยแล้ว" })
@@ -204,46 +222,62 @@ function PaymentForm() {
               </RadioGroup>
 
               {paymentMethod === "promptpay" && (
-                <div className="bg-slate-50/80 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center animate-in fade-in duration-300">
-                  <Badge className="mb-5 bg-[#003D7C] hover:bg-[#003D7C] text-white px-3 py-1 text-xs">PromptPay</Badge>
+                <div className="bg-slate-50/80 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center animate-in fade-in duration-300 min-h-[300px] justify-center">
                   
-                  {/* 🌟 3. แสดง QR Code ที่ถูก Generate */}
-                  <div className="bg-white p-3 rounded-2xl border-[3px] border-[#003D7C]/20 flex items-center justify-center mb-6 shadow-sm overflow-hidden transition-transform hover:scale-105 duration-300">
-                    <QRCodeCanvas 
-                      value={qrPayload} 
-                      size={200} 
-                      bgColor={"#ffffff"} 
-                      fgColor={"#0f172a"} 
-                      level={"H"} // ระดับสูงสุดเพื่อให้สแกนติดง่าย
-                      includeMargin={false}
-                    />
-                  </div>
-                  
-                  <div className="w-full bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-[#003D7C]"></div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">ชื่อบัญชีรับเงิน</p>
-                      <p className="font-bold text-slate-800 text-base">{accountName}</p>
+                  {isLoadingPaymentInfo ? (
+                    <div className="flex flex-col items-center space-y-4">
+                       <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+                       <p className="text-slate-500 text-sm">กำลังโหลดข้อมูลบัญชีรับเงิน...</p>
                     </div>
-
-                    <div className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-slate-100">
-                      <span className="font-mono font-bold text-slate-700 tracking-wider text-base pl-2">{promptpayId}</span>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleCopyPromptPay}
-                        className={`h-8 px-3 rounded-md font-medium transition-colors ${isCopied ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700' : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'}`}
-                      >
-                        {isCopied ? <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
-                        {isCopied ? "คัดลอกแล้ว" : "คัดลอก"}
-                      </Button>
+                  ) : !promptpayId ? (
+                    <div className="flex flex-col items-center space-y-4 py-8">
+                       <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center">
+                         <ShieldCheck className="h-8 w-8 text-slate-300" />
+                       </div>
+                       <p className="text-slate-500 text-sm">ระบบยังไม่ได้ตั้งค่าบัญชีรับเงิน (PromptPay ID)</p>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <Badge className="mb-5 bg-[#003D7C] hover:bg-[#003D7C] text-white px-3 py-1 text-xs">PromptPay</Badge>
+                      
+                      <div className="bg-white p-3 rounded-2xl border-[3px] border-[#003D7C]/20 flex items-center justify-center mb-6 shadow-sm overflow-hidden transition-transform hover:scale-105 duration-300">
+                        <QRCodeCanvas 
+                          value={qrPayload} 
+                          size={200} 
+                          bgColor={"#ffffff"} 
+                          fgColor={"#0f172a"} 
+                          level={"H"} 
+                          includeMargin={false}
+                        />
+                      </div>
+                      
+                      <div className="w-full bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-[#003D7C]"></div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">ชื่อบัญชีรับเงิน</p>
+                          <p className="font-bold text-slate-800 text-base">{accountName || "ไม่ได้ระบุชื่อบัญชี"}</p>
+                        </div>
 
-                  <div className="mt-5 text-slate-600 font-medium">
-                    สแกนจ่ายยอด <span className="text-2xl font-black text-emerald-600 ml-1">{packageDetails.priceText}</span>
-                  </div>
+                        <div className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                          <span className="font-mono font-bold text-slate-700 tracking-wider text-base pl-2">{promptpayId}</span>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={handleCopyPromptPay}
+                            className={`h-8 px-3 rounded-md font-medium transition-colors ${isCopied ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700' : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'}`}
+                          >
+                            {isCopied ? <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
+                            {isCopied ? "คัดลอกแล้ว" : "คัดลอก"}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 text-slate-600 font-medium">
+                        สแกนจ่ายยอด <span className="text-2xl font-black text-emerald-600 ml-1">{packageDetails.priceText}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -294,7 +328,7 @@ function PaymentForm() {
               </div>
             </CardContent>
             <CardFooter className="bg-slate-50 pt-6 rounded-b-xl border-t border-slate-100">
-              <Button type="submit" className="w-full h-14 text-lg bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 rounded-xl" disabled={isSubmitting || !slipFile}>
+              <Button type="submit" className="w-full h-14 text-lg bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 rounded-xl" disabled={isSubmitting || !slipFile || isLoadingPaymentInfo || !promptpayId}>
                 {isSubmitting ? (
                   <><Loader2 className="animate-spin h-5 w-5 mr-2" /> กำลังตรวจสอบสลิปอัตโนมัติ...</>
                 ) : (
