@@ -12,104 +12,99 @@ generator client {
 // 1. AGENT (ระบบเซลส์/นักศึกษา/คนแนะนำ)
 // ==========================================
 model Agent {
-  id          String   @id @default(cuid())
-  code        String   @unique 
-  name        String   
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
   phone       String?
-  bankDetails String?  
-  isActive    Boolean  @default(true) 
-  
-  createdAt   DateTime @default(now())
-  
-  shops       Shop[]   
+  bankDetails String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  shops Shop[]
 }
 
 // ==========================================
 // 2. SHOP (ตารางหลักของร้านค้า และ Subdomain)
 // ==========================================
 model Shop {
-  id                 String    @id @default(cuid())
-  slug               String    @unique 
-  name               String
-  logoUrl            String?
-  themeColor         String    @default("#10b981")
+  id         String  @id @default(cuid())
+  slug       String  @unique
+  name       String
+  logoUrl    String?
+  themeColor String  @default("#10b981")
 
   // --- Repair Shop Settings ---
-  maxActiveJobs      Int       @default(10)
+  maxActiveJobs Int @default(10)
 
   // --- Billing & Subscription ---
-  planType           PlanType   @default(FREE_TRIAL)
-  planStatus         PlanStatus @default(ACTIVE)
-  
-  trialEndsAt        DateTime?  // วันที่หมดช่วงทดลองใช้ฟรี
+  planType   PlanType   @default(FREE_TRIAL)
+  planStatus PlanStatus @default(ACTIVE)
+
+  trialEndsAt          DateTime? // วันที่หมดช่วงทดลองใช้ฟรี
   subscriptionStartsAt DateTime? // วันที่เริ่มจ่ายเงินรอบล่าสุด (เอาไว้คำนวณ Prorate)
-  expiresAt          DateTime?  // 🌟 วันหมดอายุของแพ็กเกจ (ใช้ตัวนี้คำนวณทบวัน)
-  
-  isActive           Boolean    @default(true)
+  expiresAt            DateTime? // 🌟 วันหมดอายุของแพ็กเกจ (ใช้ตัวนี้คำนวณทบวัน)
+
+  isActive Boolean @default(true)
 
   // --- Agent & Commission Tracking ---
-  agentId            String?   
-  agent              Agent?    @relation(fields: [agentId], references: [id])
-  isCommissionPaid   Boolean   @default(false) 
+  agentId          String?
+  agent            Agent?  @relation(fields: [agentId], references: [id])
+  isCommissionPaid Boolean @default(false)
 
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt // 🌟 เอา @default(now()) ออก เพราะ @updatedAt จัดการให้แล้ว
-
-  // --- Payment & Billing ---
-  promptpayId        String?    // 🌟 เบอร์โทร หรือ เลขบัตร ปชช. (เช่น 0812345678)
-  accountName        String?    // 🌟 ชื่อบัญชี (เช่น บริษัท อีซี่คิว จำกัด)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // 🌟 เอา @default(now()) ออก เพราะ @updatedAt จัดการให้แล้ว
 
   // --- Relations ---
-  owners             ShopOwner[]
-  services           Service[]
-  queues             Queue[]
-  payments           PaymentTransaction[]
-  subscriptions      SubscriptionHistory[]
+  owners        ShopOwner[]
+  services      Service[]
+  queues        Queue[]
+  payments      PaymentTransaction[]
+  subscriptions SubscriptionHistory[]
 }
 
 // ==========================================
 // 2.1 SUBSCRIPTION HISTORY (ประวัติการต่ออายุแพ็กเกจ)
 // ==========================================
 model SubscriptionHistory {
-  id                 String    @id @default(uuid())
-  shopId             String
-  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  planType           PlanType  // แพ็กเกจที่ซื้อ (BASIC_MONTHLY / BASIC_YEARLY)
-  amountPaid         Float     // จำนวนเงินที่จ่าย (เช่น 199.00, 1690.00)
-  
-  purchasedAt        DateTime  @default(now()) // วันที่จ่ายเงิน
-  previousExpiresAt  DateTime? // วันหมดอายุเดิมก่อนจ่าย
-  newExpiresAt       DateTime  // วันหมดอายุใหม่หลังจ่าย
-  
-  slipUrl            String?   // ลิงก์สลิปโอนเงิน (ถ้ามี)
-  status             String    @default("COMPLETED") // COMPLETED, PENDING, FAILED
-}
+  id     String @id @default(uuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
+  planType   PlanType // แพ็กเกจที่ซื้อ (BASIC_MONTHLY / BASIC_YEARLY)
+  amountPaid Float // จำนวนเงินที่จ่าย (เช่น 199.00, 1690.00)
+
+  purchasedAt       DateTime  @default(now()) // วันที่จ่ายเงิน
+  previousExpiresAt DateTime? // วันหมดอายุเดิมก่อนจ่าย
+  newExpiresAt      DateTime // วันหมดอายุใหม่หลังจ่าย
+
+  slipUrl String? // ลิงก์สลิปโอนเงิน (ถ้ามี)
+  status  String  @default("COMPLETED") // COMPLETED, PENDING, FAILED
+}
 
 // ==========================================
 // 3. SHOP OWNER (ระบบจัดการสิทธิ์ VIP Onboarding)
 // ==========================================
 model ShopOwner {
-  id        String   @id @default(cuid())
-  userId    String?  
-  email     String   
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  role      Role     @default(OWNER) 
+  id     String  @id @default(cuid())
+  userId String?
+  email  String
+  shopId String
+  shop   Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  role   Role    @default(OWNER)
 
-  @@unique([email, shopId]) 
+  @@unique([email, shopId])
 }
 
 // ==========================================
 // 4. SERVICE (บริการ/หมวดหมู่อาการเสีย)
 // ==========================================
 model Service {
-  id           String  @id @default(cuid())
-  shopId       String
-  shop         Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  name         String  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  name         String
   price        Float?
   estimatedMin Int?
   isActive     Boolean @default(true)
@@ -121,39 +116,39 @@ model Service {
 // 5. QUEUE (ใบสั่งซ่อม / Job Ticket)
 // ==========================================
 model Queue {
-  id             String      @id @default(cuid())
-  shopId         String
-  shop           Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  jobRef         String?     
-  customerName   String      
-  phoneNumber    String?     
-  deviceModel    String?     
-  deviceColor    String?     
-  issue          String?
+  jobRef       String?
+  customerName String
+  phoneNumber  String?
+  deviceModel  String?
+  deviceColor  String?
+  issue        String?
 
   // --- ข้อมูลสำหรับช่าง ---
-  estimatedPrice Float?      // ราคาประเมินเบื้องต้น
-  repairCost     Float?      // ราคาซ่อมจริง (เผื่อเอาไว้สรุปยอดตอนจบงาน)
-  serialNumber   String?     // S/N ตัวเครื่อง
-  imei           String?     // IMEI ตัวเครื่อง     
-  
-  serviceName    String?     
-  isManualEntry  Boolean     @default(false)
+  estimatedPrice Float? // ราคาประเมินเบื้องต้น
+  repairCost     Float? // ราคาซ่อมจริง (เผื่อเอาไว้สรุปยอดตอนจบงาน)
+  serialNumber   String? // S/N ตัวเครื่อง
+  imei           String? // IMEI ตัวเครื่อง     
 
-  status         QueueStatus @default(PENDING)
+  serviceName   String?
+  isManualEntry Boolean @default(false)
+
+  status QueueStatus @default(PENDING)
 
   // --- ข้อมูลการยกเลิกงาน ---
-  cancelReason   CancelReason? 
-  cancelledAt    DateTime?      
+  cancelReason CancelReason?
+  cancelledAt  DateTime?
 
   // --- Timestamps ---
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt 
-  acceptedAt     DateTime?
-  startedAt      DateTime?   
-  repairedAt     DateTime?   
-  completedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  repairedAt  DateTime?
+  completedAt DateTime?
 
   // 🌟 Index สำหรับดึงข้อมูล Top 50 แบบ Priority ได้เร็วที่สุด
   @@index([shopId, status, updatedAt(sort: Desc)])
@@ -163,25 +158,36 @@ model Queue {
 // 6. PAYMENT TRANSACTION (ประวัติการชำระเงินของร้านค้า)
 // ==========================================
 model PaymentTransaction {
-  id            String   @id @default(cuid())
-  shopId        String
-  shop          Shop     @relation(fields: [shopId], references: [id])
-  
-  amount        Float    // ยอดสุทธิที่ลูกค้าโอนจริง
-  baseAmount    Float?   // ราคาเต็มของแพ็กเกจที่เลือก
-  prorateCredit Float?   // เครดิตที่หักลบให้จากแพ็กเกจเดิม
-  isUpgrade     Boolean  @default(false) // เป็นบิลอัปเกรดหรือไม่
-  
-  plan          PlanType 
-  slipUrl       String?  
-  
-  status        PaymentStatus @default(PENDING) 
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt 
-  approvedAt    DateTime?
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id])
 
-  @@index([shopId]) 
+  amount        Float // ยอดสุทธิที่ลูกค้าโอนจริง
+  baseAmount    Float? // ราคาเต็มของแพ็กเกจที่เลือก
+  prorateCredit Float? // เครดิตที่หักลบให้จากแพ็กเกจเดิม
+  isUpgrade     Boolean @default(false) // เป็นบิลอัปเกรดหรือไม่
+
+  plan    PlanType
+  slipUrl String?
+
+  status PaymentStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  approvedAt DateTime?
+
+  @@index([shopId])
+}
+
+// ==========================================
+// 7. SYSTEM SETTINGS (การตั้งค่าส่วนกลางของ Super Admin)
+// ==========================================
+model SystemSetting {
+  id          String  @id @default("global") // ใช้ ID ตายตัวว่า "global"
+  promptpayId String? // เบอร์พร้อมเพย์ หรือ เลขบัตรประชาชน
+  accountName String? // ชื่อบัญชีรับเงิน
+
+  updatedAt DateTime @updatedAt
 }
 
 // ==========================================
@@ -189,19 +195,19 @@ model PaymentTransaction {
 // ==========================================
 
 enum CancelReason {
-  NO_SHOW             // ลูกค้าไม่มา
-  CUSTOMER_CANCEL     // ลูกค้าไม่ซ่อมแล้ว
-  UNREPAIRABLE        // ซ่อมไม่ได้
-  NO_PARTS            // ไม่มีอะไหล่
-  UNCONTACTABLE       // ติดต่อไม่ได้
+  NO_SHOW // ลูกค้าไม่มา
+  CUSTOMER_CANCEL // ลูกค้าไม่ซ่อมแล้ว
+  UNREPAIRABLE // ซ่อมไม่ได้
+  NO_PARTS // ไม่มีอะไหล่
+  UNCONTACTABLE // ติดต่อไม่ได้
 }
 
 enum PlanType {
   FREE_TRIAL
-  BASIC_MONTHLY  
-  BASIC_YEARLY   
-  PRO_MONTHLY    
-  PRO_YEARLY     
+  BASIC_MONTHLY
+  BASIC_YEARLY
+  PRO_MONTHLY
+  PRO_YEARLY
   LIFETIME
 }
 
