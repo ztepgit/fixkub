@@ -13,6 +13,10 @@ export const createShopSchema = z.object({
   logoUrl: z.string().url("รูปแบบ URL ไม่ถูกต้อง").optional().or(z.literal("")),
   themeColor: z.string().default("#10b981"),
   ownerEmail: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
+  // 🌟 เพิ่ม 2 บรรทัดนี้
+  promptpayId: z.string().optional().or(z.literal("")),
+  accountName: z.string().optional().or(z.literal("")),
+
   planType: z.enum([
     "FREE_TRIAL", "BASIC_MONTHLY", "BASIC_YEARLY", 
     "PRO_MONTHLY", "PRO_YEARLY", "LIFETIME"
@@ -80,6 +84,8 @@ export async function createShopAction(input: CreateShopInput) {
           slug: data.slug,
           logoUrl: data.logoUrl || null,
           themeColor: data.themeColor,
+          promptpayId: data.promptpayId || null,
+          accountName: data.accountName || null,
           planType: data.planType as PlanType, // คอนเฟิร์ม Type ให้ Prisma
           trialEndsAt,
           subscriptionStartsAt,

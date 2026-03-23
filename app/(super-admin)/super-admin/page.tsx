@@ -34,6 +34,8 @@ export default function SuperAdminCreateShopPage() {
       startImmediately: false,
       agentCode: "",
       isActive: true,
+      promptpayId: "", // 🌟 เพิ่มค่าเริ่มต้นสำหรับ PromptPay ID
+      accountName: "", // 🌟 เพิ่มค่าเริ่มต้นสำหรับชื่อบัญชี
     }
   })
 
@@ -168,6 +170,35 @@ export default function SuperAdminCreateShopPage() {
                     <FormLabel>รหัสตัวแทนเซลส์ (Agent Code)</FormLabel>
                     <FormControl><Input placeholder="เช่น AG-001" {...field} /></FormControl>
                     <FormDescription>เว้นว่างไว้หากไม่มีตัวแทนแนะนำ</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </CardContent>
+            </Card>
+
+            {/* SECTION: Payment / PromptPay */}
+            <Card className="border-slate-200 shadow-sm md:col-span-2">
+              <CardHeader className="bg-slate-50/50 border-b pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-indigo-600"/> บัญชีรับชำระเงิน (Payment Info)
+                </CardTitle>
+                <CardDescription>ตั้งค่า PromptPay เพื่อให้ระบบสร้าง QR Code ตอนลูกค้าจ่ายเงิน</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 md:grid-cols-2 pt-6">
+                <FormField control={form.control} name="promptpayId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PromptPay ID (เบอร์โทร / เลขบัตร ปชช.)</FormLabel>
+                    <FormControl><Input placeholder="เช่น 0812345678" {...field} /></FormControl>
+                    <FormDescription>ระบบจะนำเลขนี้ไปสร้าง QR Code อัตโนมัติ</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="accountName" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ชื่อบัญชี (Account Name)</FormLabel>
+                    <FormControl><Input placeholder="เช่น บจก. อีซี่คิว โซลูชั่น" {...field} /></FormControl>
+                    <FormDescription>ชื่อที่จะแสดงให้ลูกค้าเห็นก่อนโอนเงิน</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />

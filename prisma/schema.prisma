@@ -55,6 +55,10 @@ model Shop {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt // 🌟 เอา @default(now()) ออก เพราะ @updatedAt จัดการให้แล้ว
 
+  // --- Payment & Billing ---
+  promptpayId        String?    // 🌟 เบอร์โทร หรือ เลขบัตร ปชช. (เช่น 0812345678)
+  accountName        String?    // 🌟 ชื่อบัญชี (เช่น บริษัท อีซี่คิว จำกัด)
+
   // --- Relations ---
   owners             ShopOwner[]
   services           Service[]
@@ -81,6 +85,7 @@ model SubscriptionHistory {
   slipUrl            String?   // ลิงก์สลิปโอนเงิน (ถ้ามี)
   status             String    @default("COMPLETED") // COMPLETED, PENDING, FAILED
 }
+
 
 // ==========================================
 // 3. SHOP OWNER (ระบบจัดการสิทธิ์ VIP Onboarding)

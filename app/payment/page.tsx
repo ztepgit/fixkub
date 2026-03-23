@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -10,7 +10,11 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X,Loader2 } from "lucide-react"
+import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy,Store } from "lucide-react"
+
+// 🌟 Import Library สำหรับสร้าง QR Code 
+import generatePayload from "promptpay-qr"
+import { QRCodeCanvas } from "qrcode.react"
 
 function PaymentForm() {
   const searchParams = useSearchParams()
@@ -20,8 +24,8 @@ function PaymentForm() {
   const [paymentMethod, setPaymentMethod] = useState("promptpay")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isCopied, setIsCopied] = useState(false) // State สำหรับปุ่ม Copy
 
-  // 🌟 State สำหรับเก็บไฟล์สลิป และชื่อร้าน/เบอร์โทร
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [shopName, setShopName] = useState("")
   const [phone, setPhone] = useState("")
@@ -29,18 +33,31 @@ function PaymentForm() {
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
     price: 199,
-    priceText: "฿199",
+    priceText: "฿199.00",
     period: "ต่อเดือน",
     features: ["สร้างบิลซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รองรับ 1 สาขา", "หน้าเช็คสถานะสำหรับลูกค้า"]
   } : {
     title: "แพ็กเกจรายปี (คุ้มที่สุด)",
     price: 1690,
-    priceText: "฿1,690",
+    priceText: "฿1,690.00",
     period: "ต่อปี",
     features: ["สร้างบิลซ่อมไม่จำกัด", "ป้าย QR Code ตั้งโต๊ะ", "ฟรี อัปเดตฟีเจอร์ใหม่", "ซัพพอร์ตด่วน (Priority)"]
   }
 
-  // 🌟 ฟังก์ชันจัดการตอนเลือกไฟล์
+  // 🌟 1. ดึงข้อมูลบัญชีพร้อมเพย์ของระบบ (ในอนาคตดึงมาจาก API / Database)
+  const promptpayId = "0812345678" // เบอร์พร้อมเพย์ของคุณปิ๊ก หรือของบริษัท
+  const accountName = "บจก. อีซี่คิว โซลูชั่น" 
+
+  // 🌟 2. Generate Payload สำหรับ QR Code ทันทีที่โหลด
+  const qrPayload = generatePayload(promptpayId, { amount: packageDetails.price })
+
+  const handleCopyPromptPay = () => {
+    navigator.clipboard.writeText(promptpayId)
+    setIsCopied(true)
+    toast({ title: "✅ คัดลอกสำเร็จ", description: "คัดลอกเลขพร้อมเพย์เรียบร้อยแล้ว" })
+    setTimeout(() => setIsCopied(false), 2000)
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
@@ -52,7 +69,6 @@ function PaymentForm() {
     }
   }
 
-  // 🌟 ฟังก์ชันส่งข้อมูลชำระเงิน
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -64,11 +80,9 @@ function PaymentForm() {
     setIsSubmitting(true)
     
     try {
-      // 1. เตรียมไฟล์เพื่อยิงไปหา API หลังบ้านของเรา
       const formData = new FormData()
       formData.append("files", slipFile)
 
-      // 2. เรียก API ตรวจสลิป
       const res = await fetch("/api/verify-slip", {
         method: "POST",
         body: formData
@@ -77,7 +91,6 @@ function PaymentForm() {
       const result = await res.json()
 
       if (result.success) {
-        // 3. ตรวจสอบยอดเงิน ว่าโอนมาตรงกับแพ็กเกจไหม
         const paidAmount = result.data.amount
         
         if (paidAmount < packageDetails.price) {
@@ -90,10 +103,7 @@ function PaymentForm() {
           return
         }
 
-        // ✅ ผ่านทุกเงื่อนไข: สลิปจริง ยอดเงินตรง! 
-        // (ตรงนี้คุณปิ๊กสามารถแทรกโค้ดบันทึกข้อมูล Shop ลง Database ได้เลยครับ)
         console.log("บันทึกข้อมูลร้านค้า:", { shopName, phone, plan, paidAmount, transRef: result.data.transRef })
-
         setIsSuccess(true)
       } else {
         toast({ title: "ตรวจสลิปไม่ผ่าน", description: result.message, variant: "destructive" })
@@ -179,7 +189,7 @@ function PaymentForm() {
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-2 gap-4">
                 <div>
                   <RadioGroupItem value="promptpay" id="promptpay" className="peer sr-only" />
-                  <Label htmlFor="promptpay" className="flex flex-col items-center justify-between rounded-md border-2 border-slate-200 bg-transparent p-4 hover:bg-slate-50 peer-data-[state=checked]:border-emerald-600 peer-data-[state=checked]:bg-emerald-50 [&:has([data-state=checked])]:border-emerald-600 cursor-pointer">
+                  <Label htmlFor="promptpay" className="flex flex-col items-center justify-between rounded-md border-2 border-slate-200 bg-transparent p-4 hover:bg-slate-50 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 [&:has([data-state=checked])]:border-blue-600 cursor-pointer transition-all">
                     <QrCode className="mb-2 h-6 w-6 text-slate-700" />
                     <span className="font-semibold text-sm">พร้อมเพย์ / QR</span>
                   </Label>
@@ -194,77 +204,101 @@ function PaymentForm() {
               </RadioGroup>
 
               {paymentMethod === "promptpay" && (
-                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 flex flex-col items-center text-center">
-                  <Badge className="mb-4 bg-blue-900 hover:bg-blue-900">พร้อมเพย์ (PromptPay)</Badge>
+                <div className="bg-slate-50/80 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center animate-in fade-in duration-300">
+                  <Badge className="mb-5 bg-[#003D7C] hover:bg-[#003D7C] text-white px-3 py-1 text-xs">PromptPay</Badge>
                   
-                  {/* เปลี่ยน Placeholder QR เป็นภาพ หรือ QR โค้ดรับเงินจริงของคุณปิ๊กได้เลย */}
-                  <div className="h-48 w-48 bg-white border-2 border-slate-200 rounded-lg flex items-center justify-center mb-4 shadow-sm overflow-hidden">
-                     {/* ใส่ <img src="qr-code-url" /> ตรงนี้ */}
-                    <QrCode className="h-20 w-20 text-slate-300" />
+                  {/* 🌟 3. แสดง QR Code ที่ถูก Generate */}
+                  <div className="bg-white p-3 rounded-2xl border-[3px] border-[#003D7C]/20 flex items-center justify-center mb-6 shadow-sm overflow-hidden transition-transform hover:scale-105 duration-300">
+                    <QRCodeCanvas 
+                      value={qrPayload} 
+                      size={200} 
+                      bgColor={"#ffffff"} 
+                      fgColor={"#0f172a"} 
+                      level={"H"} // ระดับสูงสุดเพื่อให้สแกนติดง่าย
+                      includeMargin={false}
+                    />
                   </div>
                   
-                  <p className="font-bold text-slate-800 text-lg">บจก. อีซี่คิว โซลูชั่น</p>
-                  <p className="text-slate-500 font-mono mt-1">012-3456-789-0</p>
-                  <div className="mt-4 bg-emerald-100 text-emerald-800 px-4 py-2 rounded-full font-bold text-lg">
-                    ยอดโอน: {packageDetails.priceText}
+                  <div className="w-full bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-[#003D7C]"></div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">ชื่อบัญชีรับเงิน</p>
+                      <p className="font-bold text-slate-800 text-base">{accountName}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                      <span className="font-mono font-bold text-slate-700 tracking-wider text-base pl-2">{promptpayId}</span>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleCopyPromptPay}
+                        className={`h-8 px-3 rounded-md font-medium transition-colors ${isCopied ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700' : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'}`}
+                      >
+                        {isCopied ? <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
+                        {isCopied ? "คัดลอกแล้ว" : "คัดลอก"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 text-slate-600 font-medium">
+                    สแกนจ่ายยอด <span className="text-2xl font-black text-emerald-600 ml-1">{packageDetails.priceText}</span>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-bold text-slate-800">ข้อมูลร้านค้า และหลักฐาน</h3>
+              <div className="space-y-4 pt-6 border-t">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Store className="w-5 h-5 text-slate-400" /> ข้อมูลร้านค้า และหลักฐาน
+                </h3>
                 
                 <div className="grid gap-2">
                   <Label htmlFor="shopName">ชื่อร้านค้าของคุณ <span className="text-red-500">*</span></Label>
-                  <Input id="shopName" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="เช่น ร้านปิ๊กโมบาย" required />
+                  <Input id="shopName" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="เช่น ร้านปิ๊กโมบาย" required className="h-11 bg-slate-50 focus-visible:bg-white" />
                 </div>
                 
                 <div className="grid gap-2">
                   <Label htmlFor="phone">เบอร์โทรศัพท์ติดต่อ <span className="text-red-500">*</span></Label>
-                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08X-XXX-XXXX" required />
+                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08X-XXX-XXXX" required className="h-11 bg-slate-50 focus-visible:bg-white" />
                 </div>
 
-                <div className="grid gap-2">
+                <div className="grid gap-2 pt-2">
                   <Label>อัปโหลดสลิปโอนเงิน <span className="text-red-500">*</span></Label>
                   
                   {!slipFile ? (
-                    <Label htmlFor="slip" className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer group">
-                      <div className="h-12 w-12 bg-emerald-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Label htmlFor="slip" className="border-2 border-dashed border-emerald-200 bg-emerald-50/50 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-emerald-50 transition-colors cursor-pointer group">
+                      <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
                         <UploadCloud className="h-6 w-6 text-emerald-600" />
                       </div>
-                      <p className="text-sm font-semibold text-slate-700">คลิกเพื่ออัปโหลดสลิปโอนเงิน</p>
-                      <p className="text-xs text-slate-500 mt-1">รองรับ JPG, PNG ขนาดไม่เกิน 5MB</p>
+                      <p className="text-sm font-bold text-emerald-800">คลิกเพื่ออัปโหลดสลิปโอนเงิน</p>
+                      <p className="text-xs text-emerald-600/70 mt-1">รองรับ JPG, PNG ขนาดไม่เกิน 5MB</p>
                       <Input id="slip" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                     </Label>
                   ) : (
-                    <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50 border-emerald-200">
+                    <div className="flex items-center justify-between p-4 border-2 rounded-xl bg-emerald-50 border-emerald-200 animate-in fade-in zoom-in-95 duration-200">
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="h-10 w-10 bg-emerald-100 rounded flex items-center justify-center shrink-0">
+                        <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
                           <FileImage className="h-5 w-5 text-emerald-600" />
                         </div>
                         <div className="truncate">
-                          <p className="text-sm font-medium text-slate-700 truncate">{slipFile.name}</p>
-                          <p className="text-xs text-slate-500">{(slipFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <p className="text-sm font-bold text-slate-800 truncate">{slipFile.name}</p>
+                          <p className="text-xs font-medium text-emerald-600 mt-0.5">{(slipFile.size / 1024 / 1024).toFixed(2)} MB</p>
                         </div>
                       </div>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => setSlipFile(null)} className="text-slate-400 hover:text-rose-500 shrink-0">
-                        <X className="h-5 w-5" />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setSlipFile(null)} className="text-slate-400 hover:bg-white hover:text-rose-500 shrink-0 rounded-full h-8 w-8">
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-slate-50 pt-6">
-              <Button type="submit" className="w-full h-12 text-lg bg-emerald-600 hover:bg-emerald-700 shadow-md" disabled={isSubmitting || !slipFile}>
+            <CardFooter className="bg-slate-50 pt-6 rounded-b-xl border-t border-slate-100">
+              <Button type="submit" className="w-full h-14 text-lg bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 rounded-xl" disabled={isSubmitting || !slipFile}>
                 {isSubmitting ? (
-                  <>
-                    <Loader2 className="animate-spin h-5 w-5 mr-2" /> กำลังตรวจสอบสลิป...
-                  </>
+                  <><Loader2 className="animate-spin h-5 w-5 mr-2" /> กำลังตรวจสอบสลิปอัตโนมัติ...</>
                 ) : (
-                  <>
-                    <Send className="mr-2 h-5 w-5" /> ยืนยันการชำระเงิน
-                  </>
+                  <><Send className="mr-2 h-5 w-5" /> ยืนยันการชำระเงินและเปิดร้าน</>
                 )}
               </Button>
             </CardFooter>
@@ -280,7 +314,7 @@ export default function PaymentPage() {
     <div className="min-h-screen bg-slate-50/50 py-10 px-4">
       <div className="container mx-auto max-w-5xl mb-8">
         <Link href="/">
-          <Button variant="ghost" className="text-slate-500 hover:text-slate-800 -ml-4">
+          <Button variant="ghost" className="text-slate-500 hover:text-slate-800 -ml-4 font-bold">
             <ArrowLeft className="h-4 w-4 mr-2" /> กลับหน้าหลัก
           </Button>
         </Link>
