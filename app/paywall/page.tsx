@@ -1,12 +1,42 @@
 "use client"
 
 import Link from "next/link"
+import { useSearchParams } from "next/navigation" // 🌟 1. Import สำหรับดึงค่าจาก URL
+import { useEffect, useState } from "react"
+import { format, addDays } from "date-fns" // 🌟 2. Import date-fns สำหรับจัดการวันที่
+import { th } from "date-fns/locale" // 🌟 3. Import ภาษาไทย
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, ShieldAlert, ArrowRight, CreditCard, HelpCircle, Lock } from "lucide-react"
+import { Clock, ShieldAlert, ArrowRight, CreditCard, HelpCircle, Lock, AlertTriangle } from "lucide-react"
 
 export default function PaywallPage() {
+  const searchParams = useSearchParams()
+  const [daysLeft, setDaysLeft] = useState<number>(30)
+  const [deletionDate, setDeletionDate] = useState<string>("")
+
+  // 🌟 4. ดึงค่า daysLeft จาก URL และคำนวณวันที่ลบถาวร
+  useEffect(() => {
+    // ถ้าไม่มีการส่งค่ามา ให้ค่าเริ่มต้นคือ 30 วัน
+    const urlDaysLeft = parseInt(searchParams.get("daysLeft") || "30", 10)
+    
+    // ป้องกันค่าติดลบ (ถ้าหมดเวลาแล้วให้เป็น 0)
+    const safeDaysLeft = Math.max(0, urlDaysLeft)
+    setDaysLeft(safeDaysLeft)
+
+    // คำนวณหาวันที่จะถูกลบถาวร (วันนี้ + วันที่เหลือ)
+    const targetDate = addDays(new Date(), safeDaysLeft)
+    
+    // จัดรูปแบบวันที่ให้อ่านง่าย เช่น "25 เมษายน 2569" (บวก 543 เพื่อแปลงเป็น พ.ศ.)
+    const formattedDate = format(targetDate, "d MMMM yyyy", { locale: th })
+    const thaiYearDate = formattedDate.replace(
+      targetDate.getFullYear().toString(), 
+      (targetDate.getFullYear() + 543).toString()
+    )
+    
+    setDeletionDate(thaiYearDate)
+  }, [searchParams])
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 relative overflow-hidden">
       
@@ -21,8 +51,15 @@ export default function PaywallPage() {
           <p className="text-sm font-medium text-slate-500">ระบบจัดการร้านซ่อมมือถือ</p>
         </div>
 
-        <Card className="border-none shadow-xl bg-white/95 backdrop-blur-sm">
-          <CardHeader className="text-center pb-2 pt-8">
+        <Card className="border-none shadow-xl bg-white/95 backdrop-blur-sm overflow-hidden">
+          
+          {/* 🌟 5. แถบแจ้งเตือน Grace Period สุดเด่น */}
+          <div className="bg-rose-500 text-white text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            ข้อมูลจะถูกลบถาวรในอีก {daysLeft} วัน ({deletionDate})
+          </div>
+
+          <CardHeader className="text-center pb-2 pt-6">
             <div className="mx-auto w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-4 relative shadow-inner">
               <Lock className="h-10 w-10 text-amber-600 relative z-10" />
               {/* จุดแจ้งเตือนสีแดง */}
@@ -40,11 +77,18 @@ export default function PaywallPage() {
           </CardHeader>
           
           <CardContent className="space-y-4 pt-4">
-            <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex items-start gap-3">
-              <ShieldAlert className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-sm text-slate-600 leading-relaxed">
-                <strong className="text-slate-800 block mb-1">ข้อมูลของคุณปลอดภัย 100%</strong>
-                ประวัติงานซ่อม บิลลูกค้า และสถิติรายได้ทั้งหมด ยังถูกเก็บรักษาไว้อย่างปลอดภัยในระบบของเรา คุณสามารถเข้าถึงข้อมูลทั้งหมดได้ทันทีหลังจากต่ออายุแพ็กเกจ
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 space-y-3">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-600 leading-relaxed">
+                  <strong className="text-slate-800 block mb-1">ข้อมูลของคุณยังปลอดภัย</strong>
+                  ประวัติงานซ่อม บิลลูกค้า และสถิติรายได้ทั้งหมด ยังถูกเก็บรักษาไว้อย่างปลอดภัยในระบบของเรา 
+                </div>
+              </div>
+              
+              {/* 🌟 6. ข้อความแจ้งนโยบายการลบข้อมูล */}
+              <div className="bg-rose-50 rounded-lg p-3 border border-rose-100 text-sm text-rose-800">
+                ตามนโยบายการจัดเก็บข้อมูล (Data Retention Policy) ข้อมูลจะถูกเก็บรักษาไว้ 30 วันหลังหมดอายุ หลังจากนั้นระบบจะทำการ <strong>ลบข้อมูลทั้งหมดอย่างถาวรในวันที่ {deletionDate}</strong>
               </div>
             </div>
           </CardContent>
@@ -58,8 +102,8 @@ export default function PaywallPage() {
             </Link>
             
             <Link href="/payment?plan=monthly" className="w-full">
-              <Button variant="outline" className="w-full h-12 text-slate-600 border-slate-300 hover:bg-slate-50">
-                ดูแพ็กเกจอื่นๆ
+              <Button variant="outline" className="w-full h-12 text-slate-600 border-slate-300 hover:bg-slate-50 font-medium">
+                ดูแพ็กเกจแบบรายเดือน
               </Button>
             </Link>
           </CardFooter>
