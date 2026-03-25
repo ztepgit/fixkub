@@ -68,7 +68,8 @@ export function SubscriptionBanner({ trialEndsAt }: { trialEndsAt: Date | string
         <AlertDescription className="mt-2">
           <p>กรุณาต่ออายุแพ็กเกจ เพื่อใช้งานต่อ</p>
           <PricingBlock />
-          <Link href="/payment?plan=yearly">
+          {/* 🌟 เปลี่ยนกลับเป็น /#pricing ตามความต้องการ */}
+          <Link href="/#pricing">
             <Button variant="destructive" size="sm" className="mt-1">
               ต่ออายุทันที
             </Button>
@@ -94,7 +95,7 @@ export function SubscriptionBanner({ trialEndsAt }: { trialEndsAt: Date | string
     <Alert className={`mb-6 relative ${currentThreshold !== 1 ? 'pr-10' : ''} ${bannerStyle}`}>
       {icon}
       
-      {/* 🌟 แสดงปุ่มปิด เฉพาะตอนที่ยังไม่ถึงวันสุดท้าย (Threshold ไม่ใช่ 1) */}
+      {/* แสดงปุ่มปิด เฉพาะตอนที่ยังไม่ถึงวันสุดท้าย (Threshold ไม่ใช่ 1) */}
       {currentThreshold !== 1 && (
         <button 
           onClick={handleDismiss}
@@ -113,6 +114,7 @@ export function SubscriptionBanner({ trialEndsAt }: { trialEndsAt: Date | string
         
         <PricingBlock />
 
+        {/* 🌟 เปลี่ยนกลับเป็น /#pricing ตามความต้องการ */}
         <Link href="/#pricing">
           <Button className="bg-emerald-600 hover:bg-emerald-700 text-white mt-1" size="sm">
             ต่ออายุทันที
