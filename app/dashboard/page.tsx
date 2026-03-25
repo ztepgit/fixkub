@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation" // 🌟 1. Import useRouter สำหรับทำ Redirect
+import { useRouter } from "next/navigation" 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { QueueBoard } from "@/components/queue-board"
 import { DashboardOverview } from "@/components/dashboard-overview"
@@ -10,15 +10,12 @@ import { ShopSettings } from "@/components/shop-settings"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { useJobSync } from "@/hooks/useJobSync"
 
-// 🌟 2. เพิ่ม Loader2 เข้ามาสำหรับหน้าจอโหลด
 import { LayoutDashboard, ClipboardList, BarChart3, Settings, Loader2 } from "lucide-react"
 
 import { DashboardHeader } from "@/components/dashboard-header"
-
-// 🌟 3. Import Action ที่ทำหน้าที่เป็นยามเฝ้าประตู (เช็ควันหมดอายุ)
+import { SubscriptionBanner } from "@/components/subscription-banner" // 🌟 Import Banner
 import { checkAndEnforceShopStatus } from "@/actions/shop-status"
 
-// Component สำหรับสั่งให้ Sync ทำงานเบื้องหลัง
 function JobSyncManager({ shopId }: { shopId: string }) {
   useJobSync(shopId)
   return null
@@ -26,35 +23,35 @@ function JobSyncManager({ shopId }: { shopId: string }) {
 
 export default function MainPage() {
   const router = useRouter()
-  const SHOP_ID = "shop_test_001" // 🌟 กำหนดรหัสร้านค้าคงที่สำหรับการทดสอบ
+  const SHOP_ID = "shop_test_001" 
 
-  // 🌟 4. State สำหรับแสดงหน้าโหลดระหว่างที่ระบบกำลังตรวจสอบ Database
   const [isChecking, setIsChecking] = useState(true)
+  // 🌟 1. เพิ่ม State เก็บวันหมดอายุ
+  const [expiresAt, setExpiresAt] = useState<Date | string | null>(null)
 
-  // 🌟 5. ลอจิกป้องกัน (The Gatekeeper) จะทำงานทันทีที่เปิดหน้านี้ขึ้นมา
   useEffect(() => {
     const verifyAccess = async () => {
       try {
         const res = await checkAndEnforceShopStatus(SHOP_ID)
         
-        // ถ้าสถานะคือ EXPIRED (หมดอายุ) หรือ PENDING_DELETION (รอการลบ)
         if (res.status === "EXPIRED" || res.status === "PENDING_DELETION") {
-          // ดีดผู้ใช้ไปหน้า Paywall ทันที พร้อมแนบจำนวนวันคงเหลือก่อนลบถาวรไปใน URL
           router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
         } else {
-          // ถ้าร้านค้ายังสถานะปกติ (ACTIVE) ก็ให้เข้าใช้งาน Dashboard ได้
           setIsChecking(false)
+          // 🌟 2. ถ้าเข้าใช้งานได้ ให้นำวันหมดอายุมาเก็บไว้ใน State
+          if (res.expiresAt) {
+            setExpiresAt(res.expiresAt)
+          }
         }
       } catch (error) {
         console.error("Error checking shop status:", error)
-        setIsChecking(false) // ถ้า API ขัดข้อง อนุญาตให้เข้าได้ก่อนชั่วคราว ป้องกันระบบล็อกตาย
+        setIsChecking(false) 
       }
     }
     
     verifyAccess()
   }, [router, SHOP_ID])
 
-  // 🌟 6. หน้าจอ Loading ป้องกันไม่ให้แอบเห็นข้อมูล Dashboard ระหว่างกำลังโดนดีด
   if (isChecking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
@@ -69,14 +66,18 @@ export default function MainPage() {
       <JobSyncManager shopId={SHOP_ID} />
       <div className="min-h-screen flex flex-col w-full bg-slate-50/30">
 
-        {/* วาง Header ไว้บนสุดของเพจ (ปุ่มแชร์ QR Code จะอยู่ตรงนี้) */}
         <DashboardHeader />
 
-        {/* พื้นที่เนื้อหาหลักด้านล่าง */}
+        {/* 🌟 3. วาง Banner แจ้งเตือน (โชว์เฉพาะร้านที่มีวันหมดอายุ และเหลือน้อยกว่า 7 วัน) */}
+        {expiresAt && (
+          <div className="px-4 md:px-6 pt-4 pb-0">
+            <SubscriptionBanner trialEndsAt={expiresAt} />
+          </div>
+        )}
+
         <main className="p-4 md:p-6 space-y-4 flex-1">
           <Tabs defaultValue="dashboard" className="w-full">
 
-            {/* อัปเดต TabsTrigger เปลี่ยนจาก Emoji เป็น Lucide Icons */}
             <TabsList className="mb-4 bg-slate-100/50 border border-slate-200 flex-wrap h-auto p-1">
               <TabsTrigger value="dashboard" className="flex-1 md:flex-none flex items-center gap-2">
                 <LayoutDashboard className="w-4 h-4" /> ภาพรวม

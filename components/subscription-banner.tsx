@@ -1,19 +1,25 @@
-import { AlertTriangle, Clock, AlertCircle } from "lucide-react"
+"use client" // 🌟 1. สำคัญมาก: ต้องเติมบรรทัดนี้เพราะเรามีการใช้ useState แล้ว
+
+import { useState } from "react" 
+import Link from "next/link" // 🌟 เพิ่ม Import Link ของ Next.js
+import { AlertTriangle, Clock, AlertCircle, X } from "lucide-react" 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
-// สมมติว่ารับค่า trialEndsAt มาจาก Database (ผ่าน Props)
 export function SubscriptionBanner({ trialEndsAt }: { trialEndsAt: Date | string }) {
+  // 🌟 4. สร้าง State ควบคุมการมองเห็นของ Banner
+  const [isVisible, setIsVisible] = useState(true);
+
   // คำนวณวันคงเหลือ
   const today = new Date();
   const endDate = new Date(trialEndsAt);
   const diffTime = endDate.getTime() - today.getTime();
   const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // ปัดเศษขึ้นเป็นจำนวนวัน
 
-  // ถ้าเหลือมากกว่า 7 วัน = ไม่ต้องโชว์ Banner อะไรเลย (ให้เฮียใช้สบายใจ)
-  if (daysRemaining > 7) return null;
+  // 🌟 5. ถ้าเหลือมากกว่า 7 วัน หรือ "ผู้ใช้กดปุ่มปิดไปแล้ว" ให้ซ่อน Banner (return null)
+  if (daysRemaining > 7 || !isVisible) return null;
 
-  // 💎 แยกส่วนแสดงราคาออกมาเป็น Component ย่อย เพื่อให้ UI ดูคลีนและเน้นตัวเลขให้เด่นขึ้น
+  // 💎 Component แสดงราคา
   const PricingBlock = () => (
     <div className="flex flex-col space-y-1 my-3 bg-white/60 p-3 rounded-md border border-black/5 w-fit">
       <span className="text-sm font-medium text-slate-700">199 / เดือน</span>
@@ -26,20 +32,23 @@ export function SubscriptionBanner({ trialEndsAt }: { trialEndsAt: Date | string
     </div>
   );
 
-  // ถ้าหมดอายุแล้ว (0 หรือติดลบ) = โชว์แบนเนอร์สีแดง ล็อคระบบ
+  // 🚨 ถ้าหมดอายุแล้ว = โชว์แบนเนอร์สีแดง (และไม่มีปุ่มกากบาทให้ปิด)
   if (daysRemaining <= 0) {
     return (
       <Alert variant="destructive" className="mb-6 border-red-500 bg-red-50">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle className="font-bold">ระบบทดลองใช้งานหมดอายุแล้ว!</AlertTitle>
+        <AlertTitle className="font-bold">วันใช้งานหมดแล้ว!</AlertTitle>
         <AlertDescription className="mt-2">
-          <p>กรุณาอัปเกรดแพ็กเกจ เพื่อเปิดระบบรับคิวซ่อมต่อ</p>
+          <p>กรุณาต่ออายุแพ็กเกจ เพื่อใช้งานต่อ</p>
 
           <PricingBlock />
 
-          <Button variant="destructive" size="sm" className="mt-1">
-            อัปเกรดเดี๋ยวนี้
-          </Button>
+          {/* 🌟 ครอบ Link นำไปสู่หน้า Pricing */}
+          <Link href="/#pricing">
+            <Button variant="destructive" size="sm" className="mt-1">
+              ต่ออายุทันที
+            </Button>
+          </Link>
         </AlertDescription>
       </Alert>
     );
@@ -53,24 +62,38 @@ export function SubscriptionBanner({ trialEndsAt }: { trialEndsAt: Date | string
     bannerStyle = "border-orange-400 bg-orange-50 text-orange-800"; // 3 วัน: สีส้มเตือนแรงขึ้น
     icon = <AlertTriangle className="h-4 w-4 text-orange-600" />;
   } else if (daysRemaining === 1) {
-    bannerStyle = "border-red-400 bg-red-50 text-red-800 animate-pulse"; // 1 วัน: สีแดงและกระพริบเบาๆ
+    bannerStyle = "border-red-400 bg-red-50 text-red-800"; // 🌟 เอา animate-pulse ออกแล้ว
     icon = <AlertCircle className="h-4 w-4 text-red-600" />;
   }
 
   return (
-    <Alert className={`mb-6 ${bannerStyle}`}>
+    // 🌟 6. เพิ่ม class relative และ pr-10 เข้าไปที่ Alert เพื่อจัดตำแหน่งปุ่มกากบาท
+    <Alert className={`mb-6 relative pr-10 ${bannerStyle}`}>
       {icon}
+      
+      {/* 🌟 7. ปุ่มกากบาท (มุมขวาบน) */}
+      <button 
+        onClick={() => setIsVisible(false)}
+        className="absolute top-3 right-3 p-1.5 rounded-md opacity-60 hover:opacity-100 hover:bg-black/5 transition-all"
+        aria-label="ปิดการแจ้งเตือน"
+      >
+        <X className="h-4 w-4" />
+      </button>
+
       <AlertTitle className="font-bold">
-        {daysRemaining === 1 ? "เตือนครั้งสุดท้าย!" : "แจ้งเตือนระบบทดลองใช้งาน"}
+        {daysRemaining === 0 ? "เตือนครั้งสุดท้าย!" : "แจ้งเตือนวันหมดอายุ"}
       </AlertTitle>
       <AlertDescription className="mt-2">
-        <p>ระบบทดลองฟรีของคุณจะหมดอายุในอีก <strong>{daysRemaining} วัน</strong></p>
-
+        <p>ระบบของคุณจะหมดอายุในอีก <strong>{daysRemaining} วัน</strong></p>
+        
         <PricingBlock />
 
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white mt-1" size="sm">
-          อัปเกรดเดี๋ยวนี้
-        </Button>
+        {/* 🌟 ครอบ Link นำไปสู่หน้า Pricing */}
+        <Link href="/#pricing">
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white mt-1" size="sm">
+            ต่ออายุทันที
+          </Button>
+        </Link>
       </AlertDescription>
     </Alert>
   );

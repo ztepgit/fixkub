@@ -14,7 +14,7 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
     // ถ้าร้านไม่มีวันหมดอายุ (เช่น LIFETIME) หรือยังไม่ถึงวันหมดอายุ
     if (!shop.expiresAt || !isPast(shop.expiresAt)) {
-      return { status: "ACTIVE" }
+     return { status: "ACTIVE", expiresAt: shop.expiresAt } // 🌟 เพิ่มตรงนี้
     }
 
     // 🌟 ถ้าเข้าเงื่อนไขนี้ แปลว่า "หมดอายุแล้ว"
