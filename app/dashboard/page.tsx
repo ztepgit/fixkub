@@ -13,7 +13,7 @@ import { useJobSync } from "@/hooks/useJobSync"
 import { LayoutDashboard, ClipboardList, BarChart3, Settings, Loader2 } from "lucide-react"
 
 import { DashboardHeader } from "@/components/dashboard-header"
-import { SubscriptionBanner } from "@/components/subscription-banner" // 🌟 Import Banner
+import { SubscriptionBanner } from "@/components/subscription-banner" 
 import { checkAndEnforceShopStatus } from "@/actions/shop-status"
 
 function JobSyncManager({ shopId }: { shopId: string }) {
@@ -26,8 +26,18 @@ export default function MainPage() {
   const SHOP_ID = "shop_test_001" 
 
   const [isChecking, setIsChecking] = useState(true)
-  // 🌟 1. เพิ่ม State เก็บวันหมดอายุ
   const [expiresAt, setExpiresAt] = useState<Date | string | null>(null)
+  
+  // 🌟 1. เพิ่ม State เก็บว่าตอนนี้กดอยู่ที่ Tab ไหน (ค่าเริ่มต้นคือ dashboard)
+  const [activeTab, setActiveTab] = useState("dashboard")
+
+  // 🌟 2. ตัวช่วยแปลงชื่อ Tab ให้เป็นภาษาไทยเพื่อไปโชว์ใน Header
+  const tabNames: Record<string, string> = {
+    dashboard: "ภาพรวม",
+    queue: "กระดานคิว",
+    report: "รายงานสถิติ",
+    settings: "ตั้งค่าร้านค้า",
+  }
 
   useEffect(() => {
     const verifyAccess = async () => {
@@ -38,7 +48,6 @@ export default function MainPage() {
           router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
         } else {
           setIsChecking(false)
-          // 🌟 2. ถ้าเข้าใช้งานได้ ให้นำวันหมดอายุมาเก็บไว้ใน State
           if (res.expiresAt) {
             setExpiresAt(res.expiresAt)
           }
@@ -66,9 +75,9 @@ export default function MainPage() {
       <JobSyncManager shopId={SHOP_ID} />
       <div className="min-h-screen flex flex-col w-full bg-slate-50/30">
 
-        <DashboardHeader />
+        {/* 🌟 3. โยนชื่อภาษาไทยไปให้ Header แสดงผล */}
+        <DashboardHeader currentTabName={tabNames[activeTab]} />
 
-        {/* 🌟 3. วาง Banner แจ้งเตือน (โชว์เฉพาะร้านที่มีวันหมดอายุ และเหลือน้อยกว่า 7 วัน) */}
         {expiresAt && (
           <div className="px-4 md:px-6 pt-4 pb-0">
             <SubscriptionBanner trialEndsAt={expiresAt} />
@@ -76,7 +85,8 @@ export default function MainPage() {
         )}
 
         <main className="p-4 md:p-6 space-y-4 flex-1">
-          <Tabs defaultValue="dashboard" className="w-full">
+          {/* 🌟 4. ผูก value และ onValueChange เพื่อให้ Tabs สั่งอัปเดต State activeTab */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
             <TabsList className="mb-4 bg-slate-100/50 border border-slate-200 flex-wrap h-auto p-1">
               <TabsTrigger value="dashboard" className="flex-1 md:flex-none flex items-center gap-2">

@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator"
 import { 
   Breadcrumb, 
   BreadcrumbItem, 
-  BreadcrumbLink, 
   BreadcrumbList, 
   BreadcrumbPage, 
   BreadcrumbSeparator 
@@ -28,7 +27,12 @@ import { useToast } from "@/hooks/use-toast"
 import { QRCodeCanvas } from "qrcode.react"
 import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2 } from "lucide-react"
 
-export function DashboardHeader() {
+// 🌟 1. เพิ่ม Props มารับชื่อ Tab
+interface DashboardHeaderProps {
+  currentTabName?: string;
+}
+
+export function DashboardHeader({ currentTabName = "ภาพรวม" }: DashboardHeaderProps) {
   const SHOP_ID = "shop_test_001" 
 
   const [shopUrl, setShopUrl] = useState("")
@@ -73,13 +77,15 @@ export function DashboardHeader() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbLink href="#" className="text-slate-500 hover:text-slate-800">
+              {/* 🌟 2. เปลี่ยนเป็น BreadcrumbPage เพื่อไม่ให้คลิกได้ */}
+              <BreadcrumbPage className="text-slate-500 font-normal">
                 ระบบจัดการคิว
-              </BreadcrumbLink>
+              </BreadcrumbPage>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block text-slate-300" />
             <BreadcrumbItem>
-              <BreadcrumbPage className="font-semibold text-slate-800">ภาพรวม</BreadcrumbPage>
+              {/* 🌟 3. แสดงชื่อ Tab ปัจจุบัน */}
+              <BreadcrumbPage className="font-semibold text-slate-800">{currentTabName}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -106,7 +112,6 @@ export function DashboardHeader() {
         </TooltipProvider>
 
         <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-          {/* 🌟 เพิ่ม onOpenAutoFocus ป้องกัน Tooltip เด้งเองตอนเปิด Pop-up */}
           <DialogContent 
             className="sm:max-w-[420px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl"
             onOpenAutoFocus={(e) => e.preventDefault()}
