@@ -1,20 +1,36 @@
 import { z } from "zod"
 
 export const createShopSchema = z.object({
-  name: z.string().min(2, "ชื่อร้านต้องมีอย่างน้อย 2 ตัวอักษร"),
+  // 🌟 เพิ่ม .trim() ป้องกันการเผลอเคาะวรรคหัวท้าย
+  name: z.string().trim().min(2, "ชื่อร้านต้องมีอย่างน้อย 2 ตัวอักษร"),
+  
   slug: z.string()
+    .trim()
+    .toLowerCase() // 🌟 Normalize: บังคับแปลงเป็นตัวพิมพ์เล็กให้เลย (กันเหนียว)
     .min(3, "Slug ต้องมีอย่างน้อย 3 ตัวอักษร")
     .regex(/^[a-z0-9-]+$/, "Slug ต้องเป็นตัวพิมพ์เล็ก ตัวเลข หรือขีดกลาง (-) เท่านั้น"),
-  logoUrl: z.string().url("รูปแบบ URL ไม่ถูกต้อง").optional().or(z.literal("")),
-  themeColor: z.string().default("#10b981"),
-  ownerEmail: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
+  
+  logoUrl: z.string().trim().url("รูปแบบ URL ไม่ถูกต้อง").optional().or(z.literal("")),
+  
+  themeColor: z.string().trim().default("#10b981"),
+  
+  ownerEmail: z.string()
+    .trim()
+    .toLowerCase() // 🌟 Normalize: อีเมลควรเป็นตัวพิมพ์เล็กเสมอ ป้องกันปัญหาตอน Login
+    .email("รูปแบบอีเมลไม่ถูกต้อง"),
+  
   planType: z.enum([
     "FREE_TRIAL", "BASIC_MONTHLY", "BASIC_YEARLY", 
     "PRO_MONTHLY", "PRO_YEARLY", "LIFETIME"
   ]),
+  
   trialDays: z.coerce.number().min(0).max(90).default(30),
+  
   startImmediately: z.boolean().default(false),
-  agentCode: z.string().optional().or(z.literal("")),
+  
+  // 🌟 เพิ่ม .toUpperCase() เพื่อให้รหัสตัวแทน (เช่น AG-001) เป็นฟอร์แมตมาตรฐานเดียวกันหมดใน DB
+  agentCode: z.string().trim().toUpperCase().optional().or(z.literal("")),
+  
   isActive: z.boolean().default(true)
 })
 

@@ -46,12 +46,26 @@ export default function SuperAdminCreateShopPage() {
   // --- 🌟 ฟังก์ชันบันทึก Payment Settings ---
   const handleSavePayment = async () => {
     setIsSavingPayment(true)
-    const res = await updatePaymentSettings(promptpayId, accountName)
+
+    // 🛡️ 1. Normalize: ล้างข้อมูลก่อนส่งเข้า DB
+    // - ลบขีด (-) และช่องว่าง สำหรับเบอร์พร้อมเพย์ หรือ เลขบัตร ปชช.
+    const cleanPromptpay = promptpayId.replace(/[-\s]/g, "") 
+    // - ตัดช่องว่างส่วนเกินหัวท้ายของชื่อบัญชี
+    const cleanAccountName = accountName.trim()
+
+    // (Option) อัปเดตกลับไปที่ State เพื่อให้ช่อง Input ในหน้าจอเปลี่ยนเป็นค่าที่ล้างแล้วด้วย
+    setPromptpayId(cleanPromptpay)
+    setAccountName(cleanAccountName)
+
+    // 🛡️ 2. ส่งข้อมูลที่ล้างสะอาดแล้วให้ Server Action
+    const res = await updatePaymentSettings(cleanPromptpay, cleanAccountName)
+    
     if (res.success) {
       toast({ title: "✅ บันทึกสำเร็จ", description: "อัปเดตข้อมูลบัญชีรับเงินเรียบร้อยแล้ว" })
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
     }
+    
     setIsSavingPayment(false)
   }
 

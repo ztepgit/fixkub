@@ -1,41 +1,70 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { z } from "zod";
 
-// กำหนด Type ข้อมูลที่จะรับมาจากหน้าเว็บ
-interface CreateQueueInput {
-  shopId: string;
-  customerName: string;
-  phoneNumber?: string;
-  deviceModel?: string;
-  deviceColor?: string;
-  issue?: string;
-  serviceName?: string; // 🌟 1. เพิ่มบรรทัดนี้เข้าไปครับ
-  isManualEntry?: boolean; // บอกว่าช่างคีย์เอง หรือลูกค้าสแกนมา
-  serialNumber?: string; // 🌟 เพิ่มบรรทัดนี้
-  imei?: string;         // 🌟 เพิ่มบรรทัดนี้
-}
+// ==========================================
+// 🌟 1. สร้าง Zod Schema (The Gatekeeper)
+// กำหนดกฎ กรองขยะ และ Normalize ข้อมูลก่อนเข้า Database
+// ==========================================
+const createQueueSchema = z.object({
+  shopId: z.string().cuid("รหัสร้านค้าไม่ถูกต้อง"), // ป้องกันการยิง API มั่ว
+  customerName: z.string().trim().min(1, "กรุณากรอกชื่อลูกค้า").max(100, "ชื่อยาวเกินไป"),
+  
+  // 🌟 พรีกระบวนการ (Pre-process) เบอร์โทรศัพท์
+  phoneNumber: z.string()
+    .trim()
+    .min(1, "กรุณากรอกเบอร์โทรศัพท์")
+    .transform((val) => val.replace(/[-\s]/g, "")) // 🪄 Normalize: ลบขีดและช่องว่างออก
+    .pipe(z.string().regex(/^0\d{8,9}$/, "เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 9-10 หลัก)")), 
+  
+  deviceModel: z.string().trim().min(1, "กรุณากรอกรุ่นมือถือ").max(100, "ชื่อรุ่นยาวเกินไป"),
+  deviceColor: z.string().trim().max(50, "ระบุสีสั้นๆ พอครับ").optional().or(z.literal("")),
+  issue: z.string().trim().max(500, "รายละเอียดต้องไม่เกิน 500 ตัวอักษร").optional().or(z.literal("")),
+  serviceName: z.string().trim().min(1, "กรุณาเลือกบริการ").max(100, "ชื่อบริการยาวเกินไป"),
+  
+  serialNumber: z.string().trim().max(100, "Serial Number ยาวเกินไป").optional().or(z.literal("")),
+  imei: z.string().trim().max(50, "IMEI ยาวเกินไป").optional().or(z.literal("")),
+  isManualEntry: z.boolean().optional().default(false)
+});
 
-export async function createQueue(data: CreateQueueInput) {
+// ดึง Type ออกมาจาก Zod Schema ไปใช้เป็น Input
+export type CreateQueueInput = z.input<typeof createQueueSchema>;
+
+
+export async function createQueue(input: CreateQueueInput) {
   try {
-    // 🌟 1. สร้างรหัสคิวซ่อมแบบสุ่ม 4 หลัก (เช่น Q-8F2A)
+    // 🛡️ ด่านที่ 1: ตรวจสอบและล้างข้อมูลด้วย Zod (Trim, Replace, Normalize เกิดขึ้นที่นี่)
+    const safeData = createQueueSchema.parse(input);
+
+    // 🛡️ ด่านที่ 2: ตรวจสอบว่า Shop มีอยู่จริงไหม (Security Check)
+    const shop = await db.shop.findUnique({
+      where: { id: safeData.shopId },
+      select: { id: true }
+    });
+
+    if (!shop) {
+      return { success: false, error: "ไม่พบข้อมูลร้านค้านี้ในระบบ" };
+    }
+
+    // 🌟 สร้างรหัสคิวซ่อมแบบสุ่ม 4 หลัก (เช่น Q-8F2A)
     const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     const generatedJobRef = `Q-${randomCode}`;
 
-    // 2. สั่ง Prisma บันทึกข้อมูลลง Database
+    // 💾 สั่ง Prisma บันทึกข้อมูลลง Database ด้วยข้อมูลที่สะอาด (safeData)
     const newQueue = await db.queue.create({
       data: {
-        shopId: data.shopId,
-        jobRef: generatedJobRef, // 🌟 3. เซฟรหัสคิวจริงลง DB ทันที
-        customerName: data.customerName,
-        phoneNumber: data.phoneNumber,
-        deviceModel: data.deviceModel,
-        deviceColor: data.deviceColor,
-        serialNumber: data.serialNumber, // 🌟 ส่งเข้า DB
-        imei: data.imei,                 // 🌟 ส่งเข้า DB
-        issue: data.issue,
-        serviceName: data.serviceName, 
-        isManualEntry: data.isManualEntry || false,
+        shopId: safeData.shopId,
+        jobRef: generatedJobRef, 
+        customerName: safeData.customerName,
+        phoneNumber: safeData.phoneNumber, // เบอร์นี้สะอาด ไร้ขีดแล้ว
+        deviceModel: safeData.deviceModel,
+        deviceColor: safeData.deviceColor || null,
+        serialNumber: safeData.serialNumber || null, 
+        imei: safeData.imei || null,                
+        issue: safeData.issue || null,
+        serviceName: safeData.serviceName, 
+        isManualEntry: safeData.isManualEntry,
         status: "PENDING", 
       },
     });
@@ -46,8 +75,14 @@ export async function createQueue(data: CreateQueueInput) {
       message: "สร้างคิวสำเร็จ!" 
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error creating queue:", error);
+    
+    // 🌟 ถ้าพังเพราะ Zod ให้ดึงข้อความแจ้งเตือนภาษาไทยออกมาแสดงที่ UI
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.errors[0].message };
+    }
+
     return { 
       success: false, 
       error: "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง" 
@@ -55,17 +90,16 @@ export async function createQueue(data: CreateQueueInput) {
   }
 }
 
-// --- วางต่อท้ายไฟล์ actions/queue.ts ---
-
+// ==========================================
 // 1. ฟังก์ชันดึงข้อมูลคิวทั้งหมดของร้าน
+// ==========================================
 export async function getQueues(shopId: string) {
   try {
     const queues = await db.queue.findMany({
       where: { 
         shopId: shopId,
-        // (Option) ถ้าอยากซ่อนงานที่ถูกลบไปแล้ว ให้เพิ่มเงื่อนไขตรงนี้ได้
       },
-      orderBy: { createdAt: 'asc' }, // เรียงตามเวลาที่สร้าง (คิวแรกอยู่บน)
+      orderBy: { createdAt: 'asc' }, 
     });
     return { success: true, data: queues };
   } catch (error) {
@@ -74,11 +108,11 @@ export async function getQueues(shopId: string) {
   }
 }
 
-// 🌟 เปลี่ยนให้รับข้อมูลอื่นๆ เพิ่มเติมได้ เช่น เหตุผลการยกเลิก หรือ เวลาที่ปิดจ๊อบ
+// ==========================================
+// 🌟 อัปเดตสถานะคิวซ่อม
+// ==========================================
 export async function updateQueueStatus(id: string, status: string, additionalData?: any) {
   try {
-    // 🌟 1. ดึงข้อมูลคิวเดิมจาก Database มาตรวจสอบก่อน
-    // เพื่อป้องกันไม่ให้เวลารีเซ็ตใหม่ ตอนที่ช่างแค่กดอัปเดตราคาหรือเลข IMEI
     const existingQueue = await db.queue.findUnique({
       where: { id }
     });
@@ -87,30 +121,27 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
       return { success: false, error: "ไม่พบข้อมูลคิวนี้ในระบบ" };
     }
 
-    // 2. เตรียมข้อมูลที่จะอัปเดต
     const updateData: any = { 
       status, 
       ...additionalData 
     };
 
-    // 🌟 3. ดักจับสถานะ โดยเช็คจาก existingQueue ว่าเคยมีเวลาประทับไว้หรือยัง?
     if (status === "WAITING" && !existingQueue.acceptedAt) {
-      updateData.acceptedAt = new Date(); // เวลารับเครื่องเข้าคิว
+      updateData.acceptedAt = new Date(); 
     } 
     else if (status === "PROCESSING" && !existingQueue.startedAt) {
-      updateData.startedAt = new Date(); // เวลาเริ่มแกะซ่อม
+      updateData.startedAt = new Date(); 
     } 
     else if (status === "REPAIRED" && !existingQueue.repairedAt) {
-      updateData.repairedAt = new Date(); // เวลาซ่อมเสร็จ
+      updateData.repairedAt = new Date(); 
     } 
     else if (status === "COMPLETED" && !existingQueue.completedAt) {
-      updateData.completedAt = new Date(); // เวลาส่งมอบเครื่อง/รับเงิน
+      updateData.completedAt = new Date(); 
     }
     else if (status === "CANCELLED" && !existingQueue.cancelledAt) {
-      updateData.cancelledAt = new Date(); // เวลายกเลิกคิว
+      updateData.cancelledAt = new Date(); 
     }
 
-    // 4. บันทึกลง Database
     const updatedQueue = await db.queue.update({
       where: { id },
       data: updateData,
@@ -130,28 +161,25 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
     };
   }
 }
-// --- วางต่อท้ายไฟล์ actions/queue.ts ---
-
 
 // ==========================================
 // 🌟 ดึงข้อมูลคิวสำหรับหน้าเช็คสถานะของลูกค้า
 // ==========================================
 export async function getCustomerQueues(shopId: string, searchKey: string) {
   try {
+    // 💡 ถ้า searchKey เป็นเบอร์โทรที่มีขีด ก็ Normalize ออกก่อนค้นหา
+    const cleanSearchKey = searchKey.replace(/[-\s]/g, "");
+
     const queues = await db.queue.findMany({
       where: {
         shopId,
-        // 🌟 ค้นหาได้ทั้ง เบอร์โทร, รหัสคิว, และ ชื่อลูกค้า (ตัวเล็ก/ตัวใหญ่ได้หมด)
         OR: [
-          { phoneNumber: { contains: searchKey } },
+          { phoneNumber: { contains: cleanSearchKey } },
           { jobRef: { contains: searchKey.toUpperCase() } },
-          { customerName: { contains: searchKey, mode: 'insensitive' } } // 🌟 เพิ่มการค้นหาด้วยชื่อ
+          { customerName: { contains: searchKey, mode: 'insensitive' } } 
         ]
       },
-      // เรียงจากงานล่าสุดไปหางานเก่าสุด
       orderBy: { createdAt: 'desc' },
-      
-      // 🌟 เอา take: 5 ออก เพื่อให้แสดงประวัติงานซ่อมทั้งหมดที่เคยมาทำกับร้านเรา
     });
     
     return { success: true, data: queues };
@@ -161,21 +189,20 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
   }
 }
 
-
+// ==========================================
+// 🌟 ดึงงาน Top 50 สำหรับ Dashboard
+// ==========================================
 export async function getTop50Jobs(shopId: string) {
   try {
-    // 🌟 ดึงข้อมูลโดยใช้ประโยชน์จาก Index: ดึงเฉพาะ Active งานและงานล่าสุด
     const jobs = await db.queue.findMany({
       where: { 
         shopId,
-        // ดึงงานที่ยังไม่เสร็จเป็นหลักก่อน เพื่อให้บอร์ดไม่โล่ง
         status: { in: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] }
       },
       orderBy: { updatedAt: 'desc' }, 
-      take: 100, // ดึงมาเผื่อเรียง
+      take: 100, 
     })
 
-    // ถ้างาน Active มีไม่ถึง 50 ให้ดึงงานอื่นๆ มาเติมให้ครบ (กันบอร์ดโล่ง)
     if (jobs.length < 50) {
       const otherJobs = await db.queue.findMany({
         where: { shopId, status: { notIn: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] } },
@@ -185,7 +212,6 @@ export async function getTop50Jobs(shopId: string) {
       jobs.push(...otherJobs)
     }
 
-    // 🌟 จัดเรียง Priority บน Server เล็กน้อยก่อนส่งให้ Client
     const getPriority = (status: string) => {
       switch (status) {
         case "PROCESSING": return 1 
@@ -203,7 +229,7 @@ export async function getTop50Jobs(shopId: string) {
       const pDiff = getPriority(a.status) - getPriority(b.status)
       if (pDiff !== 0) return pDiff
       return b.updatedAt.getTime() - a.updatedAt.getTime()
-    }).slice(0, 50) // ส่งไปแค่ Top 50 ตามเป้าหมาย
+    }).slice(0, 50) 
 
     return { success: true, data: sortedJobs }
   } catch (error) {
@@ -212,16 +238,21 @@ export async function getTop50Jobs(shopId: string) {
   }
 }
 
-// 🌟 ฟังก์ชันแยกสำหรับหน้า "ค้นหา / ดูประวัติ" โดยเฉพาะ (รองรับ Pagination)
+// ==========================================
+// 🌟 ค้นหา / ดูประวัติ (รองรับ Pagination)
+// ==========================================
 export async function searchJobHistory(shopId: string, query: string, page = 1, limit = 20) {
   try {
     const skip = (page - 1) * limit;
+    
+    // 💡 Normalize query ถ้าผู้ใช้พิมพ์เบอร์โทรแบบมีขีดมาค้นหา
+    const cleanQuery = query ? query.replace(/[-\s]/g, "") : query;
+
     const searchFilter = query ? {
       OR: [
         { jobRef: { contains: query, mode: 'insensitive' as const } },
         { customerName: { contains: query, mode: 'insensitive' as const } },
-        { phoneNumber: { contains: query } },
-        { phone: { contains: query } },
+        { phoneNumber: { contains: cleanQuery } }, 
         { deviceModel: { contains: query, mode: 'insensitive' as const } },
       ]
     } : {};
