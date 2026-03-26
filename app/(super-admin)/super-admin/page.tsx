@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-// 🌟 เพิ่มบรรทัดนี้เข้ามา เพื่อใช้ Label ธรรมดาใน Tab 2
 import { Label } from "@/components/ui/label" 
 import { useToast } from "@/hooks/use-toast"
-import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save } from "lucide-react"
 
-import { createShopAction } from "@/actions/super-admin"
+// 🌟 Import ไอคอน CheckCircle2 และ XCircle เพิ่มเติม
+import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save, CheckCircle2, XCircle } from "lucide-react"
+
+// 🌟 Import ฟังก์ชัน checkSlugAvailability ที่เราเพิ่งสร้าง
+import { createShopAction, checkSlugAvailability } from "@/actions/super-admin"
 import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 import { updatePaymentSettings, getSystemSettings } from "@/actions/setting"
 
@@ -26,12 +28,15 @@ export default function SuperAdminCreateShopPage() {
   // State สำหรับฟอร์มสร้างร้าน
   const [isSubmittingShop, setIsSubmittingShop] = useState(false)
   
+  // 🌟 State สำหรับปุ่มเช็ค Slug
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false)
+  const [slugStatus, setSlugStatus] = useState<"idle" | "available" | "taken">("idle")
+
   // State สำหรับฟอร์มตั้งค่า Payment
   const [isSavingPayment, setIsSavingPayment] = useState(false)
   const [promptpayId, setPromptpayId] = useState("")
   const [accountName, setAccountName] = useState("")
 
-  // --- 🌟 ดึงข้อมูล Payment Settings ตอนโหลดหน้าเพจ ---
   useEffect(() => {
     const fetchSettings = async () => {
       const res = await getSystemSettings()
@@ -43,21 +48,15 @@ export default function SuperAdminCreateShopPage() {
     fetchSettings()
   }, [])
 
-  // --- 🌟 ฟังก์ชันบันทึก Payment Settings ---
   const handleSavePayment = async () => {
     setIsSavingPayment(true)
 
-    // 🛡️ 1. Normalize: ล้างข้อมูลก่อนส่งเข้า DB
-    // - ลบขีด (-) และช่องว่าง สำหรับเบอร์พร้อมเพย์ หรือ เลขบัตร ปชช.
     const cleanPromptpay = promptpayId.replace(/[-\s]/g, "") 
-    // - ตัดช่องว่างส่วนเกินหัวท้ายของชื่อบัญชี
     const cleanAccountName = accountName.trim()
 
-    // (Option) อัปเดตกลับไปที่ State เพื่อให้ช่อง Input ในหน้าจอเปลี่ยนเป็นค่าที่ล้างแล้วด้วย
     setPromptpayId(cleanPromptpay)
     setAccountName(cleanAccountName)
 
-    // 🛡️ 2. ส่งข้อมูลที่ล้างสะอาดแล้วให้ Server Action
     const res = await updatePaymentSettings(cleanPromptpay, cleanAccountName)
     
     if (res.success) {
@@ -69,7 +68,6 @@ export default function SuperAdminCreateShopPage() {
     setIsSavingPayment(false)
   }
 
-  // --- 🌟 ฟอร์มสร้างร้านค้า ---
   const form = useForm<CreateShopInput>({
     resolver: zodResolver(createShopSchema),
     defaultValues: {
@@ -80,6 +78,12 @@ export default function SuperAdminCreateShopPage() {
 
   const watchPlanType = form.watch("planType")
   const watchName = form.watch("name")
+  const watchSlug = form.watch("slug")
+
+  // 🌟 ถ้าพิมพ์แก้ Slug ใหม่ ให้รีเซ็ตสถานะกลับเป็น idle
+  useEffect(() => {
+    if (slugStatus !== "idle") setSlugStatus("idle")
+  }, [watchSlug])
 
   useEffect(() => {
     if (watchPlanType === "FREE_TRIAL") form.setValue("startImmediately", false)
@@ -92,14 +96,50 @@ export default function SuperAdminCreateShopPage() {
     }
   }, [watchName, form])
 
+  // 🌟 ฟังก์ชันตรวจสอบ Slug เมื่อกดปุ่ม
+  const handleCheckSlug = async () => {
+    const currentSlug = form.getValues("slug")
+    if (!currentSlug || currentSlug.length < 3) {
+      form.setError("slug", { type: "manual", message: "Slug ต้องมีอย่างน้อย 3 ตัวอักษร" })
+      return
+    }
+
+    setIsCheckingSlug(true)
+    setSlugStatus("idle")
+
+    const res = await checkSlugAvailability(currentSlug)
+    
+    if (res.success) {
+      if (res.available) {
+        setSlugStatus("available")
+        form.clearErrors("slug")
+      } else {
+        setSlugStatus("taken")
+        form.setError("slug", { type: "manual", message: "URL นี้มีผู้ใช้งานแล้ว กรุณาเปลี่ยนใหม่" })
+      }
+    } else {
+      toast({ title: "ระบบขัดข้อง", description: "ไม่สามารถเช็ค URL ได้ในขณะนี้", variant: "destructive" })
+    }
+
+    setIsCheckingSlug(false)
+  }
+
   const onSubmitShop = async (values: CreateShopInput) => {
     setIsSubmittingShop(true)
     const res = await createShopAction(values)
+    
     if (res.success) {
       toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: `เพิ่มร้าน ${values.name} เข้าระบบเรียบร้อยแล้ว` })
       form.reset() 
+      setSlugStatus("idle") // รีเซ็ตสถานะ Slug ด้วย
     } else {
-      toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
+      // 🌟 ดักกรณีที่มีคนจดชิงไปพอดีตอนกด Submit
+      if (res.error?.includes("URL") || res.error?.includes("Slug")) {
+        form.setError("slug", { type: "manual", message: res.error })
+        setSlugStatus("taken")
+      } else {
+        toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
+      }
     }
     setIsSubmittingShop(false)
   }
@@ -114,14 +154,12 @@ export default function SuperAdminCreateShopPage() {
         <p className="text-slate-500 mt-2">จัดการระบบส่วนกลาง และสร้างร้านค้าใหม่</p>
       </div>
 
-      {/* 🌟 สร้าง Tabs แยกหมวดหมู่ชัดเจน */}
       <Tabs defaultValue="create-shop" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8 bg-slate-100">
           <TabsTrigger value="create-shop" className="text-base">🏪 สร้างร้านค้าใหม่</TabsTrigger>
           <TabsTrigger value="payment-settings" className="text-base">💳 ตั้งค่าการรับชำระเงิน</TabsTrigger>
         </TabsList>
 
-        {/* 🌟 TAB 1: สร้างร้านค้า */}
         <TabsContent value="create-shop">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmitShop)} className="space-y-6">
@@ -145,11 +183,35 @@ export default function SuperAdminCreateShopPage() {
                       <FormItem>
                         <FormLabel>URL ร้านค้า (Slug) <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <div className="flex items-center">
-                            <span className="bg-slate-100 border border-r-0 border-slate-200 text-slate-500 px-3 h-10 rounded-l-md text-sm flex items-center">esyq.co/shop/</span>
-                            <Input className="rounded-l-none focus-visible:ring-blue-500" placeholder="a-mobile" {...field} />
+                          {/* 🌟 ปรับโครงสร้าง UI ช่อง Slug เพื่อใส่ปุ่มตรวจสอบ */}
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center flex-1">
+                              <span className="bg-slate-100 border border-r-0 border-slate-200 text-slate-500 px-3 h-10 rounded-l-md text-sm flex items-center whitespace-nowrap">esyq.co/shop/</span>
+                              <Input className="rounded-l-none focus-visible:ring-blue-500" placeholder="a-mobile" {...field} />
+                            </div>
+                            <Button 
+                              type="button" 
+                              variant="secondary" 
+                              onClick={handleCheckSlug} 
+                              disabled={isCheckingSlug || !watchSlug || watchSlug.length < 3}
+                              className="shrink-0"
+                            >
+                              {isCheckingSlug ? <Loader2 className="h-4 w-4 animate-spin" /> : "ตรวจสอบ"}
+                            </Button>
                           </div>
                         </FormControl>
+                        
+                        {/* 🌟 แสดงข้อความ Feedback สีเขียว/แดง ใต้ช่องกรอก */}
+                        {slugStatus === "available" && (
+                          <p className="text-sm font-medium text-emerald-600 flex items-center mt-1.5">
+                            <CheckCircle2 className="h-4 w-4 mr-1.5"/> URL นี้ว่าง สามารถใช้งานได้!
+                          </p>
+                        )}
+                        {slugStatus === "taken" && (
+                          <p className="text-sm font-medium text-rose-500 flex items-center mt-1.5">
+                            <XCircle className="h-4 w-4 mr-1.5"/> ขออภัย URL นี้มีผู้ใช้งานแล้ว
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -277,7 +339,7 @@ export default function SuperAdminCreateShopPage() {
               </div>
 
               <div className="flex justify-end gap-4 pt-4 border-t">
-                <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white min-w-[200px]" disabled={isSubmittingShop}>
+                <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white min-w-[200px]" disabled={isSubmittingShop || slugStatus === "taken"}>
                   {isSubmittingShop ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> กำลังสร้างระบบ...</> : "สร้างร้านค้าใหม่"}
                 </Button>
               </div>
@@ -285,7 +347,6 @@ export default function SuperAdminCreateShopPage() {
           </Form>
         </TabsContent>
 
-        {/* 🌟 TAB 2: ตั้งค่าการรับชำระเงินของแพลตฟอร์ม */}
         <TabsContent value="payment-settings" className="animate-in fade-in duration-300">
           <Card className="border-slate-200 shadow-sm max-w-2xl">
             <CardHeader className="bg-slate-50/50 border-b pb-4">
@@ -299,7 +360,6 @@ export default function SuperAdminCreateShopPage() {
             <CardContent className="space-y-6 pt-6">
               
               <div className="space-y-2">
-                {/* 🌟 เปลี่ยนเป็น Label ธรรมดา */}
                 <Label>PromptPay ID <span className="text-red-500">*</span></Label>
                 <Input 
                   value={promptpayId} 
@@ -311,7 +371,6 @@ export default function SuperAdminCreateShopPage() {
               </div>
 
               <div className="space-y-2">
-                {/* 🌟 เปลี่ยนเป็น Label ธรรมดา */}
                 <Label>ชื่อบัญชี (Account Name) <span className="text-red-500">*</span></Label>
                 <Input 
                   value={accountName} 

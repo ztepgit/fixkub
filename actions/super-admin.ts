@@ -102,3 +102,17 @@ export async function createShopAction(input: CreateShopInput) {
     return { success: false, error: error.message || "เกิดข้อผิดพลาดในการสร้างร้านค้า" }
   }
 }
+
+// วางต่อท้ายไฟล์ actions/super-admin.ts
+export async function checkSlugAvailability(slug: string) {
+  try {
+    const exists = await db.shop.findUnique({
+      where: { slug },
+      select: { id: true }
+    });
+    return { success: true, available: !exists };
+  } catch (error) {
+    console.error("Check Slug Error:", error);
+    return { success: false, error: "ไม่สามารถตรวจสอบ URL ได้" };
+  }
+}
