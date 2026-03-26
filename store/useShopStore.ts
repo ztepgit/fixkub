@@ -6,6 +6,7 @@ interface ShopData {
   id: string
   name: string
   logoUrl: string | null
+  slug: string | null // 🌟 1. เพิ่มฟิลด์ slug เข้ามาตรงนี้ เพื่อนำไปสร้าง Subdomain
 }
 
 interface ShopStore {
@@ -19,7 +20,7 @@ export const useShopStore = create<ShopStore>()(
   immer((set) => ({
     shop: null,
     
-    // 🌟 นำข้อมูลจาก DB มาทับ
+    // 🌟 นำข้อมูลจาก DB มาทับ (ข้อมูลที่มี slug จะถูกเซฟลง Cache อัตโนมัติด้วย)
     setShop: (data) => set((state) => {
       state.shop = data
       setCache(`shop_${data.id}`, data)
@@ -33,7 +34,7 @@ export const useShopStore = create<ShopStore>()(
       }
     }),
     
-    // 🌟 โหลดจาก Cache เพื่อความเร็ว
+    // 🌟 โหลดจาก Cache เพื่อความเร็ว (ตอนโหลดกลับมาก็จะได้ slug ติดมาด้วยทันที)
     loadFromCache: async (shopId) => {
       const data = await getCache(`shop_${shopId}`)
       if (data) {

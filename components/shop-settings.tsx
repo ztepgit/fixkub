@@ -47,11 +47,12 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
     }
   }, [shop, isLoaded])
 
+  // 🌟 จุดที่แก้ไข: สร้าง URL ด้วย SLUG แบบ Subdomain
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShopUrl(`${window.location.origin}/shop/${shopId}`)
+    if (typeof window !== 'undefined' && shop?.slug) {
+      setShopUrl(`https://${shop.slug}.esyq.net`)
     }
-  }, [shopId])
+  }, [shop?.slug])
 
   const processImage = (file: File) => {
     const reader = new FileReader()
@@ -142,7 +143,9 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      link.download = `QR-Code-แจ้งซ่อม-${shopId}.png`;
+      // 🌟 ใช้ slug เป็นชื่อไฟล์ถ้ามี
+      const downloadName = shop?.slug ? `QR-Code-${shop.slug}.png` : `QR-Code-แจ้งซ่อม-${shopId}.png`;
+      link.download = downloadName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -271,16 +274,16 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
                   <div className="space-y-2">
                     <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">ลิงก์ร้านค้าของคุณ (URL)</Label>
                     <div className="flex gap-2">
-                      <Input readOnly value={shopUrl} className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy" onClick={(e) => (e.target as HTMLInputElement).select()} />
-                      <Button variant="outline" size="icon" onClick={copyLink} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200"><Copy className="h-4 w-4" /></Button>
+                      <Input readOnly value={shopUrl || "กำลังโหลด..."} className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy" onClick={(e) => (e.target as HTMLInputElement).select()} />
+                      <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200"><Copy className="h-4 w-4" /></Button>
                     </div>
                   </div>
                   
                   <div className="flex gap-2 w-full pt-1">
-                    <Button variant="outline" className="flex-1 text-slate-700 h-10 border-slate-300 hover:bg-slate-50" onClick={copyLink}>
+                    <Button variant="outline" className="flex-1 text-slate-700 h-10 border-slate-300 hover:bg-slate-50" onClick={copyLink} disabled={!shopUrl}>
                       <LinkIcon className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์
                     </Button>
-                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 shadow-sm" onClick={downloadQR} disabled={isQrHidden}>
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 shadow-sm" onClick={downloadQR} disabled={isQrHidden || !shopUrl}>
                       <Download className="h-4 w-4 mr-2" /> โหลดคิวอาร์โค้ด
                     </Button>
                   </div>

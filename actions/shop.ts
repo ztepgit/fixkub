@@ -2,13 +2,14 @@
 
 import { db } from "@/lib/prisma"
 import { supabase } from "@/lib/supabase" 
-import { revalidatePath } from "next/cache" // 🌟 1. Import revalidatePath เข้ามา
+import { revalidatePath } from "next/cache" 
 
 export async function getShopSettings(shopId: string) {
   try {
     const shop = await db.shop.findUnique({
       where: { id: shopId },
-      select: { name: true, logoUrl: true },
+      // 🌟 1. เพิ่ม slug: true ตรงนี้ครับ เพื่อให้ Store ดึงไปสร้างลิงก์ Subdomain ได้
+      select: { name: true, logoUrl: true, slug: true },
     })
     
     if (!shop) return { success: false, error: "ไม่พบข้อมูลร้านค้า" }
@@ -65,8 +66,10 @@ export async function updateShopSettings(formData: FormData) {
       },
     })
     
-    // 🌟 2. สั่งล้าง Cache ของ Next.js เพื่อให้หน้าเว็บอัปเดตทันที
-    revalidatePath(`/shop/${shopId}`)
+    // 🌟 2. เปลี่ยนมาสั่งล้าง Cache โดยใช้ slug (เพราะเราทำ URL Rewrite หลังบ้านเป็น /shop/[slug] แล้ว)
+    if (updatedShop.slug) {
+      revalidatePath(`/shop/${updatedShop.slug}`)
+    }
     revalidatePath('/') // ล้าง cache หน้าหลักเผื่อไว้ด้วย
     
     return { success: true, data: updatedShop }

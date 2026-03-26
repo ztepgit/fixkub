@@ -1,5 +1,12 @@
 import { z } from "zod"
 
+// 🌟 รายการคำสงวนที่ห้ามนำมาตั้งเป็น Subdomain เด็ดขาด (เพิ่มเติมคำพื้นฐานที่ระบบมักจะใช้)
+const RESERVED_SLUGS = [
+  "www", "admin", "api", "app", "dashboard", "super-admin", 
+  "login", "register", "pay", "payment", "support", "shop", 
+  "esyq", "mail", "cdn", "static", "checkout", "auth"
+];
+
 export const createShopSchema = z.object({
   // 🌟 เพิ่ม .trim() ป้องกันการเผลอเคาะวรรคหัวท้าย
   name: z.string().trim().min(2, "ชื่อร้านต้องมีอย่างน้อย 2 ตัวอักษร"),
@@ -8,7 +15,11 @@ export const createShopSchema = z.object({
     .trim()
     .toLowerCase() // 🌟 Normalize: บังคับแปลงเป็นตัวพิมพ์เล็กให้เลย (กันเหนียว)
     .min(3, "Slug ต้องมีอย่างน้อย 3 ตัวอักษร")
-    .regex(/^[a-z0-9-]+$/, "Slug ต้องเป็นตัวพิมพ์เล็ก ตัวเลข หรือขีดกลาง (-) เท่านั้น"),
+    .regex(/^[a-z0-9-]+$/, "Slug ต้องเป็นตัวพิมพ์เล็ก ตัวเลข หรือขีดกลาง (-) เท่านั้น")
+    // 🌟 ดักคำสงวนตรงนี้! ใช้ .includes() เช็คใน Array
+    .refine((val) => !RESERVED_SLUGS.includes(val), {
+      message: "ไม่สามารถใช้คำนี้ตั้งเป็น URL ได้ (เป็นคำสงวนของระบบ)",
+    }),
   
   logoUrl: z.string().trim().url("รูปแบบ URL ไม่ถูกต้อง").optional().or(z.literal("")),
   

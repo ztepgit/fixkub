@@ -27,24 +27,28 @@ import { useToast } from "@/hooks/use-toast"
 import { QRCodeCanvas } from "qrcode.react"
 import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2 } from "lucide-react"
 
-// 🌟 1. เพิ่ม Props มารับชื่อ Tab
+// 🌟 1. Import Store เพื่อเอาค่า slug มาสร้างลิงก์
+import { useShopStore } from "@/store/useShopStore"
+
 interface DashboardHeaderProps {
   currentTabName?: string;
 }
 
 export function DashboardHeader({ currentTabName = "ภาพรวม" }: DashboardHeaderProps) {
-  const SHOP_ID = "shop_test_001" 
+  // 🌟 2. ดึง slug ของร้านค้ามาจาก Store
+  const slug = useShopStore((s) => s.shop?.slug)
 
   const [shopUrl, setShopUrl] = useState("")
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
   const { toast } = useToast()
 
+  // 🌟 3. อัปเดต useEffect ให้ใช้ slug ในรูปแบบ Subdomain
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShopUrl(`${window.location.origin}/shop/${SHOP_ID}`)
+    if (typeof window !== 'undefined' && slug) {
+      setShopUrl(`https://${slug}.esyq.net`) 
     }
-  }, [])
+  }, [slug]) // ทำงานใหม่ทุกครั้งที่ slug เปลี่ยนแปลง
 
   const copyLink = () => {
     navigator.clipboard.writeText(shopUrl)
@@ -60,7 +64,8 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      link.download = `QR-Code-แจ้งซ่อม-${SHOP_ID}.png`;
+      // 🌟 4. เปลี่ยนชื่อไฟล์ตอนดาวน์โหลด ให้ใช้ชื่อ slug ด้วย
+      link.download = `QR-Code-${slug || 'ESYQ'}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -77,14 +82,12 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem className="hidden md:block">
-              {/* 🌟 2. เปลี่ยนเป็น BreadcrumbPage เพื่อไม่ให้คลิกได้ */}
               <BreadcrumbPage className="text-slate-500 font-normal">
                 ระบบจัดการคิว
               </BreadcrumbPage>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block text-slate-300" />
             <BreadcrumbItem>
-              {/* 🌟 3. แสดงชื่อ Tab ปัจจุบัน */}
               <BreadcrumbPage className="font-semibold text-slate-800">{currentTabName}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -187,24 +190,24 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                   <div className="flex gap-2">
                     <Input 
                       readOnly 
-                      value={shopUrl} 
-                      className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy h-10" 
+                      value={shopUrl || "กำลังโหลด..."} 
+                      className={`bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy h-10 ${!shopUrl ? 'text-slate-400' : ''}`} 
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
-                    <Button variant="outline" size="icon" onClick={copyLink} className="h-10 w-10 shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200">
+                    <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="h-10 w-10 shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200">
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <Button variant="outline" className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 h-11" onClick={copyLink}>
+                  <Button variant="outline" className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 h-11" onClick={copyLink} disabled={!shopUrl}>
                     <LinkIcon className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์
                   </Button>
                   <Button 
                     className="w-full bg-blue-600 hover:bg-blue-700 shadow-sm h-11" 
                     onClick={downloadQR}
-                    disabled={isQrHidden} 
+                    disabled={isQrHidden || !shopUrl} 
                   >
                     <Download className="h-4 w-4 mr-2" /> โหลดรูปภาพ
                   </Button>
