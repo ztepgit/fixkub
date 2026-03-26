@@ -1,8 +1,8 @@
 "use server"
 
 import { db } from "@/lib/prisma"
-// 🌟 แนะนำให้ดึง Type มาจาก Prisma ด้วยเพื่อความแม่นยำ
 import { PlanType } from "@prisma/client"
+import { z } from "zod" // 🌟 1. เพิ่ม import zod เข้ามา
 import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 
 export async function createShopAction(input: CreateShopInput) {
@@ -41,7 +41,6 @@ export async function createShopAction(input: CreateShopInput) {
     if (data.startImmediately) {
       subscriptionStartsAt = now
 
-      // 🌟 ใช้การเทียบค่าตรงๆ แทน .includes() เพื่อไม่ให้ TypeScript บ่น
       if (data.planType === "BASIC_MONTHLY" || data.planType === "PRO_MONTHLY") {
         expiresAt.setMonth(expiresAt.getMonth() + 1)
       } else if (data.planType === "BASIC_YEARLY" || data.planType === "PRO_YEARLY") {
@@ -60,8 +59,7 @@ export async function createShopAction(input: CreateShopInput) {
           slug: data.slug,
           logoUrl: data.logoUrl || null,
           themeColor: data.themeColor,
-          // 🌟 ลบ promptpayId และ accountName ออกจากตรงนี้แล้ว เพราะมันไปอยู่ SystemSetting แทนครับ
-          planType: data.planType as PlanType, // คอนเฟิร์ม Type ให้ Prisma
+          planType: data.planType as PlanType, 
           trialEndsAt,
           subscriptionStartsAt,
           expiresAt,
@@ -78,16 +76,15 @@ export async function createShopAction(input: CreateShopInput) {
         }
       })
 
-      // 🌟 [แนะนำเพิ่ม] ถ้าแอดมินสั่งเริ่มแพ็กเกจจ่ายเงินทันที ให้สร้างประวัติบิลหลอกๆ ไว้ด้วย
       if (data.startImmediately && data.planType !== "FREE_TRIAL") {
         await tx.subscriptionHistory.create({
           data: {
             shopId: shop.id,
             planType: data.planType as PlanType,
-            amountPaid: 0, // ยอด 0 บาท เพราะเปิดโดยแอดมิน
+            amountPaid: 0, 
             newExpiresAt: expiresAt,
             status: "COMPLETED",
-            slipUrl: "SYSTEM_GRANTED", // ทำเครื่องหมายไว้ว่าสร้างจากระบบหลังบ้าน
+            slipUrl: "SYSTEM_GRANTED", 
           }
         })
       }
@@ -99,6 +96,12 @@ export async function createShopAction(input: CreateShopInput) {
 
   } catch (error: any) {
     console.error("Create Shop Error:", error)
+    
+    // 🌟 2. ดัก Error ของ Zod ให้กลายเป็นภาษาไทยที่อ่านง่าย
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.errors[0].message }
+    }
+    
     return { success: false, error: error.message || "เกิดข้อผิดพลาดในการสร้างร้านค้า" }
   }
 }
