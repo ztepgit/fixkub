@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy, Store } from "lucide-react"
+import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy, Store, Globe } from "lucide-react"
 
 // 🌟 Import Library สำหรับสร้าง QR Code 
 import generatePayload from "promptpay-qr"
@@ -18,13 +18,15 @@ import { QRCodeCanvas } from "qrcode.react"
 
 // 🌟 Import Action ดึงข้อมูลจาก Database
 import { getSystemSettings } from "@/actions/setting"
+// 🌟 เพิ่ม Import Action สำหรับดึงข้อมูลร้านค้า (คุณอาจต้องสร้างไฟล์นี้เพิ่มถ้ายังไม่มี)
+import { getShopById } from "@/actions/shop"
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   
   const plan = searchParams.get("plan") || "yearly"
-  const shopId = searchParams.get("shopId") // 🌟 ดึง shopId จาก URL
+  const shopId = searchParams.get("shopId")
   
   const { toast } = useToast()
   
@@ -35,10 +37,14 @@ function CheckoutForm() {
 
   const [slipFile, setSlipFile] = useState<File | null>(null)
 
-  // 🌟 State สำหรับเก็บข้อมูลพร้อมเพย์จาก Database
+  // 🌟 State สำหรับเก็บข้อมูลพร้อมเพย์
   const [promptpayId, setPromptpayId] = useState("")
   const [accountName, setAccountName] = useState("")
   const [isLoadingPaymentInfo, setIsLoadingPaymentInfo] = useState(true)
+
+  // 🌟 State สำหรับเก็บข้อมูลร้านค้าที่กำลังชำระเงิน
+  const [shopInfo, setShopInfo] = useState<{name: string, url: string} | null>(null)
+  const [isLoadingShop, setIsLoadingShop] = useState(true)
 
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
@@ -62,18 +68,38 @@ function CheckoutForm() {
     }
   }, [shopId, router, toast])
 
-  // 🌟 ดึงข้อมูลพร้อมเพย์จาก Database ตอนโหลดหน้าเพจ
+  // 🌟 ดึงข้อมูลพร้อมเพย์และข้อมูลร้านค้า
   useEffect(() => {
-    const fetchPaymentInfo = async () => {
-      const res = await getSystemSettings()
-      if (res.success && res.data) {
-        setPromptpayId(res.data.promptpayId || "")
-        setAccountName(res.data.accountName || "")
+    const fetchInitialData = async () => {
+      // 1. ดึงข้อมูลระบบ (PromptPay)
+      const sysRes = await getSystemSettings()
+      if (sysRes.success && sysRes.data) {
+        setPromptpayId(sysRes.data.promptpayId || "")
+        setAccountName(sysRes.data.accountName || "")
       }
       setIsLoadingPaymentInfo(false)
+
+      // 2. ดึงข้อมูลร้านค้าจาก shopId
+      if (shopId) {
+        try {
+          const shopRes = await getShopById(shopId)
+          if (shopRes.success && shopRes.data) {
+            // สมมติว่าคืนค่ามาเป็น name และ slug
+            setShopInfo({
+              name: shopRes.data.name,
+              url: `${window.location.origin}/${shopRes.data.slug}` // ปรับให้ตรงกับโครงสร้าง URL จริงของคุณ
+            })
+          }
+        } catch (error) {
+          console.error("Failed to fetch shop info", error)
+        } finally {
+          setIsLoadingShop(false)
+        }
+      }
     }
-    fetchPaymentInfo()
-  }, [])
+    
+    fetchInitialData()
+  }, [shopId])
 
   // 🌟 Generate Payload สำหรับ QR Code
   const qrPayload = promptpayId ? generatePayload(promptpayId, { amount: packageDetails.price }) : ""
@@ -110,7 +136,7 @@ function CheckoutForm() {
     try {
       const formData = new FormData()
       formData.append("files", slipFile)
-      formData.append("shopId", shopId) // 🌟 ส่ง shopId ไปประมวลผลด้วย
+      formData.append("shopId", shopId)
       formData.append("plan", plan)
 
       const res = await fetch("/api/verify-slip", {
@@ -175,10 +201,36 @@ function CheckoutForm() {
             <CardTitle className="text-lg">สรุปคำสั่งซื้อ</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
+            
+            {/* 🌟 แสดงข้อมูลร้านค้าที่นี่ */}
+            <div className="mb-6 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+              <h4 className="text-sm font-semibold text-slate-500 mb-2">ชำระเงินสำหรับร้านค้า:</h4>
+              {isLoadingShop ? (
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Loader2 className="animate-spin h-4 w-4" /> กำลังโหลดข้อมูลร้าน...
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Store className="h-5 w-5 text-emerald-600" />
+                    <span className="font-bold text-slate-800 text-base">{shopInfo?.name || "ไม่พบชื่อร้านค้า"}</span>
+                  </div>
+                  {shopInfo?.url && (
+                    <div className="flex items-center gap-2 text-sm text-blue-600 mt-1 pl-7">
+                      <Globe className="h-4 w-4 shrink-0" />
+                      <a href={shopInfo.url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+                        {shopInfo.url.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="font-bold text-slate-800">{packageDetails.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">รหัสอ้างอิงร้านค้า: {shopId.substring(0, 8).toUpperCase()}</p>
+                <p className="text-xs text-slate-400 mt-1">รหัสอ้างอิง: {shopId.substring(0, 8).toUpperCase()}</p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-bold text-emerald-600">{packageDetails.priceText}</span>
@@ -210,8 +262,9 @@ function CheckoutForm() {
         </div>
       </div>
 
-      {/* 🌟 คอลัมน์ขวา: ฟอร์มชำระเงิน (UI ตัวเต็มของคุณปิ๊ก) */}
+      {/* 🌟 คอลัมน์ขวา: ฟอร์มชำระเงิน (ยังคงเดิม) */}
       <div className="md:col-span-3">
+        {/* ... (โค้ดส่วนฟอร์มชำระเงินของคุณปิ๊กคงเดิม) ... */}
         <form onSubmit={handleCheckout}>
           <Card className="border-slate-200 shadow-md">
             <CardHeader>

@@ -34,9 +34,6 @@ model Shop {
   logoUrl    String?
   themeColor String  @default("#10b981")
 
-  // --- Repair Shop Settings ---
-  maxActiveJobs Int @default(10)
-
   // --- Billing & Subscription ---
   planType   PlanType   @default(FREE_TRIAL)
   planStatus PlanStatus @default(ACTIVE)
