@@ -11,12 +11,74 @@ import { revalidatePath } from "next/cache"
 const shopIdSchema = z.string().trim().min(1, "ไม่พบรหัสร้านค้า")
 const shopNameSchema = z.string().trim().min(1, "กรุณากรอกชื่อร้านค้า")
 
+const publicRegisterSchema = z.object({
+  name: z.string().trim().min(1, "กรุณากรอกชื่อร้าน"),
+  slug: z.string().trim().min(3, "URL ต้องมีอย่างน้อย 3 ตัวอักษร"),
+  ownerEmail: z.string().trim().email("อีเมลไม่ถูกต้อง"), // เพิ่ม trim ให้ email กันเหนียว
+})
+
 // ==========================================
-// 1. ดึงข้อมูลร้านค้าพื้นฐาน (สำหรับแสดงผลหน้า Checkout หรืออื่นๆ)
+// 1. ลูกค้าสมัครเปิดร้านเองหน้าเว็บ (ล็อคค่าตายตัว รอจ่ายเงิน)
+// ==========================================
+export async function registerPublicShop(formData: FormData) {
+  try {
+    // 1. รับค่าและ Validate
+    const data = publicRegisterSchema.parse({
+      name: formData.get("name"),
+      slug: formData.get("slug"),
+      ownerEmail: formData.get("email"),
+    })
+
+    // 2. เช็ค URL ซ้ำ
+    const exists = await db.shop.findUnique({ where: { slug: data.slug } })
+    if (exists) {
+      return { success: false, message: "URL นี้มีผู้ใช้งานแล้ว กรุณาเปลี่ยนใหม่" }
+    }
+
+    // 🌟 3. สร้างร้านด้วยค่า Default แบบล็อคสเปก (Flow 1: รอจ่ายเงิน)
+    const newShop = await db.$transaction(async (tx) => {
+      const shop = await tx.shop.create({
+        data: {
+          name: data.name,
+          slug: data.slug,
+          // --- ล็อคค่าตายตัวสำหรับคนสมัครใหม่ ---
+          isActive: false,           // ปิดไว้ก่อนจนกว่าจะจ่ายเงิน
+          planType: "FREE_TRIAL",    // ยังไม่มีแพ็กเกจ
+          trialEndsAt: null,         // ยังไม่เริ่มจับเวลา
+          expiresAt: null,           // ยังไม่มีวันหมดอายุ
+          subscriptionStartsAt: null,
+          // ---------------------------------
+        }
+      })
+
+      // สร้าง Owner
+      await tx.shopOwner.create({
+        data: {
+          email: data.ownerEmail,
+          shopId: shop.id,
+          role: "OWNER"
+        }
+      })
+
+      return shop
+    })
+
+    return { success: true, shopId: newShop.id }
+
+  } catch (error) {
+    console.error("Public Register Error:", error)
+    if (error instanceof z.ZodError) {
+      return { success: false, message: error.errors[0].message }
+    }
+    return { success: false, message: "เกิดข้อผิดพลาดในการสร้างร้านค้า" }
+  }
+}
+
+// ==========================================
+// 2. ดึงข้อมูลร้านค้าพื้นฐาน (สำหรับแสดงผลหน้า Checkout หรืออื่นๆ)
 // ==========================================
 export async function getShopById(shopId: string) {
   try {
-    // 🌟 1. Validate และ Trim ค่า shopId
     const validatedId = shopIdSchema.parse(shopId)
 
     const shop = await db.shop.findUnique({
@@ -37,11 +99,10 @@ export async function getShopById(shopId: string) {
 }
 
 // ==========================================
-// 2. ดึงข้อมูลการตั้งค่าร้านค้า (มี Logo มาด้วย)
+// 3. ดึงข้อมูลการตั้งค่าร้านค้า (มี Logo มาด้วย)
 // ==========================================
 export async function getShopSettings(shopId: string) {
   try {
-    // 🌟 2. Validate ค่า shopId ด้วย Zod เช่นกัน
     const validatedId = shopIdSchema.parse(shopId)
 
     const shop = await db.shop.findUnique({
@@ -63,14 +124,14 @@ export async function getShopSettings(shopId: string) {
 }
 
 // ==========================================
-// 3. อัปเดตข้อมูลร้านค้า
+// 4. อัปเดตข้อมูลร้านค้า
 // ==========================================
 export async function updateShopSettings(formData: FormData) {
   try {
     const rawShopId = formData.get("shopId") as string
     const rawName = formData.get("name") as string
 
-    // 🌟 3. Validate และ Trim ค่าที่ได้จาก Form ก่อนนำไปใช้
+    // Validate และ Trim ค่าที่ได้จาก Form ก่อนนำไปใช้
     const shopId = shopIdSchema.parse(rawShopId)
     const name = shopNameSchema.parse(rawName)
 

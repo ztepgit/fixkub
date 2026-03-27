@@ -16,10 +16,11 @@ import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCi
 import generatePayload from "promptpay-qr"
 import { QRCodeCanvas } from "qrcode.react"
 
-// 🌟 Import Action ดึงข้อมูลจาก Database
+// 🌟 Import Actions
 import { getSystemSettings } from "@/actions/setting"
-// 🌟 เพิ่ม Import Action สำหรับดึงข้อมูลร้านค้า (คุณอาจต้องสร้างไฟล์นี้เพิ่มถ้ายังไม่มี)
 import { getShopById } from "@/actions/shop"
+// 🌟 1. นำเข้า Action สำหรับจัดการข้อมูลแพ็กเกจหลังจ่ายเงินสำเร็จ
+import { processPaymentSuccess } from "@/actions/subscription"
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
@@ -84,10 +85,9 @@ function CheckoutForm() {
         try {
           const shopRes = await getShopById(shopId)
           if (shopRes.success && shopRes.data) {
-            // สมมติว่าคืนค่ามาเป็น name และ slug
             setShopInfo({
               name: shopRes.data.name,
-              url: `${window.location.origin}/${shopRes.data.slug}` // ปรับให้ตรงกับโครงสร้าง URL จริงของคุณ
+              url: `${window.location.origin}/${shopRes.data.slug}` 
             })
           }
         } catch (error) {
@@ -159,7 +159,23 @@ function CheckoutForm() {
           return
         }
 
-        setIsSuccess(true)
+        // 🌟 2. สลิปจริง & ยอดเงินครบ -> เรียก Server Action เพื่ออัปเดต Database
+        // แปลงค่า plan (จาก URL) ให้ตรงกับ Enum ของ Prisma
+        // คุณสามารถเพิ่มลอจิกเช็ค PRO_MONTHLY, PRO_YEARLY ได้ในอนาคตถ้ามีแพ็กเกจเพิ่ม
+        const planEnum = plan === "monthly" ? "BASIC_MONTHLY" : "BASIC_YEARLY" 
+        
+        const updateRes = await processPaymentSuccess(shopId, planEnum, paidAmount)
+        
+        if (updateRes.success) {
+           setIsSuccess(true) // อัปเดต Database สำเร็จ เด้งหน้าจอสีเขียว
+        } else {
+           toast({ 
+             title: "เกิดข้อผิดพลาด", 
+             description: updateRes.error || "ตรวจสลิปผ่านแล้ว แต่ไม่อัปเดตฐานข้อมูล กรุณาติดต่อแอดมิน", 
+             variant: "destructive" 
+           })
+        }
+
       } else {
         toast({ title: "ตรวจสลิปไม่ผ่าน", description: result.message, variant: "destructive" })
       }
@@ -262,9 +278,8 @@ function CheckoutForm() {
         </div>
       </div>
 
-      {/* 🌟 คอลัมน์ขวา: ฟอร์มชำระเงิน (ยังคงเดิม) */}
+      {/* 🌟 คอลัมน์ขวา: ฟอร์มชำระเงิน */}
       <div className="md:col-span-3">
-        {/* ... (โค้ดส่วนฟอร์มชำระเงินของคุณปิ๊กคงเดิม) ... */}
         <form onSubmit={handleCheckout}>
           <Card className="border-slate-200 shadow-md">
             <CardHeader>
