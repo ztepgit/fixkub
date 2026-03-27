@@ -15,18 +15,20 @@ export function LoginPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const { toast } = useToast()
 
-  // 🌟 ดักจับ Error ที่ส่งกลับมาจากหน้า Callback
+  // 🌟 ดักจับ Error ที่ส่งกลับมาจาก URL ทั้งหมด
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
       
-      if (error === 'auth-failed') {
-        // ใช้ setTimeout เล็กน้อยเพื่อให้ Toast เด้งขึ้นมาหลังจากหน้าเว็บโหลดเสร็จ
+      if (error) {
         setTimeout(() => {
           toast({ 
             title: "❌ เข้าสู่ระบบไม่สำเร็จ", 
-            description: "ลิงก์อาจหมดอายุ หรือเกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", 
+            description: errorDescription 
+              ? decodeURIComponent(errorDescription.replace(/\+/g, ' ')) 
+              : "ลิงก์อาจหมดอายุ หรือเกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", 
             variant: "destructive" 
           });
         }, 100);
