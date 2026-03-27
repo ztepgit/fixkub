@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// สร้างตัวแทน Supabase ไว้คุยงานฝั่งหน้าบ้าน (Client)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// 🌟 เปลี่ยนมาใช้ createBrowserClient เพื่อให้ระบบคุยกับ SSR และ Middleware รู้เรื่อง
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)

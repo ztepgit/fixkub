@@ -1,6 +1,7 @@
 // middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 export const config = {
   matcher: [
@@ -11,45 +12,81 @@ export const config = {
   ],
 };
 
-export default function middleware(req: NextRequest) {
-  const url = req.nextUrl;
+// 🌟 ต้องเปลี่ยนเป็น async function เพื่อให้รองรับ await supabase.auth.getUser()
+export default async function middleware(request: NextRequest) {
+  const url = request.nextUrl;
+  const hostname = request.headers.get("host") || "";
 
-  // อ่านค่า Host เช่น esyq.net, a-mobile.esyq.net หรือ localhost:3000
-  const hostname = req.headers.get("host") || "";
+  // 🛡️ 1. สร้าง Response เริ่มต้นเตรียมไว้ เพื่อให้เรานำไปแนบ Cookie ต่อได้
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
-  // 🌟 1. ดักเคส Vercel Preview URL (ถ้าโฮสต์บน Vercel ให้ระบบหลังบ้านทำงานตามปกติ)
-  if (hostname.includes("vercel.app")) {
-    return NextResponse.next();
-  }
-
-  // กำหนด Root Domain (ต้องเปลี่ยนเป็น esyq.net ตอนขึ้น Production)
+  // ==========================================
+  // 🌐 ส่วนที่ 1: ระบบจัดการ Subdomain (Routing)
+  // ==========================================
+  const isVercel = hostname.includes("vercel.app");
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
-
-  // ตัด string เพื่อหาว่ามี Subdomain ไหม
   const subdomain = hostname.replace(`.${rootDomain}`, "");
 
-  // 🌟 2. รายการ Subdomain คำสงวน ที่เราจะไม่มองว่าเป็นร้านค้า
-  const reservedSubdomains = ["admin", "app", "api", "dashboard", "super-admin", "support"];
+  // เพิ่ม "www" เข้าไปในคำสงวนเพื่อความปลอดภัย
+  const reservedSubdomains = ["admin", "app", "api", "dashboard", "super-admin", "support", "www"];
 
-  // ถ้า URL เป็น Subdomain จริงๆ (เช่น a-mobile)
-  if (subdomain && subdomain !== hostname && subdomain !== rootDomain) {
-    
-    // 🌟 3. ถ้าคนพิมพ์ www.esyq.net ให้ Redirect กลับไปที่โดเมนหลัก esyq.net เปล่าๆ ทันที (SEO Best Practice)
+  if (!isVercel && subdomain && subdomain !== hostname && subdomain !== rootDomain) {
     if (subdomain === "www") {
-      return NextResponse.redirect(new URL(`https://${rootDomain}${url.pathname}`, req.url));
+      // SEO Best Practice: Redirect www กลับไปหาโดเมนหลักเปล่าๆ
+      response = NextResponse.redirect(new URL(`https://${rootDomain}${url.pathname}`, request.url));
+    } else if (!reservedSubdomains.includes(subdomain)) {
+      // 🪄 ปลายทาง: Rewrite เข้าไปในโฟลเดอร์ app/shop/[shopSlug]/page.tsx
+      response = NextResponse.rewrite(new URL(`/shop/${subdomain}${url.pathname}`, request.url));
     }
-
-    // 🌟 4. ถ้าเป็นคำสงวนที่ตั้งไว้ ให้ระบบปล่อยผ่านไปทำงานตามโฟลเดอร์ปกติ (เผื่ออนาคตทำเว็บแยก)
-    if (reservedSubdomains.includes(subdomain)) {
-      return NextResponse.next();
-    }
-
-    // 🪄 ปลายทาง: Rewrite เข้าไปในโฟลเดอร์ app/shop/[shopSlug]/page.tsx
-    return NextResponse.rewrite(
-      new URL(`/shop/${subdomain}${url.pathname}`, req.url)
-    );
   }
 
-  // ถ้าเป็นโดเมนหลัก (esyq.net) ก็ปล่อยผ่านให้ทำงานตามปกติ (เข้าหน้า Landing Page)
-  return NextResponse.next();
+  // ==========================================
+  // 🔒 ส่วนที่ 2: ระบบจัดการ Auth (Supabase SSR)
+  // ==========================================
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          // ดึง Cookie ล่าสุดมาตั้งค่าให้กับ Request และ Response
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+
+          // 🌟 จุดสำคัญ: แนบ Cookie กลับไปที่ตัวแปร `response` ที่เราตั้งค่า Rewrite ไว้ด้านบน
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // ดึงข้อมูล User ปัจจุบัน เพื่อเช็คสถานะการเข้าสู่ระบบ
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // ==========================================
+  // 🛡️ ส่วนที่ 3: ระบบป้องกันหน้าเว็บ (Route Protection)
+  // ==========================================
+  // ระบุ Path ที่บังคับว่า "ต้องล็อกอิน" ถึงจะเข้าได้
+  const isProtectedRoute = url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/super-admin');
+
+  if (!user && isProtectedRoute) {
+    // ถ้ายังไม่ได้ Login ให้เตะกลับไปหน้า /login
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  if (user && url.pathname.startsWith('/login')) {
+    // ถ้า Login แล้ว แต่เผลอกดมาหน้า /login ให้เตะเข้า /dashboard ทันที
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // คืนค่า Response สุดท้าย (ที่มีการตั้งค่าทั้ง Subdomain Rewrite และ Auth Cookie ครบถ้วนแล้ว)
+  return response;
 }
