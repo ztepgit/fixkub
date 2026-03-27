@@ -1,11 +1,68 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, ShieldCheck, Zap } from "lucide-react"
-
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog"
+// 🌟 Import ไอคอน LayoutDashboard และ LogOut เพิ่มเข้ามา
+import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, ShieldCheck, Zap, LogIn, LayoutDashboard, LogOut } from "lucide-react"
 
 export default function LandingPage() {
+  const router = useRouter()
+  
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [showLoginPopup, setShowLoginPopup] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsLoggedIn(!!session)
+    }
+    checkUser()
+
+    // 🌟 ดักจับการเปลี่ยนแปลงสถานะ Login เผื่อล็อกอิน/ล็อกเอาท์จากแท็บอื่น
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session)
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
+
+  const handleSelectPlan = (plan: string) => {
+    if (!isLoggedIn) {
+      setSelectedPlan(plan)
+      setShowLoginPopup(true)
+    } else {
+      router.push(`/payment/process?plan=${plan}`)
+    }
+  }
+
+  const handleContinueToLogin = () => {
+    router.push(`/login?next=/payment/process?plan=${selectedPlan}`)
+  }
+
+  // 🌟 ฟังก์ชันจัดการการออกจากระบบฝั่ง Client
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setIsLoggedIn(false)
+    router.refresh() // สั่ง Refresh เพื่อเคลียร์แคช
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
 
@@ -22,18 +79,37 @@ export default function LandingPage() {
             <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ฟีเจอร์เด่น</Link>
             <Link href="#pricing" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ราคา</Link>
           </nav>
-          <div className="flex gap-4">
-            <Link href="/login">
-              <Button variant="outline" className="hidden md:inline-flex border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                เข้าสู่ระบบร้านค้า
-              </Button>
-            </Link>
+          
+          {/* 🌟 เปลี่ยนโครงสร้างปุ่มมุมขวาบนให้เช็คจาก State isLoggedIn */}
+          <div className="flex items-center gap-3">
+            {!isLoggedIn ? (
+              <Link href="/login">
+                <Button variant="outline" className="hidden md:inline-flex border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                  เข้าสู่ระบบร้านค้า
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/dashboard">
+                  <Button className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+                    <LayoutDashboard className="w-4 h-4 mr-2" /> หน้าจัดการร้านค้า
+                  </Button>
+                </Link>
+                <Button 
+                  onClick={handleLogout} 
+                  variant="ghost" 
+                  className="hidden md:inline-flex text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                >
+                  <LogOut className="w-4 h-4 mr-2" /> ออกจากระบบ
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main>
-        {/* Hero Section - หมัดฮุกแรก */}
+        {/* Hero Section */}
         <section className="relative overflow-hidden bg-white pt-20 pb-24 lg:pt-32 lg:pb-40">
           <div className="container mx-auto px-4 md:px-6 text-center">
             <Badge className="mb-4 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none px-3 py-1 text-sm">
@@ -61,7 +137,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Features Section - อธิบายว่าแอปทำอะไรได้บ้าง */}
+        {/* Features Section */}
         <section id="features" className="py-20 bg-slate-50">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
@@ -103,7 +179,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing Section (ดึงกลยุทธ์ Decoy Pricing มาใช้) */}
+        {/* Pricing Section */}
         <section id="pricing" className="py-20 bg-white">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
@@ -129,10 +205,8 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button asChild className="w-full text-base h-12 bg-blue-600 hover:bg-blue-700">
-                    <Link href="/payment?plan=monthly">
-                      เลือกแพ็กเกจนี้
-                    </Link>
+                  <Button onClick={() => handleSelectPlan("monthly")} className="w-full text-base h-12 bg-blue-600 hover:bg-blue-700">
+                    เลือกแพ็กเกจนี้
                   </Button>
                 </CardContent>
               </Card>
@@ -161,10 +235,8 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button asChild className="w-full text-base h-12 bg-emerald-600 hover:bg-emerald-700">
-                    <Link href="/payment?plan=yearly">
-                      เลือกแพ็กเกจนี้
-                    </Link>
+                  <Button onClick={() => handleSelectPlan("yearly")} className="w-full text-base h-12 bg-emerald-600 hover:bg-emerald-700">
+                    เลือกแพ็กเกจนี้
                   </Button>
                 </CardContent>
               </Card>
@@ -186,6 +258,30 @@ export default function LandingPage() {
           <p className="text-sm">© 2026 ESYQ. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* 🌟 ดัก Pop-up แจ้งเตือน Login ซ่อนอยู่ตรงนี้ */}
+      <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+              <LogIn className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-center text-xl">กรุณาเข้าสู่ระบบ</DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              ระบบต้องการให้ท่านเข้าสู่ระบบก่อนชำระเงิน<br/>เพื่อเชื่อมโยงแพ็กเกจเข้ากับข้อมูลร้านค้าของท่านได้อย่างถูกต้อง
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <Button type="button" variant="outline" onClick={() => setShowLoginPopup(false)} className="w-full">
+              ยกเลิก
+            </Button>
+            <Button type="button" onClick={handleContinueToLogin} className="w-full bg-blue-600 hover:bg-blue-700">
+              ไปหน้าเข้าสู่ระบบ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }
