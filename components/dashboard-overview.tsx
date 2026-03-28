@@ -33,9 +33,11 @@ import { QRCodeCanvas } from "qrcode.react"
 import { updateQueueStatus } from "@/actions/queue"
 import { isSameDay } from "date-fns" 
 
-// 🌟 Import Store
+// 🌟 Import Store และ Auth สำหรับดึง URL สำรอง
 import { useJobStore } from "@/store/useJobStore"
-import { useShopStore } from "@/store/useShopStore" // 🌟 เพิ่ม import ดึงข้อมูลร้านค้า (slug)
+import { useShopStore } from "@/store/useShopStore" 
+import { supabase } from "@/lib/supabase"
+import { getUserShops } from "@/actions/shop"
 
 const formatPhoneNumber = (phone?: string) => {
   if (!phone) return ""
@@ -59,15 +61,12 @@ const formatFullDateTime = (date?: Date | string) => {
 }
 
 export function DashboardOverview() {
-  // 🌟 เอา const SHOP_ID = "shop_test_001" ทิ้งไปเลย เพราะไม่ต้องใช้สร้างลิงก์แล้ว
-
   const { toast } = useToast()
 
-  // ดึง State จาก Zustand Store 
   const jobs = useJobStore((state) => state.jobs)
   const upsertJob = useJobStore((state) => state.upsertJob)
   const lastSyncAt = useJobStore((state) => state.lastSyncAt)
-  const slug = useShopStore((state) => state.shop?.slug) // 🌟 ดึง slug มาจาก Shop Store
+  const slug = useShopStore((state) => state.shop?.slug)
 
   const [jobToView, setJobToView] = useState<any>(null)
   const [editPrice, setEditPrice] = useState("")
@@ -78,11 +77,28 @@ export function DashboardOverview() {
   const [isQrHidden, setIsQrHidden] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
 
-  // 🌟 อัปเดตลิงก์ให้เป็นรูปแบบ Subdomain ตาม slug ของจริง
+  // 🌟 อัปเดตการดึง URL ให้ฉลาดขึ้น (เหมือนใน Header)
   useEffect(() => {
-    if (typeof window !== 'undefined' && slug) {
-      setShopUrl(`https://${slug}.esyq.net`)
+    const loadShopUrl = async () => {
+      if (slug) {
+        setShopUrl(`https://${slug}.esyq.net`) 
+        return
+      }
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const res = await getUserShops(user.email)
+          if (res.success && res.shops.length > 0) {
+            setShopUrl(`https://${res.shops[0].slug}.esyq.net`)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch shop URL:", error)
+      }
     }
+
+    loadShopUrl()
   }, [slug]) 
 
   useEffect(() => {
@@ -131,7 +147,11 @@ export function DashboardOverview() {
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.href = url; link.download = `QR-Code-${slug || 'ESYQ'}.png`; // 🌟 ใช้ slug ตั้งชื่อไฟล์
+      link.href = url; 
+      
+      const currentSlug = slug || shopUrl.replace("https://", "").replace(".esyq.net", "") || "ESYQ";
+      link.download = `QR-Code-${currentSlug}.png`; 
+      
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }
@@ -324,7 +344,7 @@ export function DashboardOverview() {
               ) : (
                 <div className="flex flex-col items-center justify-center w-full animate-in fade-in duration-300">
                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4 transition-transform hover:scale-105 duration-300">
-                    {shopUrl ? <QRCodeCanvas id="shop-qr-code" value={shopUrl} size={180} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} /> : <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg"></div>}
+                    {shopUrl ? <QRCodeCanvas id="shop-qr-code" value={shopUrl} size={180} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} /> : <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center"><Loader2 className="h-8 w-8 text-slate-300 animate-spin" /></div>}
                   </div>
                   <div className="w-full space-y-3">
                     <Button variant="outline" className="w-full h-11" onClick={copyLink} disabled={!shopUrl}><Link className="h-4 w-4 mr-2" /> คัดลอกลิงก์ร้าน</Button>

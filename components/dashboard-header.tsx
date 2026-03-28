@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
 import { 
   Breadcrumb, 
   BreadcrumbItem, 
@@ -29,6 +27,9 @@ import { QRCodeCanvas } from "qrcode.react"
 import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2, Home } from "lucide-react"
 
 import { useShopStore } from "@/store/useShopStore"
+// 🌟 1. เพิ่ม Import สำหรับดึงข้อมูลสำรอง
+import { supabase } from "@/lib/supabase"
+import { getUserShops } from "@/actions/shop"
 
 interface DashboardHeaderProps {
   currentTabName?: string;
@@ -42,10 +43,30 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
   const [isQrHidden, setIsQrHidden] = useState(false)
   const { toast } = useToast()
 
+  // 🌟 2. อัปเดตการดึง URL ให้ฉลาดขึ้น (ดึงจาก DB ถ้า Store ยังไม่พร้อม)
   useEffect(() => {
-    if (typeof window !== 'undefined' && slug) {
-      setShopUrl(`https://${slug}.esyq.net`) 
+    const loadShopUrl = async () => {
+      // กรณีที่ 1: ถ้า Store มีข้อมูลแล้ว ให้ใช้ได้เลย
+      if (slug) {
+        setShopUrl(`https://${slug}.esyq.net`) 
+        return
+      }
+
+      // กรณีที่ 2: ถ้า Store ยังไม่มีข้อมูล (เช่นเพิ่งเปิดหน้าภาพรวม) ให้ไปดึงจาก DB
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const res = await getUserShops(user.email)
+          if (res.success && res.shops.length > 0) {
+            setShopUrl(`https://${res.shops[0].slug}.esyq.net`)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch shop URL:", error)
+      }
     }
+
+    loadShopUrl()
   }, [slug]) 
 
   const copyLink = () => {
@@ -62,7 +83,11 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      link.download = `QR-Code-${slug || 'ESYQ'}.png`;
+      
+      // 🌟 ดึง slug มาตั้งชื่อไฟล์ให้ถูกต้อง
+      const currentSlug = slug || shopUrl.replace("https://", "").replace(".esyq.net", "") || "ESYQ";
+      link.download = `QR-Code-${currentSlug}.png`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -74,14 +99,9 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
     <header className="flex w-full h-16 md:h-20 shrink-0 items-center justify-between border-b px-4 md:px-6 bg-white/80 backdrop-blur-md sticky top-0 z-40">
       
       <div className="flex items-center gap-2">
-        {/* 🌟 1. ปุ่มเปิด/ปิด Sidebar (จะมี Reaction เมื่อย่อจอหรือ Sidebar ถูกปิดอยู่) */}
-        <SidebarTrigger className="-ml-1 text-slate-500 hover:text-slate-800" />
-        <Separator orientation="vertical" className="mr-2 h-4 bg-slate-200" />
-        
         <Breadcrumb>
           <BreadcrumbList>
             
-            {/* 🌟 2. ไอคอน Home -> กลับหน้า Landing Page */}
             <BreadcrumbItem className="hidden md:block">
               <TooltipProvider>
                 <Tooltip>
@@ -98,15 +118,13 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block text-slate-300" />
 
-            {/* 🌟 3. ข้อความ "ระบบจัดการคิว" -> เปลี่ยนเป็น Link กลับหน้า Dashboard หลัก */}
             <BreadcrumbItem className="hidden md:block">
-              <Link href="/dashboard" className="text-slate-500 hover:text-slate-800 transition-colors">
+              <span className="text-slate-500 font-normal cursor-default">
                 ระบบจัดการคิว
-              </Link>
+              </span>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block text-slate-300" />
             
-            {/* 🌟 4. หน้าปัจจุบัน -> เป็นข้อความธรรมดา */}
             <BreadcrumbItem>
               <BreadcrumbPage className="font-semibold text-slate-800">{currentTabName}</BreadcrumbPage>
             </BreadcrumbItem>
