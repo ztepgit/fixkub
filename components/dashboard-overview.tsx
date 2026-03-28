@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { useState, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
+import { useQuery, useMutation } from "@tanstack/react-query" // 🌟 1. Import React Query
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +17,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -25,19 +26,23 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import {
   Activity, Wrench, PackageCheck, Wallet, Smartphone, Loader2, User, Banknote,
-  MoreHorizontal, ClipboardList, Barcode, Hash, Phone, Clock,
+  MoreHorizontal, ClipboardList, Barcode, Hash, Phone,
   QrCode, Copy, Download, Link, Eye, EyeOff
 } from "lucide-react"
-import { QRCodeCanvas } from "qrcode.react"
 
 import { updateQueueStatus } from "@/actions/queue"
 import { isSameDay } from "date-fns" 
 
-// 🌟 Import Store และ Auth สำหรับดึง URL สำรอง
 import { useJobStore } from "@/store/useJobStore"
 import { useShopStore } from "@/store/useShopStore" 
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
+
+// 🌟 2. โหลด QRCode แบบ Client-only ป้องกัน Mismatch
+const QRCodeCanvas = dynamic(
+  () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
+  { ssr: false }
+)
 
 const formatPhoneNumber = (phone?: string) => {
   if (!phone) return ""
@@ -62,7 +67,9 @@ const formatFullDateTime = (date?: Date | string) => {
 
 export function DashboardOverview() {
   const { toast } = useToast()
+  const qrWrapperRef = useRef<HTMLDivElement>(null)
 
+  // 🌟 Zustand สำหรับ Real-time Jobs
   const jobs = useJobStore((state) => state.jobs)
   const upsertJob = useJobStore((state) => state.upsertJob)
   const lastSyncAt = useJobStore((state) => state.lastSyncAt)
@@ -73,33 +80,25 @@ export function DashboardOverview() {
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
   
-  const [shopUrl, setShopUrl] = useState("")
   const [isQrHidden, setIsQrHidden] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
 
-  // 🌟 อัปเดตการดึง URL ให้ฉลาดขึ้น (เหมือนใน Header)
-  useEffect(() => {
-    const loadShopUrl = async () => {
-      if (slug) {
-        setShopUrl(`https://${slug}.esyq.net`) 
-        return
-      }
+  // 🌟 3. ใช้ React Query สำหรับดึง Shop URL สำรอง (จะรันก็ต่อเมื่อไม่มี slug ใน Zustand)
+  const { data: fetchedShop, isLoading: isShopLoading } = useQuery({
+    queryKey: ["dashboard-shop-overview"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) throw new Error("Unauthorized")
+      const res = await getUserShops(user.email)
+      if (!res.success || !res.shops || res.shops.length === 0) throw new Error("Shop not found")
+      return res.shops[0]
+    },
+    enabled: !slug // ถ้ามี slug อยู่แล้ว ปิดการยิง API ทิ้งไปเลย!
+  })
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email) {
-          const res = await getUserShops(user.email)
-          if (res.success && res.shops.length > 0) {
-            setShopUrl(`https://${res.shops[0].slug}.esyq.net`)
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch shop URL:", error)
-      }
-    }
-
-    loadShopUrl()
-  }, [slug]) 
+  // 🌟 4. ผูกตัวแปรให้ฉลาดขึ้น
+  const currentSlug = slug || fetchedShop?.slug
+  const shopUrl = currentSlug ? `https://${currentSlug}.esyq.net` : ""
 
   useEffect(() => {
     if (jobToView) {
@@ -117,41 +116,53 @@ export function DashboardOverview() {
     .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.updatedAt || j.createdAt), today))
     .reduce((sum, j) => sum + (Number(j.estimatedPrice) || 0), 0)
 
-  const handleSaveDetails = async () => {
-    if (!jobToView) return
+  // 🌟 5. ใช้ useMutation จัดการบันทึกข้อมูล (มี Optimistic Update ด้วย)
+  const updateJobMutation = useMutation({
+    mutationFn: async (vars: { id: string, status: string, data: any }) => {
+      const res = await updateQueueStatus(vars.id, vars.status, vars.data)
+      if (!res.success) throw new Error(res.error || "Update failed")
+      return res.data
+    },
+    onMutate: async (vars) => {
+      // Optimistic update โชว์หน้า UI ทันทีไม่ต้องรอ
+      const optimisticJob = { ...jobToView, ...vars.data, updatedAt: new Date().toISOString() }
+      upsertJob(optimisticJob)
+      setJobToView(null)
+    },
+    onSuccess: () => {
+      toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตรายละเอียดคิวเรียบร้อยแล้ว" })
+    },
+    onError: (err) => {
+      console.error(err)
+      toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ ระบบกำลังซิงค์ใหม่...", variant: "destructive" })
+    }
+  })
 
+  const handleSaveDetails = () => {
+    if (!jobToView) return
     const updatedData = {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
     }
-
-    const optimisticJob = { ...jobToView, ...updatedData, updatedAt: new Date().toISOString() }
-    upsertJob(optimisticJob)
-    setJobToView(null) 
-    toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิวเรียบร้อยแล้ว` })
-
-    const res = await updateQueueStatus(jobToView.id, jobToView.status, updatedData)
-    if (!res.success) {
-      toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ ระบบกำลังซิงค์ใหม่...", variant: "destructive" })
-    }
+    // สั่งยิง Mutation
+    updateJobMutation.mutate({ id: jobToView.id, status: jobToView.status, data: updatedData })
   }
 
   const copyLink = () => {
+    if (!shopUrl) return
     navigator.clipboard.writeText(shopUrl)
     toast({ title: "✅ คัดลอกลิงก์สำเร็จ", description: "สามารถนำลิงก์ไปส่งให้ลูกค้าได้เลย" })
   }
 
   const downloadQR = () => {
-    const canvas = document.getElementById("shop-qr-code") as HTMLCanvasElement;
+    if (!qrWrapperRef.current) return;
+    const canvas = qrWrapperRef.current.querySelector('canvas');
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url; 
-      
-      const currentSlug = slug || shopUrl.replace("https://", "").replace(".esyq.net", "") || "ESYQ";
-      link.download = `QR-Code-${currentSlug}.png`; 
-      
+      link.download = `QR-Code-${currentSlug || 'ESYQ'}.png`; 
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }
@@ -344,7 +355,20 @@ export function DashboardOverview() {
               ) : (
                 <div className="flex flex-col items-center justify-center w-full animate-in fade-in duration-300">
                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4 transition-transform hover:scale-105 duration-300">
-                    {shopUrl ? <QRCodeCanvas id="shop-qr-code" value={shopUrl} size={180} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} /> : <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center"><Loader2 className="h-8 w-8 text-slate-300 animate-spin" /></div>}
+                    {/* 🌟 6. ผูกเงื่อนไข Fallback ชัดเจน ถ้าโหลดอยู่ให้หมุน ถ้าไม่มีให้บอกว่าไม่มี */}
+                    {isShopLoading && !currentSlug ? (
+                      <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                      </div>
+                    ) : shopUrl ? (
+                      <div ref={qrWrapperRef}>
+                        <QRCodeCanvas value={shopUrl} size={180} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} />
+                      </div>
+                    ) : (
+                      <div className="w-[180px] h-[180px] bg-slate-50 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-center p-2">
+                        <p className="text-xs text-slate-400">ยังไม่มี URL ร้าน</p>
+                      </div>
+                    )}
                   </div>
                   <div className="w-full space-y-3">
                     <Button variant="outline" className="w-full h-11" onClick={copyLink} disabled={!shopUrl}><Link className="h-4 w-4 mr-2" /> คัดลอกลิงก์ร้าน</Button>
@@ -367,22 +391,25 @@ export function DashboardOverview() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
                     <Label className="text-slate-600 flex items-center gap-1"><Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)</Label>
-                    <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+                    <Input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} disabled={updateJobMutation.isPending} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-slate-600 flex items-center gap-1"><Barcode className="h-3.5 w-3.5" /> Serial Number</Label>
-                    <Input value={editSn} onChange={(e) => setEditSn(e.target.value)} />
+                    <Input value={editSn} onChange={(e) => setEditSn(e.target.value)} disabled={updateJobMutation.isPending} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-slate-600 flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> IMEI</Label>
-                    <Input value={editImei} onChange={(e) => setEditImei(e.target.value)} />
+                    <Input value={editImei} onChange={(e) => setEditImei(e.target.value)} disabled={updateJobMutation.isPending} />
                   </div>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setJobToView(null)}>ยกเลิก</Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails}>บันทึกข้อมูล</Button>
+              <Button variant="outline" onClick={() => setJobToView(null)} disabled={updateJobMutation.isPending}>ยกเลิก</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails} disabled={updateJobMutation.isPending}>
+                {updateJobMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                บันทึกข้อมูล
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

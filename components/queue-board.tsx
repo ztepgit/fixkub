@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// ลบ import supabase ออกไป เพราะเราย้าย logic ไปไว้ใน hook `useJobSync` หมดแล้ว
+import { useMutation } from "@tanstack/react-query" // 🌟 1. Import useMutation จาก React Query
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -41,7 +41,6 @@ import {
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { updateQueueStatus } from "@/actions/queue"
 
-// 🌟 Import Store ที่เราสร้างไว้
 import { useJobStore } from "@/store/useJobStore"
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
@@ -97,41 +96,58 @@ const formatFullDateTime = (date?: Date | string) => {
 export function QueueBoard() {
   const { toast } = useToast()
 
-  // 🌟 ดึงข้อมูลและ Action จาก Zustand Store แทนการใช้ useState เดิม
   const allJobs = useJobStore((state) => state.jobs)
   const upsertJob = useJobStore((state) => state.upsertJob)
-  const removeJob = useJobStore((state) => state.removeJob) // เอาไว้ใช้ลบงานออกจากบอร์ด
+  const removeJob = useJobStore((state) => state.removeJob)
   const lastSyncAt = useJobStore((state) => state.lastSyncAt)
 
-  // 🌟 Derived State: แบ่งหมวดหมู่ข้อมูลโดยอัตโนมัติจาก allJobs ใน Store
   const activeJobs = allJobs.filter(j => !["CANCELLED", "COMPLETED", "ARCHIVED"].includes(j.status)) as RepairJob[]
   const trashedJobs = allJobs.filter(j => j.status === "CANCELLED") as RepairJob[]
   const archivedJobs = allJobs.filter(j => j.status === "ARCHIVED") as RepairJob[]
 
-  // State ยิบย่อยสำหรับคุม Modal ยังคงไว้เหมือนเดิม
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [jobToCancel, setJobToCancel] = useState<RepairJob | null>(null)
   const [cancelReason, setCancelReason] = useState<CancelReason | "">("")
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
   const [jobToView, setJobToView] = useState<RepairJob | null>(null)
+  
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
+  
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("")
   const [trashSearchQuery, setTrashSearchQuery] = useState("")
 
   useEffect(() => {
     if (jobToView) {
-      setEditPrice(jobToView.estimatedPrice || "")
+      setEditPrice(jobToView.estimatedPrice?.toString() || "")
       setEditSn(jobToView.serialNumber || "")
       setEditImei(jobToView.imei || "")
     }
   }, [jobToView])
 
-  // 🌟 ฟังก์ชันเลื่อนการ์ดคิว (Optimistic Update)
-  const moveJob = async (jobId: string, currentStatus: string) => {
+  // 🌟 2. สร้าง Mutation กลาง สำหรับใช้กับทุก Action
+  const updateJobMutation = useMutation({
+    mutationFn: async (vars: { id: string, status: string, data?: any }) => {
+      const res = await updateQueueStatus(vars.id, vars.status, vars.data)
+      if (!res.success) throw new Error(res.error || "Update failed")
+      return res.data
+    },
+    onError: (err, variables, context) => {
+      console.error("Mutation Error:", err)
+      toast({ 
+        title: "❌ เกิดข้อผิดพลาด", 
+        description: "บันทึกข้อมูลไม่สำเร็จ ระบบจะพยายามซิงค์ใหม่", 
+        variant: "destructive" 
+      })
+      // หมายเหตุ: ตรงนี้เราสามารถเขียน Logic ย้อนกลับ State (Rollback) ใน Zustand ได้ 
+      // แต่ในแอปประเภทนี้ การปล่อยให้ hook realtime ดึงข้อมูลทับรอบถัดไปก็ปลอดภัยพอครับ
+    }
+  })
+
+  // 🌟 ฟังก์ชันต่างๆ ถูกปรับให้เรียกผ่าน Mutation แทน (Optimistic Update ที่ Zustand ทำงานไปก่อนแล้ว)
+  const moveJob = (jobId: string, currentStatus: string) => {
     const statusFlow: Record<string, string> = {
       "PENDING": "WAITING",
       "WAITING": "PROCESSING",
@@ -142,52 +158,37 @@ export function QueueBoard() {
     const job = allJobs.find(j => j.id === jobId)
     if (!job || !nextStatus) return
 
-    // 1. Optimistic Update (อัปเดต Store ให้ UI เด้งทันที)
     const optimisticJob = { ...job, status: nextStatus as any, updatedAt: new Date().toISOString() }
+    const updateData = nextStatus === "COMPLETED" ? { completedAt: new Date() } : undefined
     
     if (nextStatus === "COMPLETED") {
       optimisticJob.completedAt = new Date().toISOString()
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องเรียบร้อยแล้ว" })
-      // (ถ้าต้องการให้งาน Completed หายไปจาก Store เลย ก็เรียก removeJob(jobId) แทน upsertJob ก็ได้ครับ แต่ตอนนี้เก็บไว้เป็นสถิติ)
     }
 
+    // 1. อัปเดต UI ทันที
     upsertJob(optimisticJob)
-
-    // 2. ส่ง API เบื้องหลัง
-    const updateData = nextStatus === "COMPLETED" ? { completedAt: new Date() } : undefined
-    const res = await updateQueueStatus(jobId, nextStatus, updateData)
-    
-    if (!res.success) {
-      toast({ title: "Error", description: "บันทึกข้อมูลไม่สำเร็จ ระบบกำลังซิงค์ใหม่", variant: "destructive" })
-      upsertJob({ ...job }) // Fallback กลับมาสถานะเดิม
-    }
+    // 2. โยนงานให้ React Query ไปสู้กับ Backend
+    updateJobMutation.mutate({ id: jobId, status: nextStatus, data: updateData })
   }
 
-  // 🌟 บันทึกรายละเอียดการประเมินราคา
-  const handleSaveDetails = async () => {
+  const handleSaveDetails = () => {
     if (!jobToView) return
-    setIsSaving(true)
-
+    
     const updatedData = {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
     }
 
-    // Optimistic Update
     upsertJob({ ...jobToView, ...updatedData, updatedAt: new Date().toISOString() })
     toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิวเรียบร้อยแล้ว` })
     setJobToView(null)
 
-    const res = await updateQueueStatus(jobToView.id, jobToView.status, updatedData)
-    if (!res.success) {
-      toast({ title: "❌ เกิดข้อผิดพลาด", description: "ไม่สามารถบันทึกข้อมูลได้", variant: "destructive" })
-    }
-    setIsSaving(false)
+    updateJobMutation.mutate({ id: jobToView.id, status: jobToView.status, data: updatedData })
   }
 
-  // 🌟 ยกเลิกงาน
-  const confirmCancelJob = async () => {
+  const confirmCancelJob = () => {
     if (!jobToCancel || !cancelReason) return
 
     const updateData = {
@@ -195,28 +196,25 @@ export function QueueBoard() {
       cancelledAt: new Date().toISOString()
     }
 
-    // Optimistic Update: เปลี่ยนสถานะเป็น CANCELLED 
     upsertJob({ ...jobToCancel, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() })
-    
     setJobToCancel(null)
     setCancelReason("")
     toast({ title: "🗑️ ยกเลิกงานเรียบร้อย", description: `ย้ายคิวไปที่ถังขยะแล้ว`, duration: 3000 })
 
-    await updateQueueStatus(jobToCancel.id, "CANCELLED", {
-      cancelReason: cancelReason,
-      cancelledAt: new Date()
+    updateJobMutation.mutate({ 
+      id: jobToCancel.id, 
+      status: "CANCELLED", 
+      data: { cancelReason, cancelledAt: new Date() } 
     })
   }
 
-  // 🌟 คืนค่างานจากถังขยะ
-  const restoreJob = async (jobId: string) => {
+  const restoreJob = (jobId: string) => {
     const jobToRestore = trashedJobs.find(j => j.id === jobId)
     if (!jobToRestore) return
 
     const isUncontactable = jobToRestore.cancelReason === "UNCONTACTABLE"
     const targetStatus = isUncontactable ? "ARCHIVED" : "PENDING"
 
-    // Optimistic Update
     upsertJob({
       ...jobToRestore,
       status: targetStatus as any,
@@ -231,16 +229,15 @@ export function QueueBoard() {
       duration: 3000,
     })
 
-    await updateQueueStatus(jobId, targetStatus, { cancelReason: null, cancelledAt: null })
+    updateJobMutation.mutate({ id: jobId, status: targetStatus, data: { cancelReason: null, cancelledAt: null } })
   }
 
   const confirmDeletePermanently = () => {
     if (!jobToDelete) return
-    // Optimistic Delete: ลบออกจาก Store เลย
     removeJob(jobToDelete.id)
     toast({ variant: "destructive", title: "🗑️ ลบข้อมูลถาวรแล้ว", description: `คิวถูกลบออกจากระบบอย่างถาวร` })
     setJobToDelete(null)
-    // ตรงนี้ถ้ามี API ลบถาวรก็เรียกใช้ได้เลยครับ
+    // *หากมี API ลบถาวร ค่อยเพิ่ม Mutation สำหรับการลบตรงนี้ครับ
   }
 
   const confirmEmptyTrash = () => {
@@ -249,40 +246,40 @@ export function QueueBoard() {
     setIsConfirmEmptyOpen(false)
   }
 
-  const handleMoveToArchive = async (jobId: string, jobRef: string) => {
+  const handleMoveToArchive = (jobId: string, jobRef: string) => {
     const job = allJobs.find(j => j.id === jobId)
     if (job) {
       upsertJob({ ...job, status: "ARCHIVED", updatedAt: new Date().toISOString() })
       toast({ title: "📦 ย้ายเครื่องเข้าคลัง", description: `รายการถูกย้ายไปยังคลังเครื่องค้างแล้ว`, duration: 3000 })
-      await updateQueueStatus(jobId, "ARCHIVED")
+      updateJobMutation.mutate({ id: jobId, status: "ARCHIVED" })
     }
   }
 
-  const unarchiveJob = async (jobId: string) => {
+  const unarchiveJob = (jobId: string) => {
     const jobToUnarchive = archivedJobs.find(j => j.id === jobId)
     if (jobToUnarchive) {
       upsertJob({ ...jobToUnarchive, status: "REPAIRED", updatedAt: new Date().toISOString() })
       toast({ title: "🔄 ดึงกลับหน้ากระดาน", description: `รายการถูกดึงกลับมาที่ช่องรอรับแล้ว` })
-      await updateQueueStatus(jobId, "REPAIRED")
+      updateJobMutation.mutate({ id: jobId, status: "REPAIRED" })
     }
   }
 
-  const completeArchivedJob = async (jobId: string) => {
+  const completeArchivedJob = (jobId: string) => {
     const job = archivedJobs.find(j => j.id === jobId)
     if (job) {
       upsertJob({ ...job, status: "COMPLETED", completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องจากคลังเรียบร้อยแล้ว" })
-      await updateQueueStatus(jobId, "COMPLETED", { completedAt: new Date() })
+      updateJobMutation.mutate({ id: jobId, status: "COMPLETED", data: { completedAt: new Date() } })
     }
   }
 
-  const markAsUncontactable = async (jobId: string, jobRef: string) => {
+  const markAsUncontactable = (jobId: string, jobRef: string) => {
     const job = archivedJobs.find(j => j.id === jobId)
     if (job) {
       const updateData = { cancelReason: "UNCONTACTABLE" as CancelReason, cancelledAt: new Date().toISOString() }
       upsertJob({ ...job, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() })
       toast({ title: "❌ ส่งไปถังขยะ", description: `รายการถูกบันทึกว่าติดต่อไม่ได้` })
-      await updateQueueStatus(jobId, "CANCELLED", { cancelReason: "UNCONTACTABLE", cancelledAt: new Date() })
+      updateJobMutation.mutate({ id: jobId, status: "CANCELLED", data: { cancelReason: "UNCONTACTABLE", cancelledAt: new Date() } })
     }
   }
 
@@ -408,6 +405,7 @@ export function QueueBoard() {
                           <Button
                             className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
                             onClick={() => completeArchivedJob(job.id)}
+                            disabled={updateJobMutation.isPending}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" /> ลูกค้ามารับเครื่อง (ปิดจ๊อบ)
                           </Button>
@@ -417,6 +415,7 @@ export function QueueBoard() {
                               size="sm"
                               className="flex-1 h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
                               onClick={() => unarchiveJob(job.id)}
+                              disabled={updateJobMutation.isPending}
                             >
                               <RotateCcw className="h-3 w-3 mr-1" /> ดึงกลับ
                             </Button>
@@ -425,6 +424,7 @@ export function QueueBoard() {
                               size="sm"
                               className="flex-1 h-8 text-rose-600 border-rose-200 hover:bg-rose-50"
                               onClick={() => markAsUncontactable(job.id, job.jobRef)}
+                              disabled={updateJobMutation.isPending}
                             >
                               <UserX className="h-3 w-3 mr-1" /> ติดต่อไม่ได้
                             </Button>
@@ -527,7 +527,7 @@ export function QueueBoard() {
                           )}
                         </CardContent>
                         <CardFooter className="p-3 pt-0 flex gap-2 border-t border-slate-50 mt-2">
-                          <Button variant="outline" size="sm" className="flex-1 h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => restoreJob(job.id)}>
+                          <Button variant="outline" size="sm" className="flex-1 h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => restoreJob(job.id)} disabled={updateJobMutation.isPending}>
                             <RotateCcw className="h-3 w-3 mr-1" /> คืนค่า
                           </Button>
                           <Button variant="outline" size="sm" className="flex-1 h-8 text-rose-600 border-rose-300 hover:bg-rose-50 hover:border-rose-400" onClick={() => setJobToDelete(job)}>
@@ -561,7 +561,6 @@ export function QueueBoard() {
                   onCancel={() => setIsCreateOpen(false)}
                   onSuccess={() => {
                     setIsCreateOpen(false)
-                    // ไม่ต้องเรียก loadQueues แล้ว ให้รอ Realtime/Polling ส่งข้อมูลใหม่มาเข้า Store
                   }}
                 />
               </DialogContent>
@@ -569,9 +568,7 @@ export function QueueBoard() {
           </div>
         </div>
 
-        {/* 🌟 กระดาน Kanban ที่อ่านข้อมูลจาก Store ตรงๆ */}
         <div className="flex-1 overflow-x-hidden md:overflow-x-auto pb-4">
-          {/* ถ้า jobs ยังไม่โหลดและ lastSync เป็น 0 แปลว่ากำลังดึง cache หรือ DB รอบแรก */}
           {allJobs.length === 0 && lastSyncAt === 0 ? (
             <div className="flex h-[450px] w-full items-center justify-center text-slate-400 gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
@@ -678,6 +675,7 @@ export function QueueBoard() {
                               <CardFooter className="p-3 pt-0 flex gap-2">
                                 <Button
                                   onClick={() => moveJob(job.id, job.status)}
+                                  disabled={updateJobMutation.isPending}
                                   className="w-full text-xs h-8 bg-white text-slate-700 border border-slate-300 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
                                 >
                                   {job.status === "PENDING" && "รับเครื่องเข้าคิว"}
@@ -698,7 +696,6 @@ export function QueueBoard() {
           )}
         </div>
 
-        {/* Dialog ดูรายละเอียด */}
         <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
           <DialogContent className="sm:max-w-[550px]">
             <DialogHeader>
@@ -769,6 +766,7 @@ export function QueueBoard() {
                       value={editPrice}
                       onChange={(e) => setEditPrice(e.target.value)}
                       className="max-w-[200px]"
+                      disabled={updateJobMutation.isPending}
                     />
                   </div>
 
@@ -781,6 +779,7 @@ export function QueueBoard() {
                       placeholder="กรอก S/N เครื่อง"
                       value={editSn}
                       onChange={(e) => setEditSn(e.target.value)}
+                      disabled={updateJobMutation.isPending}
                     />
                   </div>
 
@@ -793,6 +792,7 @@ export function QueueBoard() {
                       placeholder="กรอกเลข IMEI 15 หลัก"
                       value={editImei}
                       onChange={(e) => setEditImei(e.target.value)}
+                      disabled={updateJobMutation.isPending}
                     />
                   </div>
                 </div>
@@ -800,16 +800,15 @@ export function QueueBoard() {
             </div>
 
             <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 mt-4">
-              <Button variant="outline" onClick={() => setJobToView(null)} disabled={isSaving}>ปิดหน้าต่าง</Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {isSaving ? "กำลังบันทึก..." : "บันทึกข้อมูลช่าง"}
+              <Button variant="outline" onClick={() => setJobToView(null)} disabled={updateJobMutation.isPending}>ปิดหน้าต่าง</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDetails} disabled={updateJobMutation.isPending}>
+                {updateJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                บันทึกข้อมูลช่าง
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* หน้าต่าง Pop-up สำหรับยกเลิกงาน */}
         <Dialog open={!!jobToCancel} onOpenChange={(open) => {
           if (!open) {
             setJobToCancel(null)
@@ -831,29 +830,30 @@ export function QueueBoard() {
             <div className="py-2">
               <RadioGroup value={cancelReason} onValueChange={(val) => setCancelReason(val as CancelReason)} className="flex flex-col gap-3">
                 <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("CUSTOMER_CANCEL")}>
-                  <RadioGroupItem value="CUSTOMER_CANCEL" id="r1" />
+                  <RadioGroupItem value="CUSTOMER_CANCEL" id="r1" disabled={updateJobMutation.isPending} />
                   <Label htmlFor="r1" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าเปลี่ยนใจ / ไม่ซ่อมแล้ว</Label>
                 </div>
                 <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_SHOW")}>
-                  <RadioGroupItem value="NO_SHOW" id="r2" />
+                  <RadioGroupItem value="NO_SHOW" id="r2" disabled={updateJobMutation.isPending} />
                   <Label htmlFor="r2" className="cursor-pointer flex-1 font-medium text-slate-700">ลูกค้าไม่มาส่งเครื่องตามนัด</Label>
                 </div>
                 <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("UNREPAIRABLE")}>
-                  <RadioGroupItem value="UNREPAIRABLE" id="r3" />
+                  <RadioGroupItem value="UNREPAIRABLE" id="r3" disabled={updateJobMutation.isPending} />
                   <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700">เครื่องซ่อมไม่ได้ / บอร์ดพังหนัก</Label>
                 </div>
                 <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setCancelReason("NO_PARTS")}>
-                  <RadioGroupItem value="NO_PARTS" id="r4" />
+                  <RadioGroupItem value="NO_PARTS" id="r4" disabled={updateJobMutation.isPending} />
                   <Label htmlFor="r4" className="cursor-pointer flex-1 font-medium text-slate-700">ไม่มีอะไหล่ / อะไหล่เลิกผลิต</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <DialogFooter className="gap-3 mt-4 flex flex-row justify-end">
-              <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { setJobToCancel(null); setCancelReason("") }}>
+              <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { setJobToCancel(null); setCancelReason("") }} disabled={updateJobMutation.isPending}>
                 ปิดหน้าต่าง
               </Button>
-              <Button variant="destructive" className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700" onClick={confirmCancelJob} disabled={!cancelReason}>
+              <Button variant="destructive" className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700" onClick={confirmCancelJob} disabled={!cancelReason || updateJobMutation.isPending}>
+                {updateJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 ยืนยันการยกเลิกคิว
               </Button>
             </DialogFooter>
