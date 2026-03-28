@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast" // 🌟 1. เพิ่ม import useToast
+import { useToast } from "@/hooks/use-toast"
 import { 
   Dialog, 
   DialogContent, 
@@ -17,21 +17,28 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog"
-import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut } from "lucide-react"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" // 🌟 เพิ่ม Import RadioGroup
+import { Label } from "@/components/ui/label" // 🌟 เพิ่ม Import Label
+// 🌟 เพิ่ม Store และ PlusCircle เข้ามาใช้งานใน Modal
+import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle } from "lucide-react"
 
-// 🌟 2. Import Action สำหรับเช็คว่ามีร้านหรือยัง
-import { checkUserHasShop } from "@/actions/shop"
+// 🌟 Import Action สำหรับเช็คและดึงข้อมูลร้าน
+import { checkUserHasShop, getUserShops } from "@/actions/shop"
 
 export default function LandingPage() {
   const router = useRouter()
-  const { toast } = useToast() // 🌟 เรียกใช้ Toast
+  const { toast } = useToast() 
   
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userEmail, setUserEmail] = useState<string | null>(null) // 🌟 3. State เก็บ Email ไว้เช็คสิทธิ์
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
 
-  // 🌟 4. อัปเดต useEffect ให้ดึง Email มาเก็บไว้ใน State ด้วย
+  // 🌟 State สำหรับจัดการ Flow เลือกร้านเติมเงิน
+  const [showShopSelectPopup, setShowShopSelectPopup] = useState(false)
+  const [userShops, setUserShops] = useState<any[]>([])
+  const [selectedShopId, setSelectedShopId] = useState<string>("")
+
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -52,18 +59,18 @@ export default function LandingPage() {
     }
   }, [])
 
-  // 🌟 5. เปลี่ยนเป็น async function และใส่ Logic ดักการกดปุ่ม Free Trial
   const handleSelectPlan = async (plan: string) => {
     if (!isLoggedIn) {
       setSelectedPlan(plan)
       setShowLoginPopup(true)
     } else {
-      // ด่านหน้าเว็บ: เช็คสิทธิ์ก่อนพาไปสร้างร้าน (เฉพาะคนกดใช้ฟรี)
+      setSelectedPlan(plan) // เก็บแพ็กเกจไว้ เผื่อต้องใช้ต่อใน Modal
+
+      // ด่านที่ 1: ตรวจสอบสำหรับปุ่ม "ทดลองใช้ฟรี"
       if (plan === "free" && userEmail) {
         const res = await checkUserHasShop(userEmail)
         
         if (res.hasShop) {
-          // ถ้ามีร้านอยู่แล้ว ให้ขึ้นเตือน และเตะไปหน้า Dashboard แทน
           toast({
             title: "ไม่สามารถรับสิทธิ์ได้",
             description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้ครั้งแรกเท่านั้น",
@@ -72,9 +79,25 @@ export default function LandingPage() {
           router.push('/dashboard')
           return
         }
+        
+        router.push(`/onboarding?plan=${plan}`)
+        return
+      }
+
+      // ด่านที่ 2: ตรวจสอบสำหรับปุ่มจ่ายเงิน (รายเดือน/รายปี)
+      if (userEmail && (plan === "monthly" || plan === "yearly")) {
+        const res = await getUserShops(userEmail)
+        
+        if (res.success && res.shops.length > 0) {
+          // ถ้ามีร้านอยู่แล้ว -> เปิด Modal เลือกร้าน
+          setUserShops(res.shops)
+          setSelectedShopId(res.shops[0].id) // Default เลือกอันแรก
+          setShowShopSelectPopup(true)
+          return
+        }
       }
       
-      // ถ้าผ่านเงื่อนไข (หรือเลือกแพ็กเสียเงิน) พาไป Onboarding สร้างร้านปกติ
+      // ถ้าผ่านเงื่อนไขทั้งหมด (หรือยังไม่เคยมีร้านเลย) พาไป Onboarding สร้างร้านปกติ
       router.push(`/onboarding?plan=${plan}`)
     }
   }
@@ -83,10 +106,22 @@ export default function LandingPage() {
     router.push(`/login?next=/onboarding?plan=${selectedPlan}`)
   }
 
+  // 🌟 ฟังก์ชันจัดการตอนกดยืนยันเลือกร้านใน Modal
+  const handleConfirmShopSelection = () => {
+    if (selectedShopId === "new_shop") {
+      // เลือกว่าจะสร้างร้านใหม่
+      router.push(`/onboarding?plan=${selectedPlan}`)
+    } else {
+      // เลือกเติมเงินร้านเดิมที่มีอยู่ -> ยิงไปหน้า Checkout เลย
+      router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
+    }
+    setShowShopSelectPopup(false)
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
-    setUserEmail(null) // เคลียร์ Email ตอน Logout
+    setUserEmail(null) 
     router.refresh() 
   }
 
@@ -289,6 +324,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
+      {/* 🌟 Popup เข้าสู่ระบบ */}
       <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -307,6 +343,58 @@ export default function LandingPage() {
             <Button type="button" onClick={handleContinueToLogin} className="w-full bg-blue-600 hover:bg-blue-700">
               ไปหน้าเข้าสู่ระบบ
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🌟 Popup เลือกร้านเติมเงิน (Radio Choice) */}
+      <Dialog open={showShopSelectPopup} onOpenChange={setShowShopSelectPopup}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">เลือกร้านค้าที่ต้องการชำระเงิน</DialogTitle>
+            <DialogDescription>
+              ระบบพบว่าท่านมีร้านค้าในระบบอยู่แล้ว กรุณาเลือกว่าต้องการซื้อแพ็กเกจ {selectedPlan === "yearly" ? "รายปี" : "รายเดือน"} ให้กับร้านใด
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <RadioGroup value={selectedShopId} onValueChange={setSelectedShopId} className="space-y-3">
+              {userShops.map((shop) => (
+                <div key={shop.id}>
+                  <RadioGroupItem value={shop.id} id={shop.id} className="peer sr-only" />
+                  <Label 
+                    htmlFor={shop.id} 
+                    className="flex items-center p-4 border-2 rounded-xl cursor-pointer peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 hover:bg-slate-50 transition-all"
+                  >
+                    <Store className="h-5 w-5 text-slate-500 mr-3 peer-data-[state=checked]:text-emerald-600" />
+                    <div className="flex-1">
+                      <p className="font-bold text-slate-900 text-base">{shop.name}</p>
+                      <p className="text-xs text-slate-500">URL: {shop.slug}.esyq.net</p>
+                    </div>
+                  </Label>
+                </div>
+              ))}
+              
+              {/* Option สร้างร้านใหม่ */}
+              <div>
+                <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
+                <Label 
+                  htmlFor="new_shop" 
+                  className="flex items-center p-4 border-2 border-dashed rounded-xl cursor-pointer peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50 hover:bg-slate-50 transition-all"
+                >
+                  <PlusCircle className="h-5 w-5 text-slate-400 mr-3 peer-data-[state=checked]:text-blue-600" />
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-700 text-base">สร้างร้านค้าใหม่</p>
+                    <p className="text-xs text-slate-500">เปิดร้านสาขาใหม่ด้วยอีเมลเดิม</p>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button type="button" variant="outline" onClick={() => setShowShopSelectPopup(false)} className="w-full">ยกเลิก</Button>
+            <Button type="button" onClick={handleConfirmShopSelection} className="w-full bg-emerald-600 hover:bg-emerald-700">ยืนยันทำรายการ</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

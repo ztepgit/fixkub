@@ -272,3 +272,33 @@ export async function updateShopSettings(formData: FormData) {
     return { success: false, error: "ไม่สามารถบันทึกข้อมูลร้านค้าได้" }
   }
 }
+
+// ==========================================
+// 6. ดึงรายชื่อร้านค้าทั้งหมดของ User (สำหรับให้เลือกตอนเติมเงิน)
+// ==========================================
+export async function getUserShops(email: string) {
+  try {
+    const owners = await db.shopOwner.findMany({
+      where: { email: email },
+      include: {
+        shop: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            planType: true,
+            expiresAt: true
+          }
+        }
+      }
+    })
+    
+    // ดึงเฉพาะข้อมูล shop ออกมาส่งให้หน้าเว็บ
+    const shops = owners.map(owner => owner.shop)
+    
+    return { success: true, shops }
+  } catch (error) {
+    console.error("Get User Shops Error:", error)
+    return { success: false, shops: [] }
+  }
+}
