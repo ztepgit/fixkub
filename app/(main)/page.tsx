@@ -16,8 +16,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog"
-// 🌟 Import ไอคอน LayoutDashboard และ LogOut เพิ่มเข้ามา
-import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, ShieldCheck, Zap, LogIn, LayoutDashboard, LogOut } from "lucide-react"
+import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut } from "lucide-react"
 
 export default function LandingPage() {
   const router = useRouter()
@@ -33,7 +32,6 @@ export default function LandingPage() {
     }
     checkUser()
 
-    // 🌟 ดักจับการเปลี่ยนแปลงสถานะ Login เผื่อล็อกอิน/ล็อกเอาท์จากแท็บอื่น
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setIsLoggedIn(!!session)
     })
@@ -48,19 +46,20 @@ export default function LandingPage() {
       setSelectedPlan(plan)
       setShowLoginPopup(true)
     } else {
-      router.push(`/payment/process?plan=${plan}`)
+      // 🌟 แก้ไข: พาไปหน้า Onboarding ทันทีแทนการไปโฟลเดอร์ payment
+      router.push(`/onboarding?plan=${plan}`)
     }
   }
 
   const handleContinueToLogin = () => {
-    router.push(`/login?next=/payment/process?plan=${selectedPlan}`)
+    // 🌟 แก้ไข: หลังล็อกอินเสร็จ ให้เด้งไปหน้า Onboarding พร้อมแนบแพ็กเกจไป
+    router.push(`/login?next=/onboarding?plan=${selectedPlan}`)
   }
 
-  // 🌟 ฟังก์ชันจัดการการออกจากระบบฝั่ง Client
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
-    router.refresh() // สั่ง Refresh เพื่อเคลียร์แคช
+    router.refresh() 
   }
 
   return (
@@ -80,7 +79,6 @@ export default function LandingPage() {
             <Link href="#pricing" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ราคา</Link>
           </nav>
           
-          {/* 🌟 เปลี่ยนโครงสร้างปุ่มมุมขวาบนให้เช็คจาก State isLoggedIn */}
           <div className="flex items-center gap-3">
             {!isLoggedIn ? (
               <Link href="/login">
@@ -126,8 +124,12 @@ export default function LandingPage() {
               รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200">
-                ทดลองใช้ฟรี 30 วัน <ArrowRight className="ml-2 h-5 w-5" />
+              <Button 
+                size="lg" 
+                onClick={() => handleSelectPlan("free")}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200"
+              >
+                ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-slate-600 border-slate-300">
                 ดูวิดีโอสาธิตการใช้งาน
@@ -211,7 +213,7 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
 
-              {/* แพ็กเกจรายปี (ตัวเอก) */}
+              {/* แพ็กเกจรายปี */}
               <Card className="border-emerald-500 shadow-xl shadow-emerald-100 relative">
                 <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-4">
                   <Badge className="bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 text-white border-none px-3 py-1.5 text-sm uppercase font-black shadow-md">
@@ -259,7 +261,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* 🌟 ดัก Pop-up แจ้งเตือน Login ซ่อนอยู่ตรงนี้ */}
       <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -268,7 +269,7 @@ export default function LandingPage() {
             </div>
             <DialogTitle className="text-center text-xl">กรุณาเข้าสู่ระบบ</DialogTitle>
             <DialogDescription className="text-center text-base pt-2">
-              ระบบต้องการให้ท่านเข้าสู่ระบบก่อนชำระเงิน<br/>เพื่อเชื่อมโยงแพ็กเกจเข้ากับข้อมูลร้านค้าของท่านได้อย่างถูกต้อง
+              ระบบต้องการให้ท่านเข้าสู่ระบบก่อน{selectedPlan === "free" ? "เริ่มต้นทดลองใช้" : "ชำระเงิน"}<br/>เพื่อเชื่อมโยงแพ็กเกจเข้ากับข้อมูลร้านค้าของท่านได้อย่างถูกต้อง
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">

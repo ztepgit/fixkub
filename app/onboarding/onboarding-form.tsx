@@ -10,9 +10,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Store, Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react"
 
-import { createShopAction, checkSlugAvailability } from "@/actions/super-admin"
+// 🌟 Import Action ใหม่จาก actions/shop.ts 
+import { registerPublicShop, registerFreeTrialShop } from "@/actions/shop"
+import { checkSlugAvailability } from "@/actions/super-admin"
 import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 
 export default function OnboardingForm({ email, plan }: { email: string, plan: string }) {
@@ -23,8 +25,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
   const [isCheckingSlug, setIsCheckingSlug] = useState(false)
   const [slugStatus, setSlugStatus] = useState<"idle" | "available" | "taken">("idle")
 
-  // แปลงค่าจาก URL ไปเป็น Enum เพื่อให้ตรงกับ Zod Schema
-  const planTypeEnum = plan === "yearly" ? "BASIC_YEARLY" : "BASIC_MONTHLY"
+  const planTypeEnum = plan === "yearly" ? "BASIC_YEARLY" : plan === "free" ? "FREE_TRIAL" : "BASIC_MONTHLY"
 
   const form = useForm<CreateShopInput>({
     resolver: zodResolver(createShopSchema),
@@ -33,9 +34,9 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
       slug: "", 
       logoUrl: "", 
       themeColor: "#10b981", 
-      ownerEmail: email, // 🌟 ล็อกอีเมลนี้ไว้เลย
+      ownerEmail: email, 
       planType: planTypeEnum, 
-      trialDays: 0, // ไม่แถมวันฟรี เพราะรอลูกค้าจ่ายเงิน
+      trialDays: 0, 
       startImmediately: false, 
       agentCode: "", 
       isActive: true,
@@ -45,12 +46,10 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
   const watchName = form.watch("name")
   const watchSlug = form.watch("slug")
 
-  // รีเซ็ตสถานะ Slug เมื่อพิมพ์แก้
   useEffect(() => {
     if (slugStatus !== "idle") setSlugStatus("idle")
   }, [watchSlug, slugStatus])
 
-  // Gen Slug อัตโนมัติจากชื่อร้าน
   useEffect(() => {
     if (watchName && !form.formState.dirtyFields.slug) {
       const generatedSlug = watchName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')     
@@ -58,7 +57,6 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
     }
   }, [watchName, form])
 
-  // ฟังก์ชันตรวจสอบ Slug
   const handleCheckSlug = async () => {
     const currentSlug = form.getValues("slug")
     if (!currentSlug || currentSlug.length < 3) {
@@ -86,9 +84,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
     setIsCheckingSlug(false)
   }
 
-  // ฟังก์ชัน Submit ฟอร์ม
   const onSubmitShop = async (values: CreateShopInput) => {
-    // บังคับเช็ค Slug ก่อนส่ง ถ้าลูกค้าลืมกดปุ่มเช็ค
     if (slugStatus !== "available") {
       const isAvailable = await checkSlugAvailability(values.slug)
       if (!isAvailable.success || !isAvailable.available) {
@@ -100,20 +96,37 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
 
     setIsSubmittingShop(true)
     
-    // 🌟 ส่งข้อมูลไปสร้างร้านในฐานข้อมูล
-    const res = await createShopAction(values)
+    // 🌟 เตรียมข้อมูลแปลงเป็น FormData เพื่อส่งให้ Server Action
+    const formData = new FormData()
+    formData.append("name", values.name)
+    formData.append("slug", values.slug)
+    formData.append("email", values.ownerEmail)
     
-    if (res.success && res.data) {
-      toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: "กำลังพาท่านไปยังหน้าชำระเงิน..." })
-      
-      // 🚀 สร้างร้านเสร็จปุ๊บ โยน shopId ที่ได้ ไปให้หน้า Checkout จ่ายเงินต่อเลย!
-      router.push(`/checkout?shopId=${res.data.id}&plan=${plan}`)
+    let res;
+
+    // 🌟 แยก Flow ตามแพ็กเกจที่ลูกค้าเลือก
+    if (plan === "free") {
+      res = await registerFreeTrialShop(formData)
     } else {
-      if (res.error?.includes("URL") || res.error?.includes("Slug")) {
-        form.setError("slug", { type: "manual", message: res.error })
+      res = await registerPublicShop(formData)
+    }
+    
+    if (res.success && res.shopId) {
+      if (plan === "free") {
+        toast({ title: "✅ เปิดร้านค้าสำเร็จ", description: "กำลังพาท่านเข้าสู่ระบบจัดการร้านค้า..." })
+        // Flow 2: ใช้ฟรี เด้งไป Dashboard เลย
+        router.push('/dashboard') 
+      } else {
+        toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: "กำลังพาท่านไปยังหน้าชำระเงิน..." })
+        // Flow 1: เสียตังค์ เด้งไปจ่ายเงินก่อน
+        router.push(`/checkout?shopId=${res.shopId}&plan=${plan}`) 
+      }
+    } else {
+      if (res.message?.includes("URL") || res.message?.includes("Slug")) {
+        form.setError("slug", { type: "manual", message: res.message })
         setSlugStatus("taken")
       } else {
-        toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
+        toast({ title: "❌ เกิดข้อผิดพลาด", description: res.message || "ไม่สามารถสร้างร้านค้าได้", variant: "destructive" })
       }
       setIsSubmittingShop(false)
     }
@@ -129,7 +142,6 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
               <FormItem>
                 <FormLabel className="text-slate-600">อีเมลเจ้าของร้าน (ล็อกอินปัจจุบัน)</FormLabel>
                 <FormControl>
-                  {/* 🌟 แสดงอีเมลให้ดู แต่ปิด (Disabled) ไม่ให้แก้ไข */}
                   <Input {...field} disabled className="bg-slate-100 text-slate-500 font-medium" />
                 </FormControl>
               </FormItem>
@@ -149,13 +161,11 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
               <FormItem>
                 <FormLabel>ลิงก์หน้าร้าน (URL) <span className="text-red-500">*</span></FormLabel>
                 <FormControl>
-                  {/* 🌟 อัปเดต UI ให้เป็นรูปแบบ Subdomain พร้อมแก้ปัญหากรอบไฮไลท์โดนทับ */}
                   <div className="flex items-center w-full shadow-sm rounded-md">
                     <span className="bg-slate-50 border border-r-0 border-slate-200 text-slate-500 px-3 h-11 rounded-l-md text-sm flex items-center whitespace-nowrap select-none">
                       https://
                     </span>
                     <Input 
-                      // 🌟 เพิ่ม focus-visible:relative focus-visible:z-10 เพื่อให้กรอบเด้งทับกล่องข้างๆ ตอนกด
                       className="rounded-none border-l-0 border-r-0 h-11 focus-visible:ring-emerald-500 px-2 text-center focus-visible:relative focus-visible:z-10 font-medium text-slate-700" 
                       placeholder="ddmobile"
                       {...field} 
@@ -168,7 +178,6 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
                       variant="secondary" 
                       onClick={handleCheckSlug} 
                       disabled={isCheckingSlug || !watchSlug || watchSlug.length < 3}
-                      // 🌟 เพิ่ม cursor-pointer ให้เป็นรูปนิ้วชี้
                       className="shrink-0 h-11 px-4 sm:px-6 font-medium rounded-l-none border border-l-0 border-slate-200 hover:bg-slate-200 cursor-pointer disabled:cursor-not-allowed"
                     >
                       {isCheckingSlug ? <Loader2 className="h-4 w-4 animate-spin" /> : "ตรวจสอบ"}
@@ -198,6 +207,8 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
               >
                 {isSubmittingShop ? (
                   <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> กำลังสร้างร้านค้า...</>
+                ) : plan === "free" ? (
+                  <>เริ่มทดลองใช้งานฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" /></>
                 ) : (
                   <>สร้างร้านค้าและไปหน้าชำระเงิน <ArrowRight className="ml-2 h-5 w-5" /></>
                 )}
