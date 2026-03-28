@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useRef } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
+import { useQuery } from "@tanstack/react-query"
 import { 
   Breadcrumb, 
   BreadcrumbItem, 
@@ -23,53 +25,48 @@ import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 
-import { QRCodeCanvas } from "qrcode.react"
 import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2, Home } from "lucide-react"
 
-import { useShopStore } from "@/store/useShopStore"
-// 🌟 1. เพิ่ม Import สำหรับดึงข้อมูลสำรอง
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
+
+// 🌟 1. โหลด QRCodeCanvas แบบ Client-only เพื่อแก้ปัญหา SSR Mismatch
+const QRCodeCanvas = dynamic(
+  () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
+  { ssr: false }
+)
 
 interface DashboardHeaderProps {
   currentTabName?: string;
 }
 
 export function DashboardHeader({ currentTabName = "ภาพรวม" }: DashboardHeaderProps) {
-  const slug = useShopStore((s) => s.shop?.slug)
-
-  const [shopUrl, setShopUrl] = useState("")
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
+  const qrWrapperRef = useRef<HTMLDivElement>(null) // 🌟 2. ใช้ useRef อ้างอิง QR เพื่อดาวน์โหลด
   const { toast } = useToast()
 
-  // 🌟 2. อัปเดตการดึง URL ให้ฉลาดขึ้น (ดึงจาก DB ถ้า Store ยังไม่พร้อม)
-  useEffect(() => {
-    const loadShopUrl = async () => {
-      // กรณีที่ 1: ถ้า Store มีข้อมูลแล้ว ให้ใช้ได้เลย
-      if (slug) {
-        setShopUrl(`https://${slug}.esyq.net`) 
-        return
+  // 🌟 3. ใช้ React Query เป็น Source of Truth (จัดการ Loading, Error, Cache ให้เสร็จสรรพ)
+  const { data: shop, isLoading } = useQuery({
+    queryKey: ["current-shop"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) throw new Error("Unauthorized")
+      
+      const res = await getUserShops(user.email)
+      if (!res.success || !res.shops || res.shops.length === 0) {
+        throw new Error("Shop not found")
       }
+      return res.shops[0]
+    },
+    staleTime: 1000 * 60 * 5, // Cache ไว้ 5 นาที ไม่ต้องยิงซ้ำรัวๆ
+  })
 
-      // กรณีที่ 2: ถ้า Store ยังไม่มีข้อมูล (เช่นเพิ่งเปิดหน้าภาพรวม) ให้ไปดึงจาก DB
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email) {
-          const res = await getUserShops(user.email)
-          if (res.success && res.shops.length > 0) {
-            setShopUrl(`https://${res.shops[0].slug}.esyq.net`)
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch shop URL:", error)
-      }
-    }
-
-    loadShopUrl()
-  }, [slug]) 
+  // 🌟 4. ผูก shopUrl แบบ Reactive (ไม่ต้องใช้ useState / useEffect)
+  const shopUrl = shop?.slug ? `https://${shop.slug}.esyq.net` : ""
 
   const copyLink = () => {
+    if (!shopUrl) return
     navigator.clipboard.writeText(shopUrl)
     toast({ 
       title: "✅ คัดลอกลิงก์สำเร็จ", 
@@ -78,14 +75,15 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
   }
 
   const downloadQR = () => {
-    const canvas = document.getElementById("header-qr-code") as HTMLCanvasElement;
+    if (!qrWrapperRef.current) return;
+    const canvas = qrWrapperRef.current.querySelector('canvas');
+    
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
       
-      // 🌟 ดึง slug มาตั้งชื่อไฟล์ให้ถูกต้อง
-      const currentSlug = slug || shopUrl.replace("https://", "").replace(".esyq.net", "") || "ESYQ";
+      const currentSlug = shop?.slug || "ESYQ";
       link.download = `QR-Code-${currentSlug}.png`;
       
       document.body.appendChild(link);
@@ -202,19 +200,25 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                   </div>
                 ) : (
                   <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-100 transition-transform hover:scale-105 duration-300 animate-in fade-in duration-300 zoom-in-95">
-                    {shopUrl ? (
-                      <QRCodeCanvas
-                        id="header-qr-code"
-                        value={shopUrl}
-                        size={160}
-                        bgColor={"#ffffff"}
-                        fgColor={"#0f172a"}
-                        level={"H"}
-                        includeMargin={false}
-                      />
-                    ) : (
+                    {/* 🌟 5. การจัดการ UI 3 สถานะที่ถูกต้อง: โหลด -> มี URL -> ไม่มี URL */}
+                    {isLoading ? (
                       <div className="w-[160px] h-[160px] bg-slate-50 animate-pulse rounded-xl flex items-center justify-center">
                         <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                      </div>
+                    ) : shopUrl ? (
+                      <div ref={qrWrapperRef}>
+                        <QRCodeCanvas
+                          value={shopUrl}
+                          size={160}
+                          bgColor={"#ffffff"}
+                          fgColor={"#0f172a"}
+                          level={"H"}
+                          includeMargin={false}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-[160px] h-[160px] bg-slate-50 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-center p-2">
+                        <p className="text-xs text-slate-400">ยังไม่มี URL ร้าน<br/>(กรุณาตั้งชื่อ URL)</p>
                       </div>
                     )}
                   </div>
@@ -229,8 +233,8 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                   <div className="flex gap-2">
                     <Input 
                       readOnly 
-                      value={shopUrl || "กำลังโหลด..."} 
-                      className={`bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy h-10 ${!shopUrl ? 'text-slate-400' : ''}`} 
+                      value={isLoading ? "กำลังโหลด..." : (shopUrl || "ยังไม่มี URL ร้านค้า")} 
+                      className={`bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy h-10 ${!shopUrl && !isLoading ? 'text-rose-400 italic' : ''}`} 
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
                     <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="h-10 w-10 shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200">

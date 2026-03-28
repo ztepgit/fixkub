@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { Toaster } from "@/components/ui/toaster" // 🌟 1. Import Toaster เข้ามาตรงนี้
+import { Toaster } from "@/components/ui/toaster" 
+import { Providers } from "@/components/providers" // 🌟 1. Import Providers ที่เราสร้างขึ้นมาใหม่
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -38,8 +39,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased" suppressHydrationWarning={true}>
-        {children}
-        <Toaster /> {/* 🌟 2. ใส่ Toaster ไว้ตรงนี้ เพื่อให้มันสามารถแสดง toast ได้จากทุกหน้า */}
+        {/* 🌟 2. เอา Providers ครอบ {children} และ Component อื่นๆ ที่ต้องการใช้งาน */}
+        <Providers>
+          {children}
+          <Toaster /> 
+        </Providers>
         <Analytics />
       </body>
     </html>

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import dynamic from "next/dynamic"
+import { useQuery } from "@tanstack/react-query" 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,87 +11,73 @@ import { useToast } from "@/hooks/use-toast"
 import { 
   UploadCloud, Save, Store, Loader2, Info, 
   QrCode, Copy, Download, Link as LinkIcon,
-  Eye, EyeOff
+  Eye, EyeOff, AlertCircle
 } from "lucide-react"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { updateShopSettings } from "@/actions/shop"
-import { QRCodeCanvas } from "qrcode.react"
 
-import { useShopSync } from "@/hooks/useShopSync"
+// 🌟 1. Import getShopSettings เข้ามาช่วยดึง Logo
+import { updateShopSettings, getUserShops, getShopSettings } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
-
-// 🌟 1. Import เพิ่มสำหรับดึงข้อมูลสำรอง
 import { supabase } from "@/lib/supabase"
-import { getUserShops } from "@/actions/shop"
+
+const QRCodeCanvas = dynamic(
+  () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
+  { ssr: false }
+)
 
 export function ShopSettings() {
-  const storeShop = useShopStore((state) => state.shop)
   const updateShop = useShopStore((s) => s.updateShop)
-  
-  // 🌟 2. สร้าง State เก็บ ID จริงที่ผ่านการตรวจสอบแล้ว
-  const [realShopId, setRealShopId] = useState<string | null>(null)
+  const { toast } = useToast()
 
-  // 🌟 3. ระบบควานหาร้านค้าอัตโนมัติ (ถ้า Store ว่าง ให้ไปดึงจาก DB มายัดใส่ Store)
-  useEffect(() => {
-    const resolveShop = async () => {
-      if (storeShop?.id) {
-        setRealShopId(storeShop.id)
-        return
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const qrWrapperRef = useRef<HTMLDivElement>(null) 
+
+  const { data: shop, isLoading, isError } = useQuery({
+    queryKey: ["shop-settings"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) throw new Error("Unauthorized")
+
+      // สเต็ป 1: หาร้านค้าของ User ให้เจอ
+      const res = await getUserShops(user.email)
+      if (!res.success || !res.shops || res.shops.length === 0) {
+        throw new Error("Shop not found")
       }
+
+      const baseShop = res.shops[0]
+
+      // 🌟 สเต็ป 2: ใช้ getShopSettings เพื่อดึง logoUrl ของแท้มาประกอบร่าง
+      const settingsRes = await getShopSettings(baseShop.id)
       
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email) {
-          const res = await getUserShops(user.email)
-          if (res.success && res.shops.length > 0) {
-            const foundShop = res.shops[0]
-            setRealShopId(foundShop.id)
-            updateShop(foundShop) // ดันเข้า Store เพื่อให้หน้าอื่นดึงไปใช้ได้ด้วย
-          } else {
-            setIsLoaded(true) // ดักไว้เผื่อไม่มีร้าน จะได้เลิกหมุน
-          }
-        }
-      } catch (error) {
-        console.error("Failed to resolve shop:", error)
-        setIsLoaded(true)
+      const fullShopData = {
+        ...baseShop,
+        logoUrl: settingsRes.success && settingsRes.data ? settingsRes.data.logoUrl : null
       }
-    }
-    
-    resolveShop()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeShop?.id])
 
-  // 🌟 4. นำ realShopId ไปฟังข้อมูล Realtime (ถ้ายังไม่มี โยนค่าว่างไปก่อน)
-  const shop = useShopSync(realShopId || "")
+      // ดันเข้า Store ทันที
+      updateShop(fullShopData)
+      return fullShopData
+    }
+  })
 
   const [shopName, setShopName] = useState("")
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<Blob | null>(null) 
-  
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   const [shopUrl, setShopUrl] = useState("")
+  
+  const [isSaving, setIsSaving] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
-
+  // 🌟 Type จะไม่แดงแล้ว เพราะ fullShopData มี logoUrl แน่นอน
   useEffect(() => {
-    // เมื่อ shop มาแล้ว และยังไม่ได้โหลด ให้ยัดค่าใส่ฟอร์ม
-    if (shop && !isLoaded) {
+    if (shop) {
       setShopName(shop.name || "")
       setLogoPreview(shop.logoUrl || null)
-      setIsLoaded(true) 
+      setShopUrl(shop.slug ? `https://${shop.slug}.esyq.net` : "")
     }
-  }, [shop, isLoaded])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && shop?.slug) {
-      setShopUrl(`https://${shop.slug}.esyq.net`)
-    }
-  }, [shop?.slug])
+  }, [shop])
 
   const processImage = (file: File) => {
     const reader = new FileReader()
@@ -136,18 +124,15 @@ export function ShopSettings() {
   }
 
   const handleSave = async () => {
-    if (!realShopId) {
-      toast({ title: "❌ ข้อผิดพลาด", description: "ไม่พบข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บ", variant: "destructive" })
-      return
-    }
+    if (!shop?.id) return
 
     setIsSaving(true)
     
-    // Optimistic Update! กดปุ๊บ UI เปลี่ยนทันที ไม่ต้องรอเน็ต
+    // Optimistic Update
     updateShop({ name: shopName, logoUrl: logoPreview })
     
     const formData = new FormData()
-    formData.append("shopId", realShopId) // 🌟 ใช้ realShopId
+    formData.append("shopId", shop.id) 
     formData.append("name", shopName)
     
     if (logoFile) {
@@ -173,24 +158,44 @@ export function ShopSettings() {
   }
 
   const copyLink = () => {
+    if (!shopUrl) return
     navigator.clipboard.writeText(shopUrl)
     toast({ title: "✅ คัดลอกลิงก์สำเร็จ", description: "นำไปวางในเพจ Facebook, LINE หรือส่งให้ลูกค้าได้เลย" })
   }
 
   const downloadQR = () => {
-    const canvas = document.getElementById("settings-qr-code") as HTMLCanvasElement;
+    if (!qrWrapperRef.current) return;
+    const canvas = qrWrapperRef.current.querySelector('canvas');
+    
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      // ใช้ slug เป็นชื่อไฟล์ถ้ามี หรือใช้ shopId ถ้าไม่มี slug
-      const downloadName = shop?.slug ? `QR-Code-${shop.slug}.png` : `QR-Code-แจ้งซ่อม-${realShopId}.png`;
+      const downloadName = shop?.slug ? `QR-Code-${shop.slug}.png` : `QR-Code-แจ้งซ่อม-${shop?.id}.png`;
       link.download = downloadName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ", description: "รูป QR Code ถูกบันทึกลงในเครื่องแล้ว" })
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center text-slate-400 gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        <p className="text-lg">กำลังโหลดข้อมูลร้านค้า...</p>
+      </div>
+    )
+  }
+
+  if (isError || !shop) {
+    return (
+        <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 gap-3">
+            <AlertCircle className="h-8 w-8" />
+            <p className="text-lg">ไม่พบข้อมูลร้านค้า หรือการเชื่อมต่อมีปัญหา กรุณารีเฟรชหน้าจอ</p>
+        </div>
+    )
   }
 
   return (
@@ -204,11 +209,6 @@ export function ShopSettings() {
           </div>
 
           <Card className="border-slate-200 shadow-sm relative overflow-hidden">
-            {!isLoaded && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
-              </div>
-            )}
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="shopName" className="font-semibold text-slate-700">ชื่อร้านค้า (Display Name)</Label>
@@ -218,7 +218,6 @@ export function ShopSettings() {
                   onChange={(e) => setShopName(e.target.value)} 
                   placeholder="เช่น ร้าน A Mobile Repair" 
                   className="text-lg h-12 focus-visible:ring-emerald-500"
-                  disabled={!isLoaded}
                 />
               </div>
 
@@ -246,7 +245,6 @@ export function ShopSettings() {
                       type="button" 
                       variant="outline" 
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={!isLoaded}
                       className="w-full flex items-center gap-2 border-slate-300 border-dashed hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                     >
                       <UploadCloud className="h-4 w-4" /> อัปโหลดรูปภาพ
@@ -258,7 +256,7 @@ export function ShopSettings() {
               </div>
             </CardContent>
             <CardFooter className="bg-slate-50 border-t py-4">
-              <Button onClick={handleSave} disabled={isSaving || !isLoaded || !realShopId} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
+              <Button onClick={handleSave} disabled={isSaving || !shop?.id} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
                 {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
               </Button>
@@ -303,9 +301,13 @@ export function ShopSettings() {
                 ) : (
                   <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 transition-transform hover:scale-105 duration-300 shrink-0 animate-in fade-in duration-300">
                     {shopUrl ? (
-                      <QRCodeCanvas id="settings-qr-code" value={shopUrl} size={130} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} />
+                      <div ref={qrWrapperRef}>
+                        <QRCodeCanvas value={shopUrl} size={130} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} />
+                      </div>
                     ) : (
-                      <div className="w-[130px] h-[130px] bg-slate-100 animate-pulse rounded-lg flex items-center justify-center"><Loader2 className="h-8 w-8 text-slate-300 animate-spin" /></div>
+                      <div className="w-[130px] h-[130px] bg-slate-50 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-center p-2">
+                         <p className="text-xs text-slate-400">ยังไม่มี URL ร้าน<br/>(กรุณาตั้งชื่อ URL)</p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -314,7 +316,7 @@ export function ShopSettings() {
                   <div className="space-y-2">
                     <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">ลิงก์ร้านค้าของคุณ (URL)</Label>
                     <div className="flex gap-2">
-                      <Input readOnly value={shopUrl || "กำลังโหลด..."} className="bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy" onClick={(e) => (e.target as HTMLInputElement).select()} />
+                      <Input readOnly value={shopUrl || "ยังไม่มี URL ร้านค้า"} className={`bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy ${!shopUrl ? 'text-rose-400 italic' : ''}`} onClick={(e) => (e.target as HTMLInputElement).select()} />
                       <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200"><Copy className="h-4 w-4" /></Button>
                     </div>
                   </div>
