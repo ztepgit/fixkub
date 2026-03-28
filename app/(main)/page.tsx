@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast" // 🌟 1. เพิ่ม import useToast
 import { 
   Dialog, 
   DialogContent, 
@@ -18,22 +19,32 @@ import {
 } from "@/components/ui/dialog"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut } from "lucide-react"
 
+// 🌟 2. Import Action สำหรับเช็คว่ามีร้านหรือยัง
+import { checkUserHasShop } from "@/actions/shop"
+
 export default function LandingPage() {
   const router = useRouter()
+  const { toast } = useToast() // 🌟 เรียกใช้ Toast
   
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null) // 🌟 3. State เก็บ Email ไว้เช็คสิทธิ์
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
 
+  // 🌟 4. อัปเดต useEffect ให้ดึง Email มาเก็บไว้ใน State ด้วย
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setIsLoggedIn(!!session)
+      if (session?.user?.email) {
+        setUserEmail(session.user.email)
+      }
     }
     checkUser()
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setIsLoggedIn(!!session)
+      setUserEmail(session?.user?.email || null)
     })
 
     return () => {
@@ -41,24 +52,41 @@ export default function LandingPage() {
     }
   }, [])
 
-  const handleSelectPlan = (plan: string) => {
+  // 🌟 5. เปลี่ยนเป็น async function และใส่ Logic ดักการกดปุ่ม Free Trial
+  const handleSelectPlan = async (plan: string) => {
     if (!isLoggedIn) {
       setSelectedPlan(plan)
       setShowLoginPopup(true)
     } else {
-      // 🌟 แก้ไข: พาไปหน้า Onboarding ทันทีแทนการไปโฟลเดอร์ payment
+      // ด่านหน้าเว็บ: เช็คสิทธิ์ก่อนพาไปสร้างร้าน (เฉพาะคนกดใช้ฟรี)
+      if (plan === "free" && userEmail) {
+        const res = await checkUserHasShop(userEmail)
+        
+        if (res.hasShop) {
+          // ถ้ามีร้านอยู่แล้ว ให้ขึ้นเตือน และเตะไปหน้า Dashboard แทน
+          toast({
+            title: "ไม่สามารถรับสิทธิ์ได้",
+            description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้ครั้งแรกเท่านั้น",
+            variant: "destructive",
+          })
+          router.push('/dashboard')
+          return
+        }
+      }
+      
+      // ถ้าผ่านเงื่อนไข (หรือเลือกแพ็กเสียเงิน) พาไป Onboarding สร้างร้านปกติ
       router.push(`/onboarding?plan=${plan}`)
     }
   }
 
   const handleContinueToLogin = () => {
-    // 🌟 แก้ไข: หลังล็อกอินเสร็จ ให้เด้งไปหน้า Onboarding พร้อมแนบแพ็กเกจไป
     router.push(`/login?next=/onboarding?plan=${selectedPlan}`)
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
+    setUserEmail(null) // เคลียร์ Email ตอน Logout
     router.refresh() 
   }
 

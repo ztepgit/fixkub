@@ -19,6 +19,21 @@ const publicRegisterSchema = z.object({
 })
 
 // ==========================================
+// 🌟 ฟังก์ชันใหม่: เช็คว่าผู้ใช้นี้เคยเปิดร้านหรือยัง (ให้หน้า Landing Page เรียกใช้)
+// ==========================================
+export async function checkUserHasShop(email: string) {
+  try {
+    const owner = await db.shopOwner.findFirst({
+      where: { email: email }
+    })
+    return { hasShop: !!owner }
+  } catch (error) {
+    console.error("Check User Shop Error:", error)
+    return { hasShop: false }
+  }
+}
+
+// ==========================================
 // 1. ลูกค้าสมัครเปิดร้านเองหน้าเว็บ (Flow 1: ล็อคค่าตายตัว รอจ่ายเงิน)
 // ==========================================
 export async function registerPublicShop(formData: FormData) {
@@ -80,6 +95,15 @@ export async function registerFreeTrialShop(formData: FormData) {
       slug: formData.get("slug"),
       ownerEmail: formData.get("email"),
     })
+
+    // 🌟 ด่านหลังบ้าน: เช็คว่าอีเมลนี้เคยสร้างร้านไปแล้วหรือยัง ป้องกันคนแอบยิง API ตรงๆ
+    const existingOwner = await db.shopOwner.findFirst({ 
+      where: { email: data.ownerEmail } 
+    })
+    
+    if (existingOwner) {
+      return { success: false, message: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้ครั้งแรกเท่านั้น" }
+    }
 
     const exists = await db.shop.findUnique({ where: { slug: data.slug } })
     if (exists) {
