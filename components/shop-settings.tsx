@@ -17,13 +17,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateShopSettings } from "@/actions/shop"
 import { QRCodeCanvas } from "qrcode.react"
 
-// 🌟 Import Store และ Sync Hook
 import { useShopSync } from "@/hooks/useShopSync"
 import { useShopStore } from "@/store/useShopStore"
 
-export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) {
-  // 🌟 1. ดูดข้อมูลจาก Sync Hook ตลอดเวลา
-  const shop = useShopSync(shopId)
+export function ShopSettings() {
+  // 🌟 1. ดึง shopId ของจริงออกมาจาก Zustand Store
+  const shopId = useShopStore((state) => state.shop?.id)
+
+  // 🌟 2. ใส่ || "" เพื่อบอก TypeScript ว่าถ้า shopId เป็น undefined ให้ส่งข้อความว่างๆ ไปแทน
+  // Hook นี้จะจัดการโหลดข้อมูลและฟังการอัปเดตแบบเรียลไทม์ให้
+  const shop = useShopSync(shopId || "")
+  
   const updateShop = useShopStore((s) => s.updateShop)
 
   const [shopName, setShopName] = useState("")
@@ -38,16 +42,14 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  // 🌟 2. เมื่อ Store โหลดค่ามาเสร็จ ให้ยัดลงฟอร์ม
   useEffect(() => {
     if (shop && !isLoaded) {
       setShopName(shop.name)
       setLogoPreview(shop.logoUrl)
-      setIsLoaded(true) // โหลดแค่ครั้งแรกเพื่อไม่ให้ไปกวนตอนพิมพ์
+      setIsLoaded(true) 
     }
   }, [shop, isLoaded])
 
-  // 🌟 จุดที่แก้ไข: สร้าง URL ด้วย SLUG แบบ Subdomain
   useEffect(() => {
     if (typeof window !== 'undefined' && shop?.slug) {
       setShopUrl(`https://${shop.slug}.esyq.net`)
@@ -99,13 +101,18 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
   }
 
   const handleSave = async () => {
+    if (!shopId) {
+      toast({ title: "❌ ข้อผิดพลาด", description: "ไม่พบข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บ", variant: "destructive" })
+      return
+    }
+
     setIsSaving(true)
     
-    // 🌟 3. Optimistic Update! กดปุ๊บ UI เปลี่ยนทันที ไม่ต้องรอเน็ต
+    // Optimistic Update! กดปุ๊บ UI เปลี่ยนทันที ไม่ต้องรอเน็ต
     updateShop({ name: shopName, logoUrl: logoPreview })
     
     const formData = new FormData()
-    formData.append("shopId", shopId)
+    formData.append("shopId", shopId) // 🌟 ใช้ shopId ของจริง
     formData.append("name", shopName)
     
     if (logoFile) {
@@ -114,11 +121,9 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
       formData.append("existingLogoUrl", logoPreview)
     }
     
-    // 🌟 4. อัปเดตข้อมูลจริงๆ ลง Database
     const res = await updateShopSettings(formData)
 
     if (res.success && res.data) {
-      // อัปเดตซ้ำด้วย URL จริงที่ได้จาก Supabase Storage
       updateShop({ name: res.data.name, logoUrl: res.data.logoUrl }) 
       toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตข้อมูลร้านค้าเรียบร้อยแล้ว" })
     } else {
@@ -143,7 +148,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      // 🌟 ใช้ slug เป็นชื่อไฟล์ถ้ามี
+      // ใช้ slug เป็นชื่อไฟล์ถ้ามี หรือใช้ shopId ถ้าไม่มี slug
       const downloadName = shop?.slug ? `QR-Code-${shop.slug}.png` : `QR-Code-แจ้งซ่อม-${shopId}.png`;
       link.download = downloadName;
       document.body.appendChild(link);
@@ -218,7 +223,7 @@ export function ShopSettings({ shopId = "shop_test_001" }: { shopId?: string }) 
               </div>
             </CardContent>
             <CardFooter className="bg-slate-50 border-t py-4">
-              <Button onClick={handleSave} disabled={isSaving || !isLoaded} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
+              <Button onClick={handleSave} disabled={isSaving || !isLoaded || !shopId} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
                 {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
               </Button>

@@ -16,6 +16,10 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { SubscriptionBanner } from "@/components/subscription-banner" 
 import { checkAndEnforceShopStatus } from "@/actions/shop-status"
 
+// 🌟 1. Import เพิ่มเติมสำหรับการดึงข้อมูลผู้ใช้และร้านค้า
+import { supabase } from "@/lib/supabase"
+import { getUserShops } from "@/actions/shop"
+
 function JobSyncManager({ shopId }: { shopId: string }) {
   useJobSync(shopId)
   return null
@@ -23,15 +27,15 @@ function JobSyncManager({ shopId }: { shopId: string }) {
 
 export default function MainPage() {
   const router = useRouter()
-  const SHOP_ID = "shop_test_001" 
-
+  
+  // 🌟 2. เปลี่ยนมาใช้ State สำหรับเก็บ shopId ของจริง (เอา Hardcode "shop_test_001" ออก)
+  const [shopId, setShopId] = useState<string | null>(null)
+  
   const [isChecking, setIsChecking] = useState(true)
   const [expiresAt, setExpiresAt] = useState<Date | string | null>(null)
   
-  // 🌟 1. เพิ่ม State เก็บว่าตอนนี้กดอยู่ที่ Tab ไหน (ค่าเริ่มต้นคือ dashboard)
   const [activeTab, setActiveTab] = useState("dashboard")
 
-  // 🌟 2. ตัวช่วยแปลงชื่อ Tab ให้เป็นภาษาไทยเพื่อไปโชว์ใน Header
   const tabNames: Record<string, string> = {
     dashboard: "ภาพรวม",
     queue: "กระดานคิว",
@@ -42,7 +46,29 @@ export default function MainPage() {
   useEffect(() => {
     const verifyAccess = async () => {
       try {
-        const res = await checkAndEnforceShopStatus(SHOP_ID)
+        // 🌟 3. ดึงข้อมูล User ปัจจุบันที่ล็อกอินอยู่
+        const { data: { user }, error } = await supabase.auth.getUser()
+
+        if (error || !user?.email) {
+          router.push('/login')
+          return
+        }
+
+        // 🌟 4. ค้นหาร้านค้าที่ผูกกับอีเมลนี้ผ่าน Server Action
+        const shopRes = await getUserShops(user.email)
+
+        if (!shopRes.success || shopRes.shops.length === 0) {
+          // ถ้ายังไม่มีร้าน ให้เด้งกลับไปหน้าแรก
+          router.push('/')
+          return
+        }
+
+        // 🌟 5. ได้รหัสร้านของจริงมาแล้ว! (ใช้ร้านแรกที่ดึงมาได้)
+        const realShopId = shopRes.shops[0].id
+        setShopId(realShopId)
+
+        // 🌟 6. นำ shopId ของจริงไปเช็คสถานะแพ็กเกจต่อ
+        const res = await checkAndEnforceShopStatus(realShopId)
         
         if (res.status === "EXPIRED" || res.status === "PENDING_DELETION") {
           router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
@@ -54,28 +80,29 @@ export default function MainPage() {
         }
       } catch (error) {
         console.error("Error checking shop status:", error)
-        setIsChecking(false) 
+        router.push('/login') // ถ้ามี Error ใดๆ ให้เตะไปหน้า Login ก่อนปลอดภัยสุด
       }
     }
     
     verifyAccess()
-  }, [router, SHOP_ID])
+  }, [router])
 
-  if (isChecking) {
+  // 🌟 7. เช็คว่าถ้ากำลังโหลด หรือยังไม่ได้ shopId ให้โชว์หน้า Loader หมุนๆ
+  if (isChecking || !shopId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
         <Loader2 className="h-10 w-10 text-emerald-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">กำลังตรวจสอบข้อมูลร้านค้าและแพ็กเกจ...</p>
+        <p className="text-slate-500 font-medium">กำลังโหลดข้อมูลร้านค้าของท่าน...</p>
       </div>
     )
   }
 
   return (
     <SidebarProvider>
-      <JobSyncManager shopId={SHOP_ID} />
+      {/* 🌟 8. ส่ง shopId ของจริงเข้าไปทำงาน */}
+      <JobSyncManager shopId={shopId} />
       <div className="min-h-screen flex flex-col w-full bg-slate-50/30">
 
-        {/* 🌟 3. โยนชื่อภาษาไทยไปให้ Header แสดงผล */}
         <DashboardHeader currentTabName={tabNames[activeTab]} />
 
         {expiresAt && (
@@ -85,7 +112,6 @@ export default function MainPage() {
         )}
 
         <main className="p-4 md:p-6 space-y-4 flex-1">
-          {/* 🌟 4. ผูก value และ onValueChange เพื่อให้ Tabs สั่งอัปเดต State activeTab */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
             <TabsList className="mb-4 bg-slate-100/50 border border-slate-200 flex-wrap h-auto p-1">

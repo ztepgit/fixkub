@@ -20,13 +20,14 @@ import { th } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 import { getAnalyticsSummary, getTrendData, getCancelledJobsDetails } from "@/actions/report"
+// 🌟 1. Import Store เพื่อดึง shopId ปัจจุบัน
+import { useShopStore } from "@/store/useShopStore"
 
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts'
 
-// 🌟 Import DateRange มาเพื่อแก้ Type Error!
 import { DateRange } from "react-day-picker"
 
 const COLORS = ['#f43f5e', '#f97316', '#eab308', '#8b5cf6', '#64748b'];
@@ -43,10 +44,11 @@ const translateCancelReason = (reason: string) => {
 }
 
 export function ReportDashboard() {
-    // 🌟 1. เพิ่ม Type 'today'
+    // 🌟 2. ดึง shopId ของจริงออกมาจาก Zustand Store
+    const shopId = useShopStore((state) => state.shop?.id)
+
     const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today')
     
-    // 🌟 2. กำหนด Type ให้ DateRange แก้ Error แน่นอน
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date()
@@ -61,21 +63,27 @@ export function ReportDashboard() {
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
+        // 🌟 3. ถ้ายังไม่มี shopId (เช่น กำลังโหลด) ให้รอไปก่อน
+        if (!shopId) return;
+
         if (timeframe !== 'custom') {
             loadData()
         } else if (timeframe === 'custom' && dateRange?.from && dateRange?.to) {
             loadData()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [timeframe, dateRange?.from, dateRange?.to])
+    }, [timeframe, dateRange?.from, dateRange?.to, shopId])
 
     const loadData = async () => {
+        if (!shopId) return;
+        
         setIsLoading(true)
         try {
+            // 🌟 4. เปลี่ยนจากการฮาร์ดโค้ดเป็นดึงผ่าน shopId ตัวแปรจริง
             const [summaryRes, trendRes, cancelRes] = await Promise.all([
-                getAnalyticsSummary("shop_test_001", timeframe, dateRange?.from, dateRange?.to),
-                getTrendData("shop_test_001", timeframe, dateRange?.from, dateRange?.to),
-                getCancelledJobsDetails("shop_test_001", timeframe, dateRange?.from, dateRange?.to) 
+                getAnalyticsSummary(shopId, timeframe, dateRange?.from, dateRange?.to),
+                getTrendData(shopId, timeframe, dateRange?.from, dateRange?.to),
+                getCancelledJobsDetails(shopId, timeframe, dateRange?.from, dateRange?.to) 
             ])
 
             if (summaryRes.success) setSummary(summaryRes.data)
@@ -109,6 +117,16 @@ export function ReportDashboard() {
             <div className="flex h-[60vh] w-full items-center justify-center text-slate-400 gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                 <p className="text-lg">กำลังประมวลผลข้อมูลสถิติ...</p>
+            </div>
+        )
+    }
+
+    // 🌟 ดัก Error กรณีที่ User ไม่มีร้าน
+    if (!shopId && !isLoading) {
+        return (
+            <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 gap-3">
+                <AlertCircle className="h-8 w-8" />
+                <p className="text-lg">ไม่พบข้อมูลร้านค้า กรุณารีเฟรชหน้าจอ</p>
             </div>
         )
     }
@@ -234,7 +252,7 @@ export function ReportDashboard() {
                         </div>
                     )}
 
-                    {/* 🌟 3. เพิ่มแท็บ วันนี้ ด้านหน้าสุด และปรับ grid เป็น 5 คอลัมน์ */}
+                    {/* แท็บตัวกรองวันที่ */}
                     <TabsList className="grid w-full xl:w-[420px] grid-cols-5 bg-slate-100 border border-slate-200 h-10">
                         <TabsTrigger value="today">วันนี้</TabsTrigger>
                         <TabsTrigger value="week">สัปดาห์นี้</TabsTrigger>

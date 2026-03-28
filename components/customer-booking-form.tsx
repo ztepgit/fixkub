@@ -22,14 +22,14 @@ const COMMON_SERVICES = [
 ]
 
 interface CustomerBookingFormProps {
-  shopId?: string;
+  shopId: string; // 🌟 บังคับให้ต้องส่ง shopId เข้ามา (ห้ามเป็น Optional แล้ว)
   shopName?: string;
   shopLogoUrl?: string | null;
 }
 
 export function CustomerBookingForm({ 
-  shopId = "shop_test_001",
-  shopName = "ร้านปิ๊กโมบาย", 
+  shopId, // 🌟 ลบ Default "shop_test_001" ทิ้ง
+  shopName = "ร้านซ่อมมือถือ", // 🌟 เปลี่ยนชื่อ Default ให้ดูเป็นกลางๆ
   shopLogoUrl = null 
 }: CustomerBookingFormProps) {
   

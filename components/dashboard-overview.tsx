@@ -31,10 +31,11 @@ import {
 import { QRCodeCanvas } from "qrcode.react"
 
 import { updateQueueStatus } from "@/actions/queue"
-import { isSameDay } from "date-fns" // 🌟 ใช้คำนวณสถิติวันนี้
+import { isSameDay } from "date-fns" 
 
-// 🌟 Import Store ที่เราสร้างไว้
+// 🌟 Import Store
 import { useJobStore } from "@/store/useJobStore"
+import { useShopStore } from "@/store/useShopStore" // 🌟 เพิ่ม import ดึงข้อมูลร้านค้า (slug)
 
 const formatPhoneNumber = (phone?: string) => {
   if (!phone) return ""
@@ -58,14 +59,15 @@ const formatFullDateTime = (date?: Date | string) => {
 }
 
 export function DashboardOverview() {
-  const SHOP_ID = "shop_test_001" 
+  // 🌟 เอา const SHOP_ID = "shop_test_001" ทิ้งไปเลย เพราะไม่ต้องใช้สร้างลิงก์แล้ว
 
   const { toast } = useToast()
 
-  // 🌟 ดึง State จาก Zustand Store (Single Source of Truth)
+  // ดึง State จาก Zustand Store 
   const jobs = useJobStore((state) => state.jobs)
   const upsertJob = useJobStore((state) => state.upsertJob)
   const lastSyncAt = useJobStore((state) => state.lastSyncAt)
+  const slug = useShopStore((state) => state.shop?.slug) // 🌟 ดึง slug มาจาก Shop Store
 
   const [jobToView, setJobToView] = useState<any>(null)
   const [editPrice, setEditPrice] = useState("")
@@ -76,11 +78,12 @@ export function DashboardOverview() {
   const [isQrHidden, setIsQrHidden] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
 
+  // 🌟 อัปเดตลิงก์ให้เป็นรูปแบบ Subdomain ตาม slug ของจริง
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShopUrl(`${window.location.origin}/shop/${SHOP_ID}`)
+    if (typeof window !== 'undefined' && slug) {
+      setShopUrl(`https://${slug}.esyq.net`)
     }
-  }, []) 
+  }, [slug]) 
 
   useEffect(() => {
     if (jobToView) {
@@ -90,7 +93,6 @@ export function DashboardOverview() {
     }
   }, [jobToView])
 
-  // 🌟 คำนวณสถิติจาก Store แบบ Real-time บน Client
   const today = new Date()
   const todayCount = jobs.filter(j => isSameDay(new Date(j.createdAt), today)).length
   const activeCount = jobs.filter(j => ['PENDING', 'WAITING', 'PROCESSING'].includes(j.status)).length
@@ -108,17 +110,14 @@ export function DashboardOverview() {
       imei: editImei
     }
 
-    // 🌟 Optimistic Update: อัปเดต UI ทันที ไม่ต้องรอ API
     const optimisticJob = { ...jobToView, ...updatedData, updatedAt: new Date().toISOString() }
     upsertJob(optimisticJob)
-    setJobToView(null) // ปิด Modal ทันที (รู้สึกแอปเร็วขึ้น 300%)
+    setJobToView(null) 
     toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิวเรียบร้อยแล้ว` })
 
-    // ส่งข้อมูลไปเซฟที่หลังบ้าน
     const res = await updateQueueStatus(jobToView.id, jobToView.status, updatedData)
     if (!res.success) {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ ระบบกำลังซิงค์ใหม่...", variant: "destructive" })
-      // (ถ้ามี Error เดี๋ยวมันจะ Polling ข้อมูลเดิมกลับมาทับเอง)
     }
   }
 
@@ -132,7 +131,7 @@ export function DashboardOverview() {
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.href = url; link.download = `QR-Code-${SHOP_ID}.png`;
+      link.href = url; link.download = `QR-Code-${slug || 'ESYQ'}.png`; // 🌟 ใช้ slug ตั้งชื่อไฟล์
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }
@@ -151,7 +150,6 @@ export function DashboardOverview() {
     }
   }
 
-  // ถ้ายังไม่โหลดข้อมูลจาก Cache หรือ DB ให้โชว์ Loading เบาๆ
   if (jobs.length === 0 && lastSyncAt === 0) {
     return (
       <div className="flex h-64 w-full items-center justify-center text-slate-400 gap-3">
@@ -329,8 +327,8 @@ export function DashboardOverview() {
                     {shopUrl ? <QRCodeCanvas id="shop-qr-code" value={shopUrl} size={180} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} /> : <div className="w-[180px] h-[180px] bg-slate-100 animate-pulse rounded-lg"></div>}
                   </div>
                   <div className="w-full space-y-3">
-                    <Button variant="outline" className="w-full h-11" onClick={copyLink}><Link className="h-4 w-4 mr-2" /> คัดลอกลิงก์ร้าน</Button>
-                    <Button className="w-full h-11 bg-blue-600 hover:bg-blue-700" onClick={downloadQR}><Download className="h-4 w-4 mr-2" /> ดาวน์โหลด QR Code</Button>
+                    <Button variant="outline" className="w-full h-11" onClick={copyLink} disabled={!shopUrl}><Link className="h-4 w-4 mr-2" /> คัดลอกลิงก์ร้าน</Button>
+                    <Button className="w-full h-11 bg-blue-600 hover:bg-blue-700" onClick={downloadQR} disabled={!shopUrl}><Download className="h-4 w-4 mr-2" /> ดาวน์โหลด QR Code</Button>
                   </div>
                 </div>
               )}

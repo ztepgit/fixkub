@@ -17,12 +17,10 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" // 🌟 เพิ่ม Import RadioGroup
-import { Label } from "@/components/ui/label" // 🌟 เพิ่ม Import Label
-// 🌟 เพิ่ม Store และ PlusCircle เข้ามาใช้งานใน Modal
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" 
+import { Label } from "@/components/ui/label" 
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle } from "lucide-react"
 
-// 🌟 Import Action สำหรับเช็คและดึงข้อมูลร้าน
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
 
 export default function LandingPage() {
@@ -34,7 +32,6 @@ export default function LandingPage() {
   const [showLoginPopup, setShowLoginPopup] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
 
-  // 🌟 State สำหรับจัดการ Flow เลือกร้านเติมเงิน
   const [showShopSelectPopup, setShowShopSelectPopup] = useState(false)
   const [userShops, setUserShops] = useState<any[]>([])
   const [selectedShopId, setSelectedShopId] = useState<string>("")
@@ -64,9 +61,8 @@ export default function LandingPage() {
       setSelectedPlan(plan)
       setShowLoginPopup(true)
     } else {
-      setSelectedPlan(plan) // เก็บแพ็กเกจไว้ เผื่อต้องใช้ต่อใน Modal
+      setSelectedPlan(plan) 
 
-      // ด่านที่ 1: ตรวจสอบสำหรับปุ่ม "ทดลองใช้ฟรี"
       if (plan === "free" && userEmail) {
         const res = await checkUserHasShop(userEmail)
         
@@ -84,20 +80,17 @@ export default function LandingPage() {
         return
       }
 
-      // ด่านที่ 2: ตรวจสอบสำหรับปุ่มจ่ายเงิน (รายเดือน/รายปี)
       if (userEmail && (plan === "monthly" || plan === "yearly")) {
         const res = await getUserShops(userEmail)
         
         if (res.success && res.shops.length > 0) {
-          // ถ้ามีร้านอยู่แล้ว -> เปิด Modal เลือกร้าน
           setUserShops(res.shops)
-          setSelectedShopId(res.shops[0].id) // Default เลือกอันแรก
+          setSelectedShopId(res.shops[0].id) 
           setShowShopSelectPopup(true)
           return
         }
       }
       
-      // ถ้าผ่านเงื่อนไขทั้งหมด (หรือยังไม่เคยมีร้านเลย) พาไป Onboarding สร้างร้านปกติ
       router.push(`/onboarding?plan=${plan}`)
     }
   }
@@ -106,16 +99,32 @@ export default function LandingPage() {
     router.push(`/login?next=/onboarding?plan=${selectedPlan}`)
   }
 
-  // 🌟 ฟังก์ชันจัดการตอนกดยืนยันเลือกร้านใน Modal
   const handleConfirmShopSelection = () => {
     if (selectedShopId === "new_shop") {
-      // เลือกว่าจะสร้างร้านใหม่
       router.push(`/onboarding?plan=${selectedPlan}`)
     } else {
-      // เลือกเติมเงินร้านเดิมที่มีอยู่ -> ยิงไปหน้า Checkout เลย
       router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
     }
     setShowShopSelectPopup(false)
+  }
+
+  // 🌟 ฟังก์ชันใหม่: ตรวจสอบก่อนเข้า Dashboard
+  const handleGoToDashboard = async () => {
+    if (!userEmail) return;
+    
+    const res = await checkUserHasShop(userEmail);
+    if (res.hasShop) {
+      // ถ้ามีร้านแล้ว พาไป Dashboard ปกติ
+      router.push('/dashboard');
+    } else {
+      // ถ้ายังไม่มีร้าน ขึ้นแจ้งเตือน และเลื่อนจอไปที่ส่วนเลือกแพ็กเกจ
+      toast({
+        title: "คุณยังไม่มีร้านค้า",
+        description: "กรุณาเลือกแพ็กเกจเพื่อเปิดร้านค้าก่อนเข้าใช้งานระบบ",
+        variant: "destructive",
+      });
+      document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   const handleLogout = async () => {
@@ -151,11 +160,13 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <Link href="/dashboard">
-                  <Button className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
-                    <LayoutDashboard className="w-4 h-4 mr-2" /> หน้าจัดการร้านค้า
-                  </Button>
-                </Link>
+                {/* 🌟 เปลี่ยนจาก <Link> เป็น <Button onClick> เพื่อเข้าด่านตรวจ */}
+                <Button 
+                  onClick={handleGoToDashboard}
+                  className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                >
+                  <LayoutDashboard className="w-4 h-4 mr-2" /> หน้าจัดการร้านค้า
+                </Button>
                 <Button 
                   onClick={handleLogout} 
                   variant="ghost" 
@@ -324,7 +335,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* 🌟 Popup เข้าสู่ระบบ */}
+      {/* Popup เข้าสู่ระบบ */}
       <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -347,7 +358,7 @@ export default function LandingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 🌟 Popup เลือกร้านเติมเงิน (Radio Choice) */}
+      {/* Popup เลือกร้านเติมเงิน (Radio Choice) */}
       <Dialog open={showShopSelectPopup} onOpenChange={setShowShopSelectPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

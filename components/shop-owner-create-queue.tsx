@@ -9,7 +9,9 @@ import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 
-// 🌟 1. เพิ่มรายการบริการที่เจอบ่อย
+// 🌟 1. Import Store เพื่อดึง shopId ปัจจุบัน
+import { useShopStore } from "@/store/useShopStore"
+
 const COMMON_SERVICES = [
   "เปลี่ยนจอ",
   "เปลี่ยนแบต",
@@ -25,11 +27,13 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 🌟 2. ดึง shopId จาก Store ออกมาใช้แทนการฮาร์ดโค้ด
+  const shopId = useShopStore((state) => state.shop?.id)
+
   const [customerName, setCustomerName] = useState("")
   const [phone, setPhone] = useState("")
   const [deviceModel, setDeviceModel] = useState("")
   const [deviceColor, setDeviceColor] = useState("")
-  // 🌟 เพิ่ม State สำหรับ S/N และ IMEI
   const [serialNumber, setSerialNumber] = useState("")
   const [imei, setImei] = useState("")
   const [issue, setIssue] = useState("")
@@ -40,16 +44,22 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
   }
 
   const handleSubmit = async () => {
+    // 🌟 ดัก Error กรณีไม่มี shopId (เผื่อเน็ตหลุดตอนโหลด Store)
+    if (!shopId) {
+      toast({ title: "❌ ข้อผิดพลาดของระบบ", description: "ไม่พบข้อมูลร้านค้า กรุณารีเฟรชหน้าจอ", variant: "destructive" })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const response = await createQueue({
-        shopId: "shop_test_001",
+        shopId: shopId, // 🌟 ใช้ shopId ของจริงที่ดึงมาจาก Store
         customerName,
         phoneNumber: phone,
         deviceModel,
         deviceColor,
-        serialNumber, // 🌟 ส่งข้อมูลไปบันทึก
-        imei,         // 🌟 ส่งข้อมูลไปบันทึก
+        serialNumber, 
+        imei,         
         issue,
         serviceName,
         isManualEntry: true,
@@ -125,7 +135,7 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
           </div>
         </div>
 
-        {/* 🌟 แถวที่ 3 (ใหม่): S/N & IMEI (ไม่บังคับกรอก) */}
+        {/* แถวที่ 3: S/N & IMEI (ไม่บังคับกรอก) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="serialNumber" className="font-semibold text-slate-700">Serial Number <span className="text-xs text-slate-400 font-normal">(ไม่บังคับ)</span></Label>

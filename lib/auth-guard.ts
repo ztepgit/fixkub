@@ -3,13 +3,14 @@ import { db } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server" 
 
 export async function verifyShopAccess(shopId: string) {
-  // 🌟 แก้ไขตรงนี้: เติม await ด้านหน้า createClient()
+  // สร้าง Supabase Client สำหรับฝั่ง Server
   const supabase = await createClient()
   
-  const { data: { session } } = await supabase.auth.getSession()
+  // 🌟 เปลี่ยนมาใช้ getUser() ตามที่ระบบแนะนำ เพื่อความปลอดภัยระดับสูงสุดและลบแจ้งเตือน
+  const { data: { user }, error } = await supabase.auth.getUser()
 
   // 1. เช็คว่าล็อกอินอยู่ไหม
-  if (!session?.user?.email) {
+  if (error || !user?.email) {
     throw new Error("Unauthorized: กรุณาเข้าสู่ระบบ")
   }
 
@@ -17,7 +18,7 @@ export async function verifyShopAccess(shopId: string) {
   const access = await db.shopOwner.findFirst({
     where: {
       shopId: shopId,
-      email: session.user.email
+      email: user.email
     }
   })
 

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation" // 🌟 1. เปลี่ยนมาใช้ useRouter
+import { useRouter } from "next/navigation" 
 import { useEffect, useState } from "react"
 import { format, addDays } from "date-fns"
 import { th } from "date-fns/locale" 
@@ -10,56 +10,84 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Clock, ShieldAlert, CreditCard, HelpCircle, Lock, AlertTriangle, Loader2 } from "lucide-react"
 
-// 🌟 2. Import Action เช็คสถานะร้านจาก Database ตรงๆ
 import { checkAndEnforceShopStatus } from "@/actions/shop-status"
+// 🌟 1. Import เพิ่มเติมสำหรับการดึงร้านค้าของผู้ใช้
+import { supabase } from "@/lib/supabase"
+import { getUserShops } from "@/actions/shop"
 
 export default function PaywallPage() {
   const router = useRouter()
   
-  // เปลี่ยนค่าเริ่มต้นเป็น null เพื่อให้โชว์หน้า Loading ก่อน
+  // 🌟 2. เพิ่ม State เก็บ shopId จริงของลูกค้า
+  const [shopId, setShopId] = useState<string | null>(null)
+  
   const [daysLeft, setDaysLeft] = useState<number | null>(null)
   const [deletionDate, setDeletionDate] = useState<string>("")
 
-  // 🌟 3. ดึงข้อมูลจริงจาก Database ทันทีที่เปิดหน้านี้
+  // 🌟 3. อัปเดต useEffect ให้ดึงข้อมูลร้านจริงๆ จากอีเมลที่ล็อกอินอยู่
   useEffect(() => {
     const fetchRealStatus = async () => {
-      const SHOP_ID = "shop_test_001" // รหัสร้านค้า
-      const res = await checkAndEnforceShopStatus(SHOP_ID)
+      try {
+        // เช็ค Session
+        const { data: { user }, error } = await supabase.auth.getUser()
 
-      // ถ้าร้านยังไม่หมดอายุ (ACTIVE) ไม่ควรอยู่หน้านี้ ให้เตะกลับไปหน้า Dashboard!
-      if (res.status === "ACTIVE") {
-        router.push("/dashboard")
-        return
+        if (error || !user?.email) {
+          router.push('/login')
+          return
+        }
+
+        // ค้นหาร้านค้าที่ผูกกับอีเมลนี้
+        const shopRes = await getUserShops(user.email)
+
+        if (!shopRes.success || shopRes.shops.length === 0) {
+          router.push('/')
+          return
+        }
+
+        // 🌟 ได้รหัสร้านของจริงมาแล้ว นำไปเช็คสถานะแพ็กเกจต่อ
+        const realShopId = shopRes.shops[0].id
+        setShopId(realShopId)
+        
+        const res = await checkAndEnforceShopStatus(realShopId)
+
+        // ถ้าร้านยังไม่หมดอายุ (ACTIVE) ไม่ควรอยู่หน้านี้ ให้เตะกลับไปหน้า Dashboard!
+        if (res.status === "ACTIVE") {
+          router.push("/dashboard")
+          return
+        }
+
+        // ดึงวันคงเหลือจริงๆ จาก Database (ถ้าไม่มีให้เผื่อไว้ที่ 30)
+        const actualDaysLeft = res.daysLeftToPurge !== undefined ? res.daysLeftToPurge : 30
+        const safeDaysLeft = Math.max(0, actualDaysLeft) // ป้องกันค่าติดลบ
+        
+        setDaysLeft(safeDaysLeft)
+
+        // คำนวณหาวันที่จะถูกลบถาวร (วันนี้ + วันที่เหลือ)
+        const targetDate = addDays(new Date(), safeDaysLeft)
+        
+        // แปลงเป็นภาษาไทย + ปี พ.ศ.
+        const formattedDate = format(targetDate, "d MMMM yyyy", { locale: th })
+        const thaiYearDate = formattedDate.replace(
+          targetDate.getFullYear().toString(), 
+          (targetDate.getFullYear() + 543).toString()
+        )
+        
+        setDeletionDate(thaiYearDate)
+      } catch (error) {
+        console.error("Error fetching paywall data:", error)
+        router.push('/') // ถ้า Error อะไรแปลกๆ เด้งกลับหน้าหลักก่อน
       }
-
-      // ดึงวันคงเหลือจริงๆ จาก Database (ถ้าไม่มีให้เผื่อไว้ที่ 30)
-      const actualDaysLeft = res.daysLeftToPurge !== undefined ? res.daysLeftToPurge : 30
-      const safeDaysLeft = Math.max(0, actualDaysLeft) // ป้องกันค่าติดลบ
-      
-      setDaysLeft(safeDaysLeft)
-
-      // คำนวณหาวันที่จะถูกลบถาวร (วันนี้ + วันที่เหลือ)
-      const targetDate = addDays(new Date(), safeDaysLeft)
-      
-      // แปลงเป็นภาษาไทย + ปี พ.ศ.
-      const formattedDate = format(targetDate, "d MMMM yyyy", { locale: th })
-      const thaiYearDate = formattedDate.replace(
-        targetDate.getFullYear().toString(), 
-        (targetDate.getFullYear() + 543).toString()
-      )
-      
-      setDeletionDate(thaiYearDate)
     }
 
     fetchRealStatus()
   }, [router])
 
-  // 🌟 4. โชว์ Loading สวยๆ ป้องกันเลข 30 กระพริบก่อนข้อมูลจริงจะมา
-  if (daysLeft === null) {
+  // โชว์ Loading ป้องกันหน้ากระพริบตอนกำลังดึงข้อมูลและดึง shopId
+  if (daysLeft === null || !shopId) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center">
         <Loader2 className="h-10 w-10 text-emerald-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">กำลังโหลดข้อมูลแพ็กเกจ...</p>
+        <p className="text-slate-500 font-medium">กำลังตรวจสอบข้อมูลแพ็กเกจ...</p>
       </div>
     )
   }
@@ -121,15 +149,16 @@ export default function PaywallPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3 pb-8">
-            <Link href="/payment?plan=yearly" className="w-full">
+            {/* 🌟 4. แก้ไขลิงก์ให้พาไปหน้า Checkout พร้อมแนบ shopId และ plan ที่จะต่ออายุไปเลย */}
+            <Link href={`/checkout?shopId=${shopId}&plan=yearly`} className="w-full">
               <Button className="w-full h-12 text-base font-bold bg-emerald-600 hover:bg-emerald-700 shadow-md transition-all hover:scale-[1.02]">
-                <CreditCard className="mr-2 h-5 w-5" /> ต่ออายุแพ็กเกจทันที
+                <CreditCard className="mr-2 h-5 w-5" /> ต่ออายุรายปี (คุ้มที่สุด)
               </Button>
             </Link>
             
-            <Link href="/payment?plan=monthly" className="w-full">
+            <Link href={`/checkout?shopId=${shopId}&plan=monthly`} className="w-full">
               <Button variant="outline" className="w-full h-12 text-slate-600 border-slate-300 hover:bg-slate-50 font-medium">
-                ดูแพ็กเกจแบบรายเดือน
+                ต่ออายุแบบรายเดือน
               </Button>
             </Link>
           </CardFooter>
