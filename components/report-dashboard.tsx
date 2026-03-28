@@ -20,8 +20,11 @@ import { th } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 import { getAnalyticsSummary, getTrendData, getCancelledJobsDetails } from "@/actions/report"
-// 🌟 1. Import Store เพื่อดึง shopId ปัจจุบัน
 import { useShopStore } from "@/store/useShopStore"
+
+// 🌟 1. Import เพิ่มเติมสำหรับการดึงข้อมูลสำรอง
+import { supabase } from "@/lib/supabase"
+import { getUserShops } from "@/actions/shop"
 
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -44,8 +47,10 @@ const translateCancelReason = (reason: string) => {
 }
 
 export function ReportDashboard() {
-    // 🌟 2. ดึง shopId ของจริงออกมาจาก Zustand Store
-    const shopId = useShopStore((state) => state.shop?.id)
+    const storeShopId = useShopStore((state) => state.shop?.id)
+    
+    // 🌟 2. สร้าง State สำหรับเก็บ shopId ที่ได้จากการหา (ไม่ว่าจะจาก Store หรือ DB)
+    const [shopId, setShopId] = useState<string | null>(null)
 
     const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today')
     
@@ -62,38 +67,62 @@ export function ReportDashboard() {
     const [filterReason, setFilterReason] = useState("ALL")
     const [isLoading, setIsLoading] = useState(true)
 
+    // 🌟 3. กระบวนการหา shopId: เช็คจาก Store ก่อน ถ้าไม่มีให้วิ่งไปดึงจาก Auth
     useEffect(() => {
-        // 🌟 3. ถ้ายังไม่มี shopId (เช่น กำลังโหลด) ให้รอไปก่อน
+        const resolveShopId = async () => {
+            if (storeShopId) {
+                setShopId(storeShopId)
+                return
+            }
+            
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user?.email) {
+                    const res = await getUserShops(user.email)
+                    if (res.success && res.shops.length > 0) {
+                        setShopId(res.shops[0].id)
+                        return
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to resolve shopId:", error)
+            }
+            
+            // ถ้าหาไม่ได้จริงๆ (เช่น ไม่มีร้าน) ให้หยุดหมุน
+            setIsLoading(false)
+        }
+        
+        resolveShopId()
+    }, [storeShopId])
+
+    // 🌟 4. ดึงข้อมูลกราฟ เมื่อมี shopId แล้วเท่านั้น!
+    useEffect(() => {
         if (!shopId) return;
+
+        const loadData = async () => {
+            setIsLoading(true)
+            try {
+                const [summaryRes, trendRes, cancelRes] = await Promise.all([
+                    getAnalyticsSummary(shopId, timeframe, dateRange?.from, dateRange?.to),
+                    getTrendData(shopId, timeframe, dateRange?.from, dateRange?.to),
+                    getCancelledJobsDetails(shopId, timeframe, dateRange?.from, dateRange?.to) 
+                ])
+
+                if (summaryRes.success) setSummary(summaryRes.data)
+                if (trendRes.success) setTrend(trendRes.data || [])
+                if (cancelRes.success) setCancelledList(cancelRes.data || [])
+            } catch (error) {
+                console.error("Failed to load reports:", error)
+            }
+            setIsLoading(false)
+        }
 
         if (timeframe !== 'custom') {
             loadData()
         } else if (timeframe === 'custom' && dateRange?.from && dateRange?.to) {
             loadData()
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [timeframe, dateRange?.from, dateRange?.to, shopId])
-
-    const loadData = async () => {
-        if (!shopId) return;
-        
-        setIsLoading(true)
-        try {
-            // 🌟 4. เปลี่ยนจากการฮาร์ดโค้ดเป็นดึงผ่าน shopId ตัวแปรจริง
-            const [summaryRes, trendRes, cancelRes] = await Promise.all([
-                getAnalyticsSummary(shopId, timeframe, dateRange?.from, dateRange?.to),
-                getTrendData(shopId, timeframe, dateRange?.from, dateRange?.to),
-                getCancelledJobsDetails(shopId, timeframe, dateRange?.from, dateRange?.to) 
-            ])
-
-            if (summaryRes.success) setSummary(summaryRes.data)
-            if (trendRes.success) setTrend(trendRes.data || [])
-            if (cancelRes.success) setCancelledList(cancelRes.data || [])
-        } catch (error) {
-            console.error("Failed to load reports:", error)
-        }
-        setIsLoading(false)
-    }
 
     const successRate = summary?.totalJobs > 0
         ? Math.round((summary.completedJobs / summary.totalJobs) * 100) : 0
@@ -121,7 +150,6 @@ export function ReportDashboard() {
         )
     }
 
-    // 🌟 ดัก Error กรณีที่ User ไม่มีร้าน
     if (!shopId && !isLoading) {
         return (
             <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 gap-3">
@@ -206,7 +234,6 @@ export function ReportDashboard() {
                 </Card>
             </div>
 
-            {/* ส่วนจัดการแท็บและปฏิทิน */}
             <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
                 <div className="flex flex-col xl:flex-row justify-end items-end xl:items-center gap-3">
                     
@@ -252,7 +279,6 @@ export function ReportDashboard() {
                         </div>
                     )}
 
-                    {/* แท็บตัวกรองวันที่ */}
                     <TabsList className="grid w-full xl:w-[420px] grid-cols-5 bg-slate-100 border border-slate-200 h-10">
                         <TabsTrigger value="today">วันนี้</TabsTrigger>
                         <TabsTrigger value="week">สัปดาห์นี้</TabsTrigger>

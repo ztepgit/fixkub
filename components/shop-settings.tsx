@@ -20,15 +20,49 @@ import { QRCodeCanvas } from "qrcode.react"
 import { useShopSync } from "@/hooks/useShopSync"
 import { useShopStore } from "@/store/useShopStore"
 
-export function ShopSettings() {
-  // 🌟 1. ดึง shopId ของจริงออกมาจาก Zustand Store
-  const shopId = useShopStore((state) => state.shop?.id)
+// 🌟 1. Import เพิ่มสำหรับดึงข้อมูลสำรอง
+import { supabase } from "@/lib/supabase"
+import { getUserShops } from "@/actions/shop"
 
-  // 🌟 2. ใส่ || "" เพื่อบอก TypeScript ว่าถ้า shopId เป็น undefined ให้ส่งข้อความว่างๆ ไปแทน
-  // Hook นี้จะจัดการโหลดข้อมูลและฟังการอัปเดตแบบเรียลไทม์ให้
-  const shop = useShopSync(shopId || "")
-  
+export function ShopSettings() {
+  const storeShop = useShopStore((state) => state.shop)
   const updateShop = useShopStore((s) => s.updateShop)
+  
+  // 🌟 2. สร้าง State เก็บ ID จริงที่ผ่านการตรวจสอบแล้ว
+  const [realShopId, setRealShopId] = useState<string | null>(null)
+
+  // 🌟 3. ระบบควานหาร้านค้าอัตโนมัติ (ถ้า Store ว่าง ให้ไปดึงจาก DB มายัดใส่ Store)
+  useEffect(() => {
+    const resolveShop = async () => {
+      if (storeShop?.id) {
+        setRealShopId(storeShop.id)
+        return
+      }
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const res = await getUserShops(user.email)
+          if (res.success && res.shops.length > 0) {
+            const foundShop = res.shops[0]
+            setRealShopId(foundShop.id)
+            updateShop(foundShop) // ดันเข้า Store เพื่อให้หน้าอื่นดึงไปใช้ได้ด้วย
+          } else {
+            setIsLoaded(true) // ดักไว้เผื่อไม่มีร้าน จะได้เลิกหมุน
+          }
+        }
+      } catch (error) {
+        console.error("Failed to resolve shop:", error)
+        setIsLoaded(true)
+      }
+    }
+    
+    resolveShop()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeShop?.id])
+
+  // 🌟 4. นำ realShopId ไปฟังข้อมูล Realtime (ถ้ายังไม่มี โยนค่าว่างไปก่อน)
+  const shop = useShopSync(realShopId || "")
 
   const [shopName, setShopName] = useState("")
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -43,9 +77,10 @@ export function ShopSettings() {
   const { toast } = useToast()
 
   useEffect(() => {
+    // เมื่อ shop มาแล้ว และยังไม่ได้โหลด ให้ยัดค่าใส่ฟอร์ม
     if (shop && !isLoaded) {
-      setShopName(shop.name)
-      setLogoPreview(shop.logoUrl)
+      setShopName(shop.name || "")
+      setLogoPreview(shop.logoUrl || null)
       setIsLoaded(true) 
     }
   }, [shop, isLoaded])
@@ -101,7 +136,7 @@ export function ShopSettings() {
   }
 
   const handleSave = async () => {
-    if (!shopId) {
+    if (!realShopId) {
       toast({ title: "❌ ข้อผิดพลาด", description: "ไม่พบข้อมูลร้านค้า กรุณารีเฟรชหน้าเว็บ", variant: "destructive" })
       return
     }
@@ -112,7 +147,7 @@ export function ShopSettings() {
     updateShop({ name: shopName, logoUrl: logoPreview })
     
     const formData = new FormData()
-    formData.append("shopId", shopId) // 🌟 ใช้ shopId ของจริง
+    formData.append("shopId", realShopId) // 🌟 ใช้ realShopId
     formData.append("name", shopName)
     
     if (logoFile) {
@@ -149,7 +184,7 @@ export function ShopSettings() {
       const link = document.createElement("a");
       link.href = url;
       // ใช้ slug เป็นชื่อไฟล์ถ้ามี หรือใช้ shopId ถ้าไม่มี slug
-      const downloadName = shop?.slug ? `QR-Code-${shop.slug}.png` : `QR-Code-แจ้งซ่อม-${shopId}.png`;
+      const downloadName = shop?.slug ? `QR-Code-${shop.slug}.png` : `QR-Code-แจ้งซ่อม-${realShopId}.png`;
       link.download = downloadName;
       document.body.appendChild(link);
       link.click();
@@ -223,7 +258,7 @@ export function ShopSettings() {
               </div>
             </CardContent>
             <CardFooter className="bg-slate-50 border-t py-4">
-              <Button onClick={handleSave} disabled={isSaving || !isLoaded || !shopId} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
+              <Button onClick={handleSave} disabled={isSaving || !isLoaded || !realShopId} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
                 {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
               </Button>
