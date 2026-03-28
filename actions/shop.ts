@@ -4,7 +4,8 @@ import { z } from "zod"
 import { db } from "@/lib/prisma"
 import { supabase } from "@/lib/supabase" 
 import { revalidatePath } from "next/cache" 
-import { addDays } from "date-fns" // 🌟 เพิ่ม import สำหรับคำนวณเวลาทดลองใช้ฟรี
+import { addDays } from "date-fns" 
+import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 1. เพิ่ม import ด่านตรวจ
 
 // ==========================================
 // 🌟 Schemas สำหรับ Validate และ Trim ข้อมูล
@@ -96,7 +97,7 @@ export async function registerFreeTrialShop(formData: FormData) {
       ownerEmail: formData.get("email"),
     })
 
-    // 🌟 ด่านหลังบ้าน: เช็คว่าอีเมลนี้เคยสร้างร้านไปแล้วหรือยัง ป้องกันคนแอบยิง API ตรงๆ
+    // ด่านหลังบ้าน: เช็คว่าอีเมลนี้เคยสร้างร้านไปแล้วหรือยัง ป้องกันคนแอบยิง API ตรงๆ
     const existingOwner = await db.shopOwner.findFirst({ 
       where: { email: data.ownerEmail } 
     })
@@ -111,7 +112,7 @@ export async function registerFreeTrialShop(formData: FormData) {
     }
 
     const now = new Date()
-    const trialEndsAt = addDays(now, 14) // 🌟 กำหนดวันหมดอายุทดลองใช้ (14 วัน)
+    const trialEndsAt = addDays(now, 14) // กำหนดวันหมดอายุทดลองใช้ (14 วัน)
 
     const newShop = await db.$transaction(async (tx) => {
       const shop = await tx.shop.create({
@@ -119,9 +120,9 @@ export async function registerFreeTrialShop(formData: FormData) {
           name: data.name,
           slug: data.slug,
           // --- ล็อคค่าสำหรับ Free Trial ---
-          isActive: true,            // 🌟 เปิดให้ใช้งานทันที
+          isActive: true,            // เปิดให้ใช้งานทันที
           planType: "FREE_TRIAL",    
-          trialEndsAt: trialEndsAt,  // 🌟 เริ่มนับถอยหลัง 14 วัน
+          trialEndsAt: trialEndsAt,  // เริ่มนับถอยหลัง 14 วัน
           expiresAt: null,           
           subscriptionStartsAt: null,
         }
@@ -167,6 +168,9 @@ export async function getShopById(shopId: string) {
   try {
     const validatedId = shopIdSchema.parse(shopId)
 
+    // 🌟 ด่านตรวจ: ตรวจสอบสิทธิ์การเข้าถึงข้อมูลร้านค้านี้
+    await verifyShopAccess(validatedId)
+
     const shop = await db.shop.findUnique({
       where: { id: validatedId },
       select: { name: true, slug: true }
@@ -175,12 +179,12 @@ export async function getShopById(shopId: string) {
     if (!shop) return { success: false, message: "ไม่พบข้อมูลร้านค้าในระบบ" }
 
     return { success: true, data: shop }
-  } catch (error) {
+  } catch (error: any) {
     console.error("[GET_SHOP_BY_ID_ERROR]", error)
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message }
     }
-    return { success: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูลร้านค้า" }
+    return { success: false, message: error.message || "เกิดข้อผิดพลาดในการดึงข้อมูลร้านค้า" }
   }
 }
 
@@ -191,6 +195,9 @@ export async function getShopSettings(shopId: string) {
   try {
     const validatedId = shopIdSchema.parse(shopId)
 
+    // 🌟 ด่านตรวจ: ป้องกันการดึงข้อมูลการตั้งค่าของร้านอื่น
+    await verifyShopAccess(validatedId)
+
     const shop = await db.shop.findUnique({
       where: { id: validatedId },
       select: { name: true, logoUrl: true, slug: true },
@@ -199,12 +206,12 @@ export async function getShopSettings(shopId: string) {
     if (!shop) return { success: false, error: "ไม่พบข้อมูลร้านค้า" }
     
     return { success: true, data: shop }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching shop settings:", error)
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message }
     }
-    return { success: false, error: "ไม่สามารถดึงข้อมูลร้านค้าได้" }
+    return { success: false, error: error.message || "ไม่สามารถดึงข้อมูลร้านค้าได้" }
   }
 }
 
@@ -218,6 +225,9 @@ export async function updateShopSettings(formData: FormData) {
 
     const shopId = shopIdSchema.parse(rawShopId)
     const name = shopNameSchema.parse(rawName)
+
+    // 🌟 ด่านตรวจ: ป้องกันการแอบแก้ไขข้อมูลร้านค้าอื่น (สำคัญมาก)
+    await verifyShopAccess(shopId)
 
     const logoFile = formData.get("logo") as File | null
     let logoUrl = formData.get("existingLogoUrl") as string | null
@@ -262,14 +272,14 @@ export async function updateShopSettings(formData: FormData) {
     revalidatePath('/') 
     
     return { success: true, data: updatedShop }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating shop settings:", error)
     
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message }
     }
     
-    return { success: false, error: "ไม่สามารถบันทึกข้อมูลร้านค้าได้" }
+    return { success: false, error: error.message || "ไม่สามารถบันทึกข้อมูลร้านค้าได้" }
   }
 }
 

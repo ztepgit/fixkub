@@ -1,9 +1,13 @@
 "use server"
 
+import { verifyShopAccess } from "@/lib/auth-guard"
 import { db } from "@/lib/prisma"
 
 export async function getDashboardStats(shopId: string) {
   try {
+    // 🌟 ด่านตรวจ: ถ้าไม่ใช่เจ้าร้าน มันจะ Error และเด้งไป catch ทันที (Query บรรทัดล่างจะไม่ทำงาน)
+    await verifyShopAccess(shopId)
+    
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -60,6 +64,7 @@ export async function getDashboardStats(shopId: string) {
     let totalMinutes = 0;
     jobsWithTime.forEach(job => {
       // 🌟 ใช้แค่ repairedAt ลบด้วย startedAt (ไม่เอา COMPLETED มายุ่งเลยครับ)
+      // ใส่ ! ได้อย่างปลอดภัย เพราะเรา query แบบ not: null มาแล้ว
       const diffInMinutes = (job.repairedAt!.getTime() - job.startedAt!.getTime()) / 60000;
       if (diffInMinutes > 0) totalMinutes += diffInMinutes;
     });
@@ -85,8 +90,9 @@ export async function getDashboardStats(shopId: string) {
         avgRepairTimeText    // ส่งไปโชว์ Overview
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error fetching dashboard stats:", error);
-    return { success: false, error: "ไม่สามารถโหลดข้อมูลสถิติได้" };
+    // 🌟 ส่ง error.message ออกไป เผื่อเป็น Error จากด่านตรวจสิทธิ์
+    return { success: false, error: error.message || "ไม่สามารถโหลดข้อมูลสถิติได้" };
   }
 }

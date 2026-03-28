@@ -2,11 +2,36 @@
 
 import { db } from "@/lib/prisma"
 import { PlanType } from "@prisma/client"
-import { z } from "zod" // 🌟 1. เพิ่ม import zod เข้ามา
+import { z } from "zod" 
 import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
+import { createClient } from "@/lib/supabase/server" // 🌟 1. เพิ่ม import เพื่อใช้เช็ค Session
 
+// ==========================================
+// 🌟 ฟังก์ชันใหม่: ด่านตรวจสำหรับ Super Admin
+// ==========================================
+async function verifySuperAdmin() {
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // 💡 เปลี่ยนตรงนี้เป็นอีเมลหลักที่คุณใช้ล็อกอินเป็น Super Admin
+  // หรือตั้งใน .env ว่า SUPER_ADMIN_EMAIL=your-email@gmail.com ก็ได้ครับ
+  const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL
+
+  if (!session?.user?.email || session.user.email !== SUPER_ADMIN_EMAIL) {
+    throw new Error("Forbidden: ท่านไม่มีสิทธิ์ใช้งานส่วนนี้ (เฉพาะ Super Admin เท่านั้น)")
+  }
+  
+  return session.user.email
+}
+
+// ==========================================
+// 1. สร้างร้านค้าโดย Super Admin
+// ==========================================
 export async function createShopAction(input: CreateShopInput) {
   try {
+    // 🌟 2. เรียกใช้ด่านตรวจ ป้องกันแฮกเกอร์แอบยิง API มาสร้างร้าน LIFETIME ฟรี
+    await verifySuperAdmin()
+
     const data = createShopSchema.parse(input)
 
     const exists = await db.shop.findUnique({
@@ -97,7 +122,6 @@ export async function createShopAction(input: CreateShopInput) {
   } catch (error: any) {
     console.error("Create Shop Error:", error)
     
-    // 🌟 2. ดัก Error ของ Zod ให้กลายเป็นภาษาไทยที่อ่านง่าย
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message }
     }
@@ -106,7 +130,9 @@ export async function createShopAction(input: CreateShopInput) {
   }
 }
 
-// วางต่อท้ายไฟล์ actions/super-admin.ts
+// ==========================================
+// 2. เช็ค URL ซ้ำ (ปล่อยเป็น Public ไว้เพื่อให้หน้า Onboarding ใช้งานได้)
+// ==========================================
 export async function checkSlugAvailability(slug: string) {
   try {
     const exists = await db.shop.findUnique({

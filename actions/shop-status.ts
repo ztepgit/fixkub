@@ -2,9 +2,14 @@
 
 import { db } from "@/lib/prisma"
 import { differenceInDays, isPast } from "date-fns"
+import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 1. Import ฟังก์ชันด่านตรวจ
 
 export async function checkAndEnforceShopStatus(shopId: string) {
   try {
+    // 🌟 2. ด่านตรวจ: ตรวจสอบสิทธิ์ก่อนว่าผู้ใช้ที่กำลังเรียก API นี้ เป็นเจ้าของร้านจริงๆ
+    // ป้องกันการยิง API มั่วเพื่อแกล้งปิดร้านคนอื่น
+    await verifyShopAccess(shopId)
+
     const shop = await db.shop.findUnique({
       where: { id: shopId },
       select: { id: true, expiresAt: true, planStatus: true, isActive: true }
@@ -14,7 +19,7 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
     // ถ้าร้านไม่มีวันหมดอายุ (เช่น LIFETIME) หรือยังไม่ถึงวันหมดอายุ
     if (!shop.expiresAt || !isPast(shop.expiresAt)) {
-     return { status: "ACTIVE", expiresAt: shop.expiresAt } // 🌟 เพิ่มตรงนี้
+      return { status: "ACTIVE", expiresAt: shop.expiresAt } 
     }
 
     // 🌟 ถ้าเข้าเงื่อนไขนี้ แปลว่า "หมดอายุแล้ว"

@@ -1,5 +1,6 @@
 "use server";
 
+import { verifyShopAccess } from "@/lib/auth-guard"
 import { db } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -31,13 +32,15 @@ const createQueueSchema = z.object({
 // ดึง Type ออกมาจาก Zod Schema ไปใช้เป็น Input
 export type CreateQueueInput = z.input<typeof createQueueSchema>;
 
-
 export async function createQueue(input: CreateQueueInput) {
   try {
-    // 🛡️ ด่านที่ 1: ตรวจสอบและล้างข้อมูลด้วย Zod (Trim, Replace, Normalize เกิดขึ้นที่นี่)
+    // 🛡️ ด่านที่ 1: ตรวจสอบและล้างข้อมูลด้วย Zod
     const safeData = createQueueSchema.parse(input);
 
-    // 🛡️ ด่านที่ 2: ตรวจสอบว่า Shop มีอยู่จริงไหม (Security Check)
+    // 🛡️ ด่านที่ 2: ตรวจสอบสิทธิ์ (Auth Guard) ป้องกันการสร้างคิวให้ร้านอื่น
+    await verifyShopAccess(safeData.shopId);
+
+    // ตรวจสอบว่า Shop มีอยู่จริงไหม 
     const shop = await db.shop.findUnique({
       where: { id: safeData.shopId },
       select: { id: true }
@@ -51,7 +54,7 @@ export async function createQueue(input: CreateQueueInput) {
     const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     const generatedJobRef = `Q-${randomCode}`;
 
-    // 💾 สั่ง Prisma บันทึกข้อมูลลง Database ด้วยข้อมูลที่สะอาด (safeData)
+    // 💾 สั่ง Prisma บันทึกข้อมูลลง Database
     const newQueue = await db.queue.create({
       data: {
         shopId: safeData.shopId,
@@ -78,33 +81,36 @@ export async function createQueue(input: CreateQueueInput) {
   } catch (error: any) {
     console.error("❌ Error creating queue:", error);
     
-    // 🌟 ถ้าพังเพราะ Zod ให้ดึงข้อความแจ้งเตือนภาษาไทยออกมาแสดงที่ UI
+    // ถ้าพังเพราะ Zod ให้ดึงข้อความแจ้งเตือนภาษาไทยออกมาแสดงที่ UI
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message };
     }
 
     return { 
       success: false, 
-      error: "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง" 
+      // ส่ง error.message ออกไปเผื่อเป็น Error จาก verifyShopAccess
+      error: error.message || "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง" 
     };
   }
 }
 
 // ==========================================
-// 1. ฟังก์ชันดึงข้อมูลคิวทั้งหมดของร้าน
+// ฟังก์ชันดึงข้อมูลคิวทั้งหมดของร้าน
 // ==========================================
 export async function getQueues(shopId: string) {
   try {
+     // 🌟 ด่านตรวจ: ถ้าไม่ใช่เจ้าร้าน มันจะ Error และเด้งไป catch ทันที
+    await verifyShopAccess(shopId);
+
     const queues = await db.queue.findMany({
-      where: { 
-        shopId: shopId,
-      },
+      where: { shopId: shopId },
       orderBy: { createdAt: 'asc' }, 
     });
+
     return { success: true, data: queues };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error fetching queues:", error);
-    return { success: false, error: "ดึงข้อมูลคิวไม่สำเร็จ" };
+    return { success: false, error: error.message || "ดึงข้อมูลคิวไม่สำเร็จ" };
   }
 }
 
@@ -113,6 +119,7 @@ export async function getQueues(shopId: string) {
 // ==========================================
 export async function updateQueueStatus(id: string, status: string, additionalData?: any) {
   try {
+    // 1. ดึงข้อมูลคิวขึ้นมาก่อน
     const existingQueue = await db.queue.findUnique({
       where: { id }
     });
@@ -121,11 +128,15 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
       return { success: false, error: "ไม่พบข้อมูลคิวนี้ในระบบ" };
     }
 
+    // 🌟 2. ด่านตรวจ: ป้องกันการแอบสุ่ม ID คิวของร้านอื่นเพื่ออัปเดต
+    await verifyShopAccess(existingQueue.shopId);
+
     const updateData: any = { 
       status, 
       ...additionalData 
     };
 
+    // บันทึกเวลาตามสถานะ
     if (status === "WAITING" && !existingQueue.acceptedAt) {
       updateData.acceptedAt = new Date(); 
     } 
@@ -153,17 +164,18 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
       message: "อัปเดตสถานะสำเร็จ"
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error updating queue status:", error);
     return { 
       success: false, 
-      error: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" 
+      error: error.message || "เกิดข้อผิดพลาดในการอัปเดตสถานะ" 
     };
   }
 }
 
 // ==========================================
 // 🌟 ดึงข้อมูลคิวสำหรับหน้าเช็คสถานะของลูกค้า
+// 🚨 หมายเหตุ: ฟังก์ชันนี้สำหรับ PUBLIC (ลูกค้า) จึงไม่มี verifyShopAccess
 // ==========================================
 export async function getCustomerQueues(shopId: string, searchKey: string) {
   try {
@@ -194,6 +206,9 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
 // ==========================================
 export async function getTop50Jobs(shopId: string) {
   try {
+    // 🌟 ด่านตรวจ
+    await verifyShopAccess(shopId);
+
     const jobs = await db.queue.findMany({
       where: { 
         shopId,
@@ -232,9 +247,9 @@ export async function getTop50Jobs(shopId: string) {
     }).slice(0, 50) 
 
     return { success: true, data: sortedJobs }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching top 50 jobs:", error)
-    return { success: false, error: "ไม่สามารถโหลดข้อมูลคิวล่าสุดได้" }
+    return { success: false, error: error.message || "ไม่สามารถโหลดข้อมูลคิวล่าสุดได้" }
   }
 }
 
@@ -243,6 +258,9 @@ export async function getTop50Jobs(shopId: string) {
 // ==========================================
 export async function searchJobHistory(shopId: string, query: string, page = 1, limit = 20) {
   try {
+    // 🌟 ด่านตรวจ
+    await verifyShopAccess(shopId);
+
     const skip = (page - 1) * limit;
     
     // 💡 Normalize query ถ้าผู้ใช้พิมพ์เบอร์โทรแบบมีขีดมาค้นหา
@@ -268,8 +286,8 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
     ]);
 
     return { success: true, data: { jobs, total, page, totalPages: Math.ceil(total / limit) } };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error searching history:", error);
-    return { success: false, error: "ค้นหาข้อมูลล้มเหลว" };
+    return { success: false, error: error.message || "ค้นหาข้อมูลล้มเหลว" };
   }
 }

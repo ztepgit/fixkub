@@ -1,10 +1,11 @@
 "use server"
 
 import { db } from "@/lib/prisma"
+import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 เพิ่ม Import ตัวด่านตรวจ
 import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear,
-  eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval, // 🌟 เพิ่มรายชั่วโมง
-  isSameDay, isSameMonth, isSameHour, // 🌟 เพิ่มตัวเช็คชั่วโมง
+  eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval, 
+  isSameDay, isSameMonth, isSameHour, 
   startOfDay, endOfDay
 } from "date-fns"
 
@@ -22,7 +23,7 @@ function getDateFilter(period?: string, customFrom?: Date, customTo?: Date, date
   } else if (period === 'custom' && customFrom && customTo) {
     return { [dateField]: { gte: startOfDay(new Date(customFrom)), lte: endOfDay(new Date(customTo)) } };
   }
-  return {}; // ถ้าไม่ตรงเงื่อนไขเลย ให้ดึงทั้งหมด
+  return {}; 
 }
 
 // ==========================================
@@ -30,6 +31,9 @@ function getDateFilter(period?: string, customFrom?: Date, customTo?: Date, date
 // ==========================================
 export async function getAnalyticsSummary(shopId: string, period?: string, customFrom?: Date, customTo?: Date) {
   try {
+    // 🛡️ ด่านตรวจสิทธิ์: ป้องกันแฮกเกอร์แอบดึงยอดขายของร้านอื่น
+    await verifyShopAccess(shopId);
+
     const dateFilter = getDateFilter(period, customFrom, customTo, 'createdAt');
 
     const jobs = await db.queue.findMany({
@@ -78,9 +82,9 @@ export async function getAnalyticsSummary(shopId: string, period?: string, custo
         cancelReasons: formattedCancelReasons
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error fetching analytics summary:", error);
-    return { success: false, error: "ไม่สามารถดึงข้อมูลสรุปได้" };
+    return { success: false, error: error.message || "ไม่สามารถดึงข้อมูลสรุปได้" };
   }
 }
 
@@ -89,11 +93,13 @@ export async function getAnalyticsSummary(shopId: string, period?: string, custo
 // ==========================================
 export async function getTrendData(shopId: string, period: 'today' | 'week' | 'month' | 'year' | 'custom', customFrom?: Date, customTo?: Date) {
   try {
+    // 🛡️ ด่านตรวจสิทธิ์
+    await verifyShopAccess(shopId);
+
     const now = new Date();
     let startDate: Date, endDate: Date;
     let intervals: Date[] = [];
 
-    // 🌟 เพิ่มเงื่อนไข "วันนี้" ให้ดึงเป็นรายชั่วโมง
     if (period === 'today') {
       startDate = startOfDay(now);
       endDate = endOfDay(now);
@@ -145,7 +151,7 @@ export async function getTrendData(shopId: string, period: 'today' | 'week' | 'm
 
     const diffDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const isMonthlyView = period === 'year' || (period === 'custom' && diffDays > 60);
-    const isHourlyView = period === 'today'; // 🌟 ตัวเช็ครายชั่วโมง
+    const isHourlyView = period === 'today'; 
 
     const chartData = intervals.map(date => {
       let revenue = 0;
@@ -169,7 +175,7 @@ export async function getTrendData(shopId: string, period: 'today' | 'week' | 'm
       });
 
       let label = "";
-      if (period === 'today') label = `${date.getHours().toString().padStart(2, '0')}:00`; // ฟอร์แมตเวลา 08:00
+      if (period === 'today') label = `${date.getHours().toString().padStart(2, '0')}:00`; 
       else if (period === 'week') label = dayNames[date.getDay()];
       else if (isMonthlyView) label = monthNames[date.getMonth()];
       else label = `${date.getDate()} ${monthNames[date.getMonth()]}`;
@@ -184,9 +190,9 @@ export async function getTrendData(shopId: string, period: 'today' | 'week' | 'm
 
     return { success: true, data: chartData };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error fetching trend data:", error);
-    return { success: false, error: "ไม่สามารถดึงข้อมูลกราฟได้" };
+    return { success: false, error: error.message || "ไม่สามารถดึงข้อมูลกราฟได้" };
   }
 }
 
@@ -195,6 +201,9 @@ export async function getTrendData(shopId: string, period: 'today' | 'week' | 'm
 // ==========================================
 export async function getCancelledJobsDetails(shopId: string, period?: string, customFrom?: Date, customTo?: Date) {
   try {
+    // 🛡️ ด่านตรวจสิทธิ์
+    await verifyShopAccess(shopId);
+
     const dateFilter = getDateFilter(period, customFrom, customTo, 'cancelledAt');
 
     const jobs = await db.queue.findMany({
@@ -210,8 +219,8 @@ export async function getCancelledJobsDetails(shopId: string, period?: string, c
       }
     });
     return { success: true, data: jobs };
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error fetching cancelled jobs details:", error);
-    return { success: false, error: "ไม่สามารถดึงข้อมูลรายการยกเลิกได้" };
+    return { success: false, error: error.message || "ไม่สามารถดึงข้อมูลรายการยกเลิกได้" };
   }
 }

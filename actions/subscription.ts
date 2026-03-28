@@ -4,8 +4,9 @@ import { db } from "@/lib/prisma" // แก้ไข path ให้ตรงก�
 import { addMonths, addYears, isAfter } from "date-fns"
 import { PlanType } from "@prisma/client"
 import { z } from "zod" // 🌟 1. Import Zod เข้ามาใช้งาน
+import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 2. Import ด่านตรวจสิทธิ์
 
-// 🌟 2. สร้าง Schema สำหรับ Validate และ Trim ข้อมูล
+// 🌟 3. สร้าง Schema สำหรับ Validate และ Trim ข้อมูล
 const paymentSchema = z.object({
   shopId: z.string().trim().min(1, "ไม่พบรหัสร้านค้า"),
   // ใช้ nativeEnum ดัก Type ของแพ็กเกจให้เป๊ะตามที่ Prisma มี
@@ -16,7 +17,7 @@ const paymentSchema = z.object({
 // รับค่าเป็น any หรือ string ก่อน เพื่อให้ Zod เป็นตัวกรองและแปลง Type ที่ถูกต้อง
 export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: string | PlanType, rawAmount: number) {
   try {
-    // 🌟 3. นำค่ามาผ่าน Zod เพื่อ Validate และ Trim
+    // 🌟 4. นำค่ามาผ่าน Zod เพื่อ Validate และ Trim
     const validatedData = paymentSchema.parse({
       shopId: rawShopId,
       planToBuy: rawPlanToBuy,
@@ -24,6 +25,9 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
     })
 
     const { shopId, planToBuy, amount } = validatedData
+
+    // 🌟 5. ด่านตรวจสิทธิ์: ป้องกันคนอื่นยิง API มาอัปเดตแพ็กเกจมั่วๆ หรือเติมเงินให้ร้านคนอื่น
+    await verifyShopAccess(shopId)
 
     const shop = await db.shop.findUnique({
       where: { id: shopId }
@@ -58,7 +62,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
       await tx.shop.update({
         where: { id: shopId },
         data: {
-          isActive: true,            // 🌟 4. สำคัญ! เปลี่ยนเป็น true เพื่อเปิดให้ร้านเข้าระบบได้ทันที
+          isActive: true,            // 🌟 สำคัญ! เปลี่ยนเป็น true เพื่อเปิดให้ร้านเข้าระบบได้ทันที
           planType: planToBuy,       
           planStatus: "ACTIVE",
           subscriptionStartsAt: now, 
@@ -79,7 +83,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
         }
       })
 
-      // 🌟 5. สร้างบิลใบเสร็จ (Payment Transaction)
+      // 🌟 3. สร้างบิลใบเสร็จ (Payment Transaction)
       await tx.paymentTransaction.create({
         data: {
           shopId: shopId,
@@ -96,7 +100,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
     })
 
     return { success: true, newExpiresAt }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Payment Processing Error:", error)
     
     // 🌟 ดักจับ Error จาก Zod แปลงเป็นภาษาไทยให้อ่านง่าย
@@ -104,6 +108,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
       return { success: false, error: error.errors[0].message }
     }
     
+    // คืนค่า error.message ออกไป เผื่อเป็นข้อความปฏิเสธสิทธิ์จาก verifyShopAccess
     return { success: false, error: error instanceof Error ? error.message : "ไม่สามารถอัปเดตแพ็กเกจได้" }
   }
 }
