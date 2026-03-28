@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { 
@@ -25,9 +26,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/hooks/use-toast"
 
 import { QRCodeCanvas } from "qrcode.react"
-import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2 } from "lucide-react"
+import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2, Home } from "lucide-react"
 
-// 🌟 1. Import Store เพื่อเอาค่า slug มาสร้างลิงก์
 import { useShopStore } from "@/store/useShopStore"
 
 interface DashboardHeaderProps {
@@ -35,7 +35,6 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ currentTabName = "ภาพรวม" }: DashboardHeaderProps) {
-  // 🌟 2. ดึง slug ของร้านค้ามาจาก Store
   const slug = useShopStore((s) => s.shop?.slug)
 
   const [shopUrl, setShopUrl] = useState("")
@@ -43,12 +42,11 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
   const [isQrHidden, setIsQrHidden] = useState(false)
   const { toast } = useToast()
 
-  // 🌟 3. อัปเดต useEffect ให้ใช้ slug ในรูปแบบ Subdomain
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
       setShopUrl(`https://${slug}.esyq.net`) 
     }
-  }, [slug]) // ทำงานใหม่ทุกครั้งที่ slug เปลี่ยนแปลง
+  }, [slug]) 
 
   const copyLink = () => {
     navigator.clipboard.writeText(shopUrl)
@@ -64,7 +62,6 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      // 🌟 4. เปลี่ยนชื่อไฟล์ตอนดาวน์โหลด ให้ใช้ชื่อ slug ด้วย
       link.download = `QR-Code-${slug || 'ESYQ'}.png`;
       document.body.appendChild(link);
       link.click();
@@ -77,19 +74,43 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
     <header className="flex w-full h-16 md:h-20 shrink-0 items-center justify-between border-b px-4 md:px-6 bg-white/80 backdrop-blur-md sticky top-0 z-40">
       
       <div className="flex items-center gap-2">
+        {/* 🌟 1. ปุ่มเปิด/ปิด Sidebar (จะมี Reaction เมื่อย่อจอหรือ Sidebar ถูกปิดอยู่) */}
         <SidebarTrigger className="-ml-1 text-slate-500 hover:text-slate-800" />
         <Separator orientation="vertical" className="mr-2 h-4 bg-slate-200" />
+        
         <Breadcrumb>
           <BreadcrumbList>
+            
+            {/* 🌟 2. ไอคอน Home -> กลับหน้า Landing Page */}
             <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbPage className="text-slate-500 font-normal">
-                ระบบจัดการคิว
-              </BreadcrumbPage>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/" className="flex items-center text-slate-400 hover:text-emerald-600 transition-colors p-1">
+                      <Home className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    กลับหน้าเว็บไซต์หลัก
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block text-slate-300" />
+
+            {/* 🌟 3. ข้อความ "ระบบจัดการคิว" -> เปลี่ยนเป็น Link กลับหน้า Dashboard หลัก */}
+            <BreadcrumbItem className="hidden md:block">
+              <Link href="/dashboard" className="text-slate-500 hover:text-slate-800 transition-colors">
+                ระบบจัดการคิว
+              </Link>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="hidden md:block text-slate-300" />
+            
+            {/* 🌟 4. หน้าปัจจุบัน -> เป็นข้อความธรรมดา */}
             <BreadcrumbItem>
               <BreadcrumbPage className="font-semibold text-slate-800">{currentTabName}</BreadcrumbPage>
             </BreadcrumbItem>
+
           </BreadcrumbList>
         </Breadcrumb>
       </div>
