@@ -18,7 +18,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// Import Server Actions ที่สร้างไว้
 import { updateShopSettings, getUserShops, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
 import { supabase } from "@/lib/supabase"
@@ -60,7 +59,7 @@ export function ShopSettings() {
     }
   })
 
-  // 🌟 Query ดึงรายชื่อพนักงาน
+  // Query ดึงรายชื่อพนักงาน
   const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
     queryKey: ["shop-staff", shop?.id],
     queryFn: async () => {
@@ -71,7 +70,7 @@ export function ShopSettings() {
     enabled: !!shop?.id
   })
 
-  // 🌟 Mutation: เพิ่มพนักงาน
+  // Mutation: เพิ่มพนักงาน
   const addStaffMutation = useMutation({
     mutationFn: async (email: string) => {
       const res = await addShopStaff(shop!.id, email);
@@ -88,7 +87,7 @@ export function ShopSettings() {
     }
   })
 
-  // 🌟 Mutation: ลบพนักงาน
+  // Mutation: ลบพนักงาน
   const removeStaffMutation = useMutation({
     mutationFn: async (email: string) => {
       const res = await removeShopStaff(shop!.id, email);
@@ -170,7 +169,6 @@ export function ShopSettings() {
 
     setIsSaving(true)
     
-    // Optimistic Update
     updateShop({ name: shopName, logoUrl: logoPreview })
     
     const formData = new FormData()
@@ -240,7 +238,7 @@ export function ShopSettings() {
     )
   }
 
-  // 🌟 บล็อกการเข้าถึงหน้าตั้งค่าของพนักงาน (STAFF)
+  // บล็อกการเข้าถึงหน้าตั้งค่าของพนักงาน (STAFF)
   if (shop.role === "STAFF") {
     return (
       <div className="flex flex-col h-[60vh] w-full items-center justify-center text-slate-500 gap-3">
@@ -253,12 +251,16 @@ export function ShopSettings() {
 
   return (
     <TooltipProvider>
-      <div className="grid gap-8 md:grid-cols-2 max-w-5xl mx-auto py-6">
+      {/* 🌟 เปลี่ยน Grid Layout ให้แบ่งซ้าย-ขวาชัดเจน โดยให้ขวาแคบกว่าซ้าย */}
+      <div className="grid gap-8 lg:grid-cols-12 max-w-6xl mx-auto py-6">
         
-        <div className="space-y-6">
+        {/* ============================================== */}
+        {/* 🌟 ฝั่งซ้าย (Left Column): ตั้งค่าต่างๆ และจัดการพนักงาน */}
+        {/* ============================================== */}
+        <div className="space-y-6 lg:col-span-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
-            <p className="text-sm text-slate-500">ปรับแต่งชื่อและโลโก้เพื่อแสดงผลบนฟอร์มของลูกค้า</p>
+            <p className="text-sm text-slate-500">ปรับแต่งชื่อ โลโก้ และจัดการพนักงาน</p>
           </div>
 
           <Card className="border-slate-200 shadow-sm relative overflow-hidden">
@@ -316,86 +318,7 @@ export function ShopSettings() {
             </CardFooter>
           </Card>
 
-          {/* 🌟 ส่วนจัดการพนักงาน (Staff Management) */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b pb-4">
-              <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                <Users className="h-5 w-5 text-blue-600" />
-                จัดการพนักงาน (Staff)
-              </CardTitle>
-              <CardDescription>
-                จำกัดพนักงาน 1 คน สำหรับแพ็กเกจปัจจุบัน (โควต้า {staffList.length}/1)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              {isStaffLoading ? (
-                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
-              ) : (
-                <>
-                  {/* แสดงรายการพนักงาน */}
-                  {staffList.length > 0 ? (
-                    <div className="space-y-3">
-                      {staffList.map((staff: any) => (
-                        <div key={staff.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
-                              {staff.email.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-slate-700">{staff.email}</p>
-                              <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500">STAFF</Badge>
-                            </div>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => removeStaffMutation.mutate(staff.email)}
-                            disabled={removeStaffMutation.isPending}
-                            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            {removeStaffMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50">
-                      <p className="text-sm text-slate-500">ยังไม่มีพนักงานในร้านนี้</p>
-                    </div>
-                  )}
-
-                  {/* ฟอร์มเพิ่มพนักงาน (โชว์เมื่อ Staff เป็น 0) */}
-                  {staffList.length === 0 && (
-                    <div className="flex gap-2 pt-2 border-t border-slate-100">
-                      <Input 
-                        placeholder="กรอกอีเมลพนักงาน..." 
-                        value={newStaffEmail}
-                        onChange={(e) => setNewStaffEmail(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={() => addStaffMutation.mutate(newStaffEmail)}
-                        disabled={!newStaffEmail.includes("@") || addStaffMutation.isPending}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> เชิญ
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {staffList.length >= 1 && (
-                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-1.5">
-                      <Info className="h-3 w-3 shrink-0" /> แพ็กเกจของท่านใช้โควต้าพนักงานครบแล้ว
-                    </p>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-        </div>
-
-        <div className="space-y-4">
+          {/* ช่องทางแจ้งซ่อม (QR) ย้ายมาอยู่ฝั่งซ้าย */}
           <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 ${isQrHidden ? 'border-slate-200 border-t-4 border-t-slate-300 bg-slate-50/30' : 'border-slate-200 border-t-4 border-t-blue-500'}`}>
             <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
               <div className="space-y-1">
@@ -467,53 +390,137 @@ export function ShopSettings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* ส่วนจัดการพนักงาน */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="bg-slate-50/50 border-b pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                <Users className="h-5 w-5 text-blue-600" />
+                จัดการพนักงาน (Staff)
+              </CardTitle>
+              <CardDescription>
+                จำกัดพนักงาน 1 คน สำหรับแพ็กเกจปัจจุบัน (โควต้า {staffList.length}/1)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {isStaffLoading ? (
+                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
+              ) : (
+                <>
+                  {staffList.length > 0 ? (
+                    <div className="space-y-3">
+                      {staffList.map((staff: any) => (
+                        <div key={staff.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                              {staff.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">{staff.email}</p>
+                              <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500">STAFF</Badge>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => removeStaffMutation.mutate(staff.email)}
+                            disabled={removeStaffMutation.isPending}
+                            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            {removeStaffMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                      <p className="text-sm text-slate-500">ยังไม่มีพนักงานในร้านนี้</p>
+                    </div>
+                  )}
+
+                  {staffList.length === 0 && (
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                      <Input 
+                        placeholder="กรอกอีเมลพนักงาน..." 
+                        value={newStaffEmail}
+                        onChange={(e) => setNewStaffEmail(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={() => addStaffMutation.mutate(newStaffEmail)}
+                        disabled={!newStaffEmail.includes("@") || addStaffMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> เชิญ
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {staffList.length >= 1 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-1.5">
+                      <Info className="h-3 w-3 shrink-0" /> แพ็กเกจของท่านใช้โควต้าพนักงานครบแล้ว
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-center md:justify-start">
-            <Label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center">
-              <Store className="h-4 w-4 mr-2" />
-              ตัวอย่างหน้าจอฝั่งลูกค้า
-            </Label>
-          </div>
-          
-          <div className="mx-auto md:ml-0 w-full max-w-[340px] bg-slate-100 border-[8px] border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[500px] flex flex-col pointer-events-none select-none">
-            <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 w-32 mx-auto rounded-b-xl z-20"></div>
-            <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50">
-              <div className="bg-white px-5 pt-10 pb-4 rounded-t-[2rem] border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
-                <Avatar className="h-14 w-14 border-2 border-white shadow-md mb-2 bg-white">
-                  {logoPreview ? (
-                    <AvatarImage src={logoPreview} alt="Preview Logo" className="object-cover" />
-                  ) : (
-                    <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xl font-bold">
-                      {getInitial(shopName)}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                <h3 className="font-bold text-slate-800 text-base truncate w-full px-2">{shopName && shopName !== "กำลังโหลด..." ? shopName : "ชื่อร้านของคุณ"}</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">ฟอร์มแจ้งซ่อมออนไลน์</p>
-              </div>
+        {/* ============================================== */}
+        {/* 🌟 ฝั่งขวา (Right Column): Mobile View (Sticky) */}
+        {/* ============================================== */}
+        <div className="lg:col-span-4 relative hidden md:block">
+          {/* ใช้ top-24 เพื่อเว้นระยะจาก Header ด้านบน */}
+          <div className="sticky top-24 space-y-4">
+            <div className="flex items-center justify-center">
+              <Label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center">
+                <Store className="h-4 w-4 mr-2" />
+                ตัวอย่างหน้าจอฝั่งลูกค้า
+              </Label>
+            </div>
+            
+            <div className="mx-auto w-full max-w-[320px] bg-slate-100 border-[8px] border-slate-800 rounded-[2.5rem] shadow-xl overflow-hidden relative min-h-[550px] flex flex-col pointer-events-none select-none">
+              {/* ติ่งกล้อง (Notch) */}
+              <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 w-28 mx-auto rounded-b-xl z-20"></div>
               
-              <div className="p-4 space-y-4 bg-white mx-3 mt-3 rounded-xl shadow-sm border border-slate-50">
-                <div className="space-y-2">
-                  <div className="h-3 w-20 bg-slate-200 rounded"></div>
-                  <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
-                  <div className="flex gap-1.5 pt-1">
-                    <div className="h-6 w-14 bg-emerald-100 rounded-full"></div>
-                    <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
-                    <div className="h-6 w-12 bg-slate-100 rounded-full"></div>
-                  </div>
+              <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50">
+                <div className="bg-white px-5 pt-10 pb-4 rounded-t-[2rem] border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
+                  <Avatar className="h-14 w-14 border-2 border-white shadow-md mb-2 bg-white">
+                    {logoPreview ? (
+                      <AvatarImage src={logoPreview} alt="Preview Logo" className="object-cover" />
+                    ) : (
+                      <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xl font-bold">
+                        {getInitial(shopName)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <h3 className="font-bold text-slate-800 text-base truncate w-full px-2">{shopName && shopName !== "กำลังโหลด..." ? shopName : "ชื่อร้านของคุณ"}</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">ฟอร์มแจ้งซ่อมออนไลน์</p>
                 </div>
-                <div className="space-y-2 pt-2 border-t border-slate-50">
-                  <div className="h-3 w-24 bg-slate-200 rounded"></div>
-                  <div className="grid grid-cols-2 gap-2">
+                
+                {/* Mockup Form ซ่อม */}
+                <div className="p-4 space-y-4 bg-white mx-3 mt-3 rounded-xl shadow-sm border border-slate-50">
+                  <div className="space-y-2">
+                    <div className="h-3 w-20 bg-slate-200 rounded"></div>
                     <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
-                    <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
+                    <div className="flex gap-1.5 pt-1">
+                      <div className="h-6 w-14 bg-emerald-100 rounded-full"></div>
+                      <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+                      <div className="h-6 w-12 bg-slate-100 rounded-full"></div>
+                    </div>
                   </div>
-                  <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-md mt-2"></div>
-                </div>
-                <div className="pt-2 border-t border-slate-50">
-                  <div className="h-10 w-full bg-emerald-500 rounded-lg"></div>
+                  <div className="space-y-2 pt-2 border-t border-slate-50">
+                    <div className="h-3 w-24 bg-slate-200 rounded"></div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
+                      <div className="h-8 w-full bg-slate-50 border border-slate-100 rounded-md"></div>
+                    </div>
+                    <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-md mt-2"></div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-50">
+                    <div className="h-10 w-full bg-emerald-500 rounded-lg"></div>
+                  </div>
                 </div>
               </div>
             </div>
