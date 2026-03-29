@@ -38,7 +38,7 @@ export async function calculateNewExpiry(shopId: string, planToBuy: PlanType): P
   }
 
   // 💡 Logic การแถมฟรี 30 วัน
-  // ถ้าไม่เคยจ่ายเงิน + ไม่ได้อยู่ในสถานะทดลองใช้ + วันหมดอายุเดิมไม่มีหรือหมดไปแล้ว -> ถือเป็นลูกค้าใหม่ซิงๆ ให้แถม 30 วัน
+  // ถ้าไม่เคยจ่ายเงิน + ไม่ได้อยู่ในสถานะทดลองใช้ + วันหมดอายุเดิมไม่มีหรือหมดไปแล้ว -> ถือเป็นลูกค้าใหม่ ให้แถม 30 วัน
   const isNewUserBonusEligible = !hasPaidBefore && !isTrial && !isAfter(shop.expiresAt || new Date(0), now);
   
   if (isNewUserBonusEligible) {
@@ -61,7 +61,12 @@ export async function calculateNewExpiry(shopId: string, planToBuy: PlanType): P
 }
 
 // 🌟 3. ฟังก์ชันหลักสำหรับประมวลผลการจ่ายเงินสำเร็จ
-export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: string | PlanType, rawAmount: number) {
+export async function processPaymentSuccess(
+  rawShopId: string, 
+  rawPlanToBuy: string | PlanType, 
+  rawAmount: number,
+  isWebhook: boolean = false // 💡 เพิ่ม Flag แจ้งว่าเป็น Webhook หรือไม่ (ค่าเริ่มต้นคือ false)
+) {
   try {
     // นำค่ามาผ่าน Zod เพื่อ Validate และ Trim
     const validatedData = paymentSchema.parse({
@@ -72,8 +77,12 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
 
     const { shopId, planToBuy, amount } = validatedData
 
-    // ด่านตรวจสิทธิ์: ป้องกันคนอื่นยิง API มาอัปเดตแพ็กเกจมั่วๆ หรือเติมเงินให้ร้านคนอื่น
-    await verifyShopAccess(shopId)
+    // 🌟 ด่านตรวจสิทธิ์
+    // ถ้า "ไม่ใช่" Webhook (เช่น ลูกค้ากดอัปโหลดสลิปจากหน้าเว็บ) -> ตรวจสิทธิ์ว่าใช่เจ้าของร้านตัวจริงไหม
+    // ถ้า "ใช่" Webhook (ระบบภายนอกยิงเข้ามา) -> ข้ามการตรวจสิทธิ์ User Session ไปได้เลย
+    if (!isWebhook) {
+      await verifyShopAccess(shopId)
+    }
 
     const shop = await db.shop.findUnique({
       where: { id: shopId }
@@ -81,11 +90,11 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
 
     if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
 
-    // 🌟 4. เรียกใช้ฟังก์ชันคำนวณวันหมดอายุสุดฉลาดของเรา!
+    // เรียกใช้ฟังก์ชันคำนวณวันหมดอายุ
     const newExpiresAt = await calculateNewExpiry(shopId, planToBuy)
     const now = new Date()
 
-    // 🌟 5. บันทึกลง Database แบบ Transaction (ทำพร้อมกัน 3 ตารางเพื่อความชัวร์ 100%)
+    // บันทึกลง Database แบบ Transaction (ทำพร้อมกัน 3 ตาราง)
     await db.$transaction(async (tx) => {
       
       // 1. อัปเดตตารางร้านค้า
@@ -109,7 +118,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
           previousExpiresAt: shop.expiresAt, 
           newExpiresAt: newExpiresAt,        
           status: "COMPLETED",
-          // slipUrl: "", // 💡 หากมีการอัปโหลดสลิปลง Storage สามารถนำ URL มาใส่ตรงนี้ได้
+          // slipUrl: "", // 💡 หากมีการอัปโหลดสลิป สามารถนำ URL มาใส่ตรงนี้ได้
         }
       })
 
@@ -123,7 +132,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
           status: "APPROVED",
           approvedAt: now,
           isUpgrade: shop.planType !== "FREE_TRIAL", // เช็คว่าเป็นบิลอัปเกรดหรือไม่ (ถ้าเดิมไม่ใช่ตัวฟรี)
-          // slipUrl: "", // 💡 หากมีการอัปโหลดสลิปลง Storage สามารถนำ URL มาใส่ตรงนี้ได้
+          // slipUrl: "", // 💡 หากมีการอัปโหลดสลิป สามารถนำ URL มาใส่ตรงนี้ได้
         }
       })
 
