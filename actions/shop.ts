@@ -2,9 +2,9 @@
 
 import { z } from "zod"
 import { db } from "@/lib/prisma"
-import { supabase } from "@/lib/supabase" 
-import { revalidatePath } from "next/cache" 
-import { addDays } from "date-fns" 
+import { supabase } from "@/lib/supabase"
+import { revalidatePath } from "next/cache"
+import { addDays } from "date-fns"
 import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 1. เพิ่ม import ด่านตรวจ
 
 // ==========================================
@@ -16,7 +16,7 @@ const shopNameSchema = z.string().trim().min(1, "กรุณากรอกช�
 const publicRegisterSchema = z.object({
   name: z.string().trim().min(1, "กรุณากรอกชื่อร้าน"),
   slug: z.string().trim().min(3, "URL ต้องมีอย่างน้อย 3 ตัวอักษร"),
-  ownerEmail: z.string().trim().email("อีเมลไม่ถูกต้อง"), 
+  ownerEmail: z.string().trim().email("อีเมลไม่ถูกต้อง"),
 })
 
 // ==========================================
@@ -56,10 +56,10 @@ export async function registerPublicShop(formData: FormData) {
           name: data.name,
           slug: data.slug,
           // --- ล็อคค่าสำหรับคนรอจ่ายเงิน ---
-          isActive: false,           
-          planType: "FREE_TRIAL",    
-          trialEndsAt: null,         
-          expiresAt: null,           
+          isActive: false,
+          planType: "FREE_TRIAL",
+          trialEndsAt: null,
+          expiresAt: null,
           subscriptionStartsAt: null,
         }
       })
@@ -98,10 +98,10 @@ export async function registerFreeTrialShop(formData: FormData) {
     })
 
     // ด่านหลังบ้าน: เช็คว่าอีเมลนี้เคยสร้างร้านไปแล้วหรือยัง ป้องกันคนแอบยิง API ตรงๆ
-    const existingOwner = await db.shopOwner.findFirst({ 
-      where: { email: data.ownerEmail } 
+    const existingOwner = await db.shopOwner.findFirst({
+      where: { email: data.ownerEmail }
     })
-    
+
     if (existingOwner) {
       return { success: false, message: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้ครั้งแรกเท่านั้น" }
     }
@@ -121,9 +121,9 @@ export async function registerFreeTrialShop(formData: FormData) {
           slug: data.slug,
           // --- ล็อคค่าสำหรับ Free Trial ---
           isActive: true,            // เปิดให้ใช้งานทันที
-          planType: "FREE_TRIAL",    
+          planType: "FREE_TRIAL",
           trialEndsAt: trialEndsAt,  // เริ่มนับถอยหลัง 14 วัน
-          expiresAt: null,           
+          expiresAt: null,
           subscriptionStartsAt: null,
         }
       })
@@ -140,9 +140,9 @@ export async function registerFreeTrialShop(formData: FormData) {
       await tx.subscriptionHistory.create({
         data: {
           shopId: shop.id,
-          planType: "FREE_TRIAL",       
+          planType: "FREE_TRIAL",
           amountPaid: 0,
-          newExpiresAt: trialEndsAt,        
+          newExpiresAt: trialEndsAt,
           status: "COMPLETED"
         }
       })
@@ -202,9 +202,9 @@ export async function getShopSettings(shopId: string) {
       where: { id: validatedId },
       select: { name: true, logoUrl: true, slug: true },
     })
-    
+
     if (!shop) return { success: false, error: "ไม่พบข้อมูลร้านค้า" }
-    
+
     return { success: true, data: shop }
   } catch (error: any) {
     console.error("Error fetching shop settings:", error)
@@ -243,7 +243,7 @@ export async function updateShopSettings(formData: FormData) {
         .from('shop-logos')
         .upload(fileName, buffer, {
           contentType: 'image/webp',
-          upsert: true, 
+          upsert: true,
         })
 
       if (uploadError) {
@@ -262,23 +262,23 @@ export async function updateShopSettings(formData: FormData) {
       where: { id: shopId },
       data: {
         name: name,
-        logoUrl: logoUrl, 
+        logoUrl: logoUrl,
       },
     })
-    
+
     if (updatedShop.slug) {
       revalidatePath(`/shop/${updatedShop.slug}`)
     }
-    revalidatePath('/') 
-    
+    revalidatePath('/')
+
     return { success: true, data: updatedShop }
   } catch (error: any) {
     console.error("Error updating shop settings:", error)
-    
+
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message }
     }
-    
+
     return { success: false, error: error.message || "ไม่สามารถบันทึกข้อมูลร้านค้าได้" }
   }
 }
@@ -302,13 +302,86 @@ export async function getUserShops(email: string) {
         }
       }
     })
-    
-    // ดึงเฉพาะข้อมูล shop ออกมาส่งให้หน้าเว็บ
-    const shops = owners.map(owner => owner.shop)
-    
+
+    // 🌟 อัปเดต: แนบ role (OWNER / STAFF) ของ User ในร้านนั้นๆ กลับไปให้ Frontend ด้วย
+    const shops = owners.map(owner => ({
+      ...owner.shop,
+      role: owner.role
+    }))
+
     return { success: true, shops }
   } catch (error) {
     console.error("Get User Shops Error:", error)
     return { success: false, shops: [] }
+  }
+}
+
+// ==========================================
+// 🌟 7. ระบบจัดการพนักงาน (Staff Management)
+// ==========================================
+export async function getShopStaff(shopId: string) {
+  try {
+    await verifyShopAccess(shopId);
+    // ดึงเฉพาะคนที่มี Role เป็น STAFF ของร้านนี้
+    const staff = await db.shopOwner.findMany({
+      where: { shopId, role: "STAFF" },
+      select: { id: true, email: true }
+    });
+    return { success: true, data: staff };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function addShopStaff(shopId: string, staffEmail: string) {
+  try {
+    const access = await verifyShopAccess(shopId);
+
+    // ป้องกันไม่ให้ Staff มาเชิญ Staff เอง (ต้องเป็น OWNER เท่านั้น)
+    if (access.role !== "OWNER") {
+      throw new Error("เฉพาะเจ้าของร้านเท่านั้นที่สามารถเพิ่มพนักงานได้");
+    }
+
+    // เช็คจำนวน Staff ว่าเกินโควต้า 1 คนสำหรับแพ็กเกจปัจจุบันหรือไม่ (Phase 1)
+    const currentStaffCount = await db.shopOwner.count({
+      where: { shopId, role: "STAFF" }
+    });
+
+    if (currentStaffCount >= 1) {
+      throw new Error("แพ็กเกจปัจจุบันจำกัดพนักงาน 1 คน (รออัปเกรด PRO ใน Phase 2)");
+    }
+
+    // เช็คว่าอีเมลนี้ถูกเชิญมาในร้านนี้แล้วหรือยัง
+    const existing = await db.shopOwner.findFirst({
+      where: { shopId, email: staffEmail }
+    });
+
+    if (existing) {
+      throw new Error("อีเมลนี้อยู่ในร้านค้านี้แล้ว");
+    }
+
+    // เพิ่มพนักงาน
+    await db.shopOwner.create({
+      data: { shopId, email: staffEmail, role: "STAFF" }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function removeShopStaff(shopId: string, staffEmail: string) {
+  try {
+    const access = await verifyShopAccess(shopId);
+    if (access.role !== "OWNER") throw new Error("ไม่มีสิทธิ์ลบพนักงาน");
+
+    await db.shopOwner.deleteMany({
+      where: { shopId, email: staffEmail, role: "STAFF" }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }
