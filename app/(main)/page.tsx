@@ -22,12 +22,12 @@ import { Label } from "@/components/ui/label"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle } from "lucide-react"
 
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
-import { useShopStore } from "@/store/useShopStore" // 🌟 Import Store เพื่ออัปเดตร้านตอนเข้า Dashboard
+import { useShopStore } from "@/store/useShopStore" 
 
 export default function LandingPage() {
   const router = useRouter()
   const { toast } = useToast() 
-  const updateShop = useShopStore((s) => s.updateShop) // ดึงฟังก์ชันอัปเดต Store
+  const updateShop = useShopStore((s) => s.updateShop) 
   
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -38,7 +38,6 @@ export default function LandingPage() {
   const [userShops, setUserShops] = useState<any[]>([])
   const [selectedShopId, setSelectedShopId] = useState<string>("")
 
-  // 🌟 เพิ่ม State บอกว่า Popup เปิดมาเพื่ออะไร
   const [shopSelectAction, setShopSelectAction] = useState<"checkout" | "dashboard">("checkout")
 
   useEffect(() => {
@@ -91,9 +90,18 @@ export default function LandingPage() {
       const res = await getUserShops(userEmail)
       
       if (res.success && res.shops.length > 0) {
-        setShopSelectAction("checkout") // 🌟 ระบุว่าเป็น Popup จ่ายเงิน
-        setUserShops(res.shops)
-        setSelectedShopId(res.shops[0].id) 
+        // 🌟 ดักไม่ให้ STAFF กดจ่ายเงินซื้อแพ็กเกจ
+        const isStaffOnly = res.shops.every(s => s.role === "STAFF");
+        if (isStaffOnly) {
+          toast({ title: "ไม่มีสิทธิ์ทำรายการ", description: "พนักงานไม่สามารถสั่งซื้อแพ็กเกจได้ กรุณาติดต่อเจ้าของร้าน", variant: "destructive" })
+          return;
+        }
+
+        setShopSelectAction("checkout")
+        // กรองมาเฉพาะร้านที่เป็น Owner ให้เลือกจ่ายเงิน
+        const ownerShops = res.shops.filter(s => s.role === "OWNER");
+        setUserShops(ownerShops);
+        setSelectedShopId(ownerShops[0]?.id || "");
         setShowShopSelectPopup(true)
         return
       } else {
@@ -113,15 +121,11 @@ export default function LandingPage() {
     router.push(`/login?next=/onboarding?plan=${selectedPlan}`)
   }
 
-  // 🌟 ฟังก์ชันทำงานตอนกดยืนยันใน Popup เลือกร้าน
   const handleConfirmShopSelection = () => {
     if (shopSelectAction === "dashboard") {
-      // Flow เข้า Dashboard
       if (selectedShopId === "new_shop") {
-        // อยากเปิดร้านใหม่ ให้เลื่อนจอไปหาแพ็กเกจ
         document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
       } else {
-        // เลือกร้านเสร็จ ให้ระบบจำร้านที่เลือก แล้วเข้า Dashboard
         const selectedShop = userShops.find(s => s.id === selectedShopId)
         if (selectedShop) {
           updateShop(selectedShop)
@@ -129,7 +133,6 @@ export default function LandingPage() {
         router.push('/dashboard')
       }
     } else {
-      // Flow จ่ายเงินต่ออายุ (checkout)
       if (selectedShopId === "new_shop") {
         router.push(`/onboarding?plan=${selectedPlan}`)
       } else {
@@ -139,27 +142,37 @@ export default function LandingPage() {
     setShowShopSelectPopup(false)
   }
 
-  // 🌟 ฟังก์ชันเข้า Dashboard (ปรับให้รองรับหลายร้าน)
+  // 🌟 ฟังก์ชันเข้า Dashboard (เช็คเงื่อนไข STAFF)
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
     
-    // ใช้ getUserShops เพื่อดึงร้านมานับจำนวน
     const res = await getUserShops(userEmail);
     
-    if (res.success && res.shops && res.shops.length > 1) {
-      // มี > 1 ร้าน เปิด Popup ให้เลือกเข้า
-      setShopSelectAction("dashboard");
-      setUserShops(res.shops);
-      setSelectedShopId(res.shops[0].id);
-      setShowShopSelectPopup(true);
+    if (res.success && res.shops && res.shops.length > 0) {
+      
+      // 🌟 1. เช็ค Role: ถ้ามียูสเซอร์นี้เป็น "STAFF" ในร้านไหนสักร้าน
+      // กฎคือ Staff ห้ามย้ายร้าน ดังนั้นจับโยนเข้า Dashboard ของร้านนั้นเลยทันที
+      const staffShop = res.shops.find(s => s.role === "STAFF");
+      if (staffShop) {
+        updateShop(staffShop);
+        router.push('/dashboard');
+        return;
+      }
 
-    } else if (res.success && res.shops && res.shops.length === 1) {
-      // มี 1 ร้าน เข้า Dashboard ทันที
-      updateShop(res.shops[0]); // จำค่าร้านเข้าระบบไว้ด้วย
-      router.push('/dashboard');
+      // 🌟 2. ถ้าเป็น OWNER
+      if (res.shops.length > 1) {
+        // มี > 1 ร้าน เปิด Popup ให้เลือกเข้า
+        setShopSelectAction("dashboard");
+        setUserShops(res.shops);
+        setSelectedShopId(res.shops[0].id);
+        setShowShopSelectPopup(true);
+      } else {
+        // มี 1 ร้าน เข้า Dashboard ทันที
+        updateShop(res.shops[0]); 
+        router.push('/dashboard');
+      }
 
     } else {
-      // มี 0 ร้าน แจ้งเตือน
       toast({
         title: "คุณยังไม่มีร้านค้า",
         description: "กรุณาเลือกแพ็กเกจเพื่อเปิดร้านค้าก่อนเข้าใช้งานระบบ",
@@ -363,7 +376,6 @@ export default function LandingPage() {
 
       </main>
 
-      {/* Footer */}
       <footer className="bg-slate-900 py-12 text-slate-400">
         <div className="container mx-auto px-4 md:px-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -402,7 +414,6 @@ export default function LandingPage() {
       <Dialog open={showShopSelectPopup} onOpenChange={setShowShopSelectPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            {/* 🌟 ปรับเปลี่ยน Title และ Description ตาม Action */}
             <DialogTitle className="text-xl">
               {shopSelectAction === "dashboard" ? "เลือกร้านค้าที่ต้องการจัดการ" : "เลือกร้านค้าที่ต้องการชำระเงิน"}
             </DialogTitle>
@@ -414,7 +425,7 @@ export default function LandingPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="py-4">
+          <div className="py-4 max-h-[60vh] overflow-y-auto">
             <RadioGroup value={selectedShopId} onValueChange={setSelectedShopId} className="space-y-3">
               {userShops.map((shop) => (
                 <div key={shop.id}>
@@ -432,20 +443,21 @@ export default function LandingPage() {
                 </div>
               ))}
               
-              {/* Option สร้างร้านใหม่ */}
-              <div>
-                <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
-                <Label 
-                  htmlFor="new_shop" 
-                  className="flex items-center p-4 border-2 border-dashed rounded-xl cursor-pointer peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50 hover:bg-slate-50 transition-all"
-                >
-                  <PlusCircle className="h-5 w-5 text-slate-400 mr-3 peer-data-[state=checked]:text-blue-600" />
-                  <div className="flex-1">
-                    <p className="font-bold text-slate-700 text-base">สร้างร้านค้าใหม่</p>
-                    <p className="text-xs text-slate-500">เปิดร้านสาขาใหม่ด้วยอีเมลเดิม</p>
-                  </div>
-                </Label>
-              </div>
+              {shopSelectAction === "dashboard" && userShops.every(s => s.role !== "STAFF") && (
+                <div>
+                  <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
+                  <Label 
+                    htmlFor="new_shop" 
+                    className="flex items-center p-4 border-2 border-dashed rounded-xl cursor-pointer peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50 hover:bg-slate-50 transition-all"
+                  >
+                    <PlusCircle className="h-5 w-5 text-slate-400 mr-3 peer-data-[state=checked]:text-blue-600" />
+                    <div className="flex-1">
+                      <p className="font-bold text-slate-700 text-base">สร้างร้านค้าใหม่</p>
+                      <p className="text-xs text-slate-500">เปิดร้านสาขาใหม่ด้วยอีเมลเดิม</p>
+                    </div>
+                  </Label>
+                </div>
+              )}
             </RadioGroup>
           </div>
 

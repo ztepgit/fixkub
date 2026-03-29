@@ -2,23 +2,24 @@
 
 import { useState, useRef, useEffect } from "react"
 import dynamic from "next/dynamic"
-import { useQuery } from "@tanstack/react-query" 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query" 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { 
   UploadCloud, Save, Store, Loader2, Info, 
   QrCode, Copy, Download, Link as LinkIcon,
-  Eye, EyeOff, AlertCircle
+  Eye, EyeOff, AlertCircle, Users, UserMinus, Plus
 } from "lucide-react"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// 🌟 1. Import getShopSettings เข้ามาช่วยดึง Logo
-import { updateShopSettings, getUserShops, getShopSettings } from "@/actions/shop"
+// Import Server Actions ที่สร้างไว้
+import { updateShopSettings, getUserShops, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
 import { supabase } from "@/lib/supabase"
 
@@ -30,6 +31,7 @@ const QRCodeCanvas = dynamic(
 export function ShopSettings() {
   const updateShop = useShopStore((s) => s.updateShop)
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const qrWrapperRef = useRef<HTMLDivElement>(null) 
@@ -40,15 +42,12 @@ export function ShopSettings() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) throw new Error("Unauthorized")
 
-      // สเต็ป 1: หาร้านค้าของ User ให้เจอ
       const res = await getUserShops(user.email)
       if (!res.success || !res.shops || res.shops.length === 0) {
         throw new Error("Shop not found")
       }
 
       const baseShop = res.shops[0]
-
-      // 🌟 สเต็ป 2: ใช้ getShopSettings เพื่อดึง logoUrl ของแท้มาประกอบร่าง
       const settingsRes = await getShopSettings(baseShop.id)
       
       const fullShopData = {
@@ -56,9 +55,52 @@ export function ShopSettings() {
         logoUrl: settingsRes.success && settingsRes.data ? settingsRes.data.logoUrl : null
       }
 
-      // ดันเข้า Store ทันที
       updateShop(fullShopData)
       return fullShopData
+    }
+  })
+
+  // 🌟 Query ดึงรายชื่อพนักงาน
+  const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
+    queryKey: ["shop-staff", shop?.id],
+    queryFn: async () => {
+      if (!shop?.id) return [];
+      const res = await getShopStaff(shop.id);
+      return res.success ? res.data : [];
+    },
+    enabled: !!shop?.id
+  })
+
+  // 🌟 Mutation: เพิ่มพนักงาน
+  const addStaffMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await addShopStaff(shop!.id, email);
+      if (!res.success) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: () => {
+      toast({ title: "เพิ่มพนักงานสำเร็จ", description: "พนักงานสามารถล็อกอินด้วยอีเมลนี้ได้ทันที" })
+      setNewStaffEmail("")
+      queryClient.invalidateQueries({ queryKey: ["shop-staff"] })
+    },
+    onError: (err: any) => {
+      toast({ title: "ไม่สามารถเพิ่มพนักงานได้", description: err.message, variant: "destructive" })
+    }
+  })
+
+  // 🌟 Mutation: ลบพนักงาน
+  const removeStaffMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await removeShopStaff(shop!.id, email);
+      if (!res.success) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: () => {
+      toast({ title: "ลบพนักงานสำเร็จ", description: "พนักงานถูกถอดออกจากร้านเรียบร้อยแล้ว" })
+      queryClient.invalidateQueries({ queryKey: ["shop-staff"] })
+    },
+    onError: (err: any) => {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" })
     }
   })
 
@@ -69,8 +111,8 @@ export function ShopSettings() {
   
   const [isSaving, setIsSaving] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
+  const [newStaffEmail, setNewStaffEmail] = useState("")
 
-  // 🌟 Type จะไม่แดงแล้ว เพราะ fullShopData มี logoUrl แน่นอน
   useEffect(() => {
     if (shop) {
       setShopName(shop.name || "")
@@ -198,6 +240,17 @@ export function ShopSettings() {
     )
   }
 
+  // 🌟 บล็อกการเข้าถึงหน้าตั้งค่าของพนักงาน (STAFF)
+  if (shop.role === "STAFF") {
+    return (
+      <div className="flex flex-col h-[60vh] w-full items-center justify-center text-slate-500 gap-3">
+          <Users className="h-12 w-12 text-slate-300" />
+          <p className="text-lg font-medium text-slate-700">สิทธิ์การใช้งานจำกัด</p>
+          <p className="text-sm text-slate-500">เฉพาะเจ้าของร้านเท่านั้นที่สามารถแก้ไขการตั้งค่า หรือจัดการพนักงานได้</p>
+      </div>
+    )
+  }
+
   return (
     <TooltipProvider>
       <div className="grid gap-8 md:grid-cols-2 max-w-5xl mx-auto py-6">
@@ -263,6 +316,86 @@ export function ShopSettings() {
             </CardFooter>
           </Card>
 
+          {/* 🌟 ส่วนจัดการพนักงาน (Staff Management) */}
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader className="bg-slate-50/50 border-b pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                <Users className="h-5 w-5 text-blue-600" />
+                จัดการพนักงาน (Staff)
+              </CardTitle>
+              <CardDescription>
+                จำกัดพนักงาน 1 คน สำหรับแพ็กเกจปัจจุบัน (โควต้า {staffList.length}/1)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {isStaffLoading ? (
+                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
+              ) : (
+                <>
+                  {/* แสดงรายการพนักงาน */}
+                  {staffList.length > 0 ? (
+                    <div className="space-y-3">
+                      {staffList.map((staff: any) => (
+                        <div key={staff.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                              {staff.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">{staff.email}</p>
+                              <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500">STAFF</Badge>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => removeStaffMutation.mutate(staff.email)}
+                            disabled={removeStaffMutation.isPending}
+                            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            {removeStaffMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                      <p className="text-sm text-slate-500">ยังไม่มีพนักงานในร้านนี้</p>
+                    </div>
+                  )}
+
+                  {/* ฟอร์มเพิ่มพนักงาน (โชว์เมื่อ Staff เป็น 0) */}
+                  {staffList.length === 0 && (
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                      <Input 
+                        placeholder="กรอกอีเมลพนักงาน..." 
+                        value={newStaffEmail}
+                        onChange={(e) => setNewStaffEmail(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={() => addStaffMutation.mutate(newStaffEmail)}
+                        disabled={!newStaffEmail.includes("@") || addStaffMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> เชิญ
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {staffList.length >= 1 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-1.5">
+                      <Info className="h-3 w-3 shrink-0" /> แพ็กเกจของท่านใช้โควต้าพนักงานครบแล้ว
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+        </div>
+
+        <div className="space-y-4">
           <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 ${isQrHidden ? 'border-slate-200 border-t-4 border-t-slate-300 bg-slate-50/30' : 'border-slate-200 border-t-4 border-t-blue-500'}`}>
             <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
               <div className="space-y-1">
