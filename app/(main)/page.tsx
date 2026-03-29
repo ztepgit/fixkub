@@ -22,10 +22,12 @@ import { Label } from "@/components/ui/label"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle } from "lucide-react"
 
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
+import { useShopStore } from "@/store/useShopStore" // 🌟 Import Store เพื่ออัปเดตร้านตอนเข้า Dashboard
 
 export default function LandingPage() {
   const router = useRouter()
   const { toast } = useToast() 
+  const updateShop = useShopStore((s) => s.updateShop) // ดึงฟังก์ชันอัปเดต Store
   
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -35,6 +37,9 @@ export default function LandingPage() {
   const [showShopSelectPopup, setShowShopSelectPopup] = useState(false)
   const [userShops, setUserShops] = useState<any[]>([])
   const [selectedShopId, setSelectedShopId] = useState<string>("")
+
+  // 🌟 เพิ่ม State บอกว่า Popup เปิดมาเพื่ออะไร
+  const [shopSelectAction, setShopSelectAction] = useState<"checkout" | "dashboard">("checkout")
 
   useEffect(() => {
     const checkUser = async () => {
@@ -56,7 +61,6 @@ export default function LandingPage() {
     }
   }, [])
 
-  // 🌟 ฟังก์ชันจัดการการเลือกแพ็กเกจ (รวมร่าง Logic คัดกรอง 30 วันแล้ว)
   const handleSelectPlan = async (plan: string) => {
     if (!isLoggedIn) {
       setSelectedPlan(plan)
@@ -66,7 +70,6 @@ export default function LandingPage() {
     
     setSelectedPlan(plan) 
 
-    // กรณีที่ 1: เลือกแพ็กเกจทดลองใช้ฟรี
     if (plan === "free" && userEmail) {
       const res = await checkUserHasShop(userEmail)
       
@@ -84,18 +87,16 @@ export default function LandingPage() {
       return
     }
 
-    // กรณีที่ 2: เลือกแพ็กเกจเสียเงิน (รายเดือน / รายปี)
     if (userEmail && (plan === "monthly" || plan === "yearly")) {
       const res = await getUserShops(userEmail)
       
       if (res.success && res.shops.length > 0) {
-        // มีร้านอยู่แล้ว -> เปิด Popup ให้เลือกร้านที่จะต่ออายุ (ไม่ขึ้น Toast แถมวัน)
+        setShopSelectAction("checkout") // 🌟 ระบุว่าเป็น Popup จ่ายเงิน
         setUserShops(res.shops)
         setSelectedShopId(res.shops[0].id) 
         setShowShopSelectPopup(true)
         return
       } else {
-        // ยังไม่มีร้านเลย -> ถือเป็นลูกค้าใหม่ แจ้งเตือนรับสิทธิ์แถม 30 วัน
         toast({
           title: "🎉 ยินดีด้วย!",
           description: "เนื่องจากเป็นการเปิดร้านครั้งแรก ระบบจะบวกวันทดลองใช้ฟรี 30 วันให้ท่านโดยอัตโนมัติ",
@@ -105,7 +106,6 @@ export default function LandingPage() {
       }
     }
     
-    // Fallback ป้องกัน Error
     router.push(`/onboarding?plan=${plan}`)
   }
 
@@ -113,25 +113,53 @@ export default function LandingPage() {
     router.push(`/login?next=/onboarding?plan=${selectedPlan}`)
   }
 
+  // 🌟 ฟังก์ชันทำงานตอนกดยืนยันใน Popup เลือกร้าน
   const handleConfirmShopSelection = () => {
-    if (selectedShopId === "new_shop") {
-      router.push(`/onboarding?plan=${selectedPlan}`)
+    if (shopSelectAction === "dashboard") {
+      // Flow เข้า Dashboard
+      if (selectedShopId === "new_shop") {
+        // อยากเปิดร้านใหม่ ให้เลื่อนจอไปหาแพ็กเกจ
+        document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        // เลือกร้านเสร็จ ให้ระบบจำร้านที่เลือก แล้วเข้า Dashboard
+        const selectedShop = userShops.find(s => s.id === selectedShopId)
+        if (selectedShop) {
+          updateShop(selectedShop)
+        }
+        router.push('/dashboard')
+      }
     } else {
-      router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
+      // Flow จ่ายเงินต่ออายุ (checkout)
+      if (selectedShopId === "new_shop") {
+        router.push(`/onboarding?plan=${selectedPlan}`)
+      } else {
+        router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
+      }
     }
     setShowShopSelectPopup(false)
   }
 
-  // 🌟 ฟังก์ชันตรวจสอบก่อนเข้า Dashboard
+  // 🌟 ฟังก์ชันเข้า Dashboard (ปรับให้รองรับหลายร้าน)
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
     
-    const res = await checkUserHasShop(userEmail);
-    if (res.hasShop) {
-      // ถ้ามีร้านแล้ว พาไป Dashboard ปกติ
+    // ใช้ getUserShops เพื่อดึงร้านมานับจำนวน
+    const res = await getUserShops(userEmail);
+    
+    if (res.success && res.shops && res.shops.length > 1) {
+      // มี > 1 ร้าน เปิด Popup ให้เลือกเข้า
+      setShopSelectAction("dashboard");
+      setUserShops(res.shops);
+      setSelectedShopId(res.shops[0].id);
+      setShowShopSelectPopup(true);
+
+    } else if (res.success && res.shops && res.shops.length === 1) {
+      // มี 1 ร้าน เข้า Dashboard ทันที
+      updateShop(res.shops[0]); // จำค่าร้านเข้าระบบไว้ด้วย
       router.push('/dashboard');
+
     } else {
-      // ถ้ายังไม่มีร้าน ขึ้นแจ้งเตือน และเลื่อนจอไปที่ส่วนเลือกแพ็กเกจ
+      // มี 0 ร้าน แจ้งเตือน
       toast({
         title: "คุณยังไม่มีร้านค้า",
         description: "กรุณาเลือกแพ็กเกจเพื่อเปิดร้านค้าก่อนเข้าใช้งานระบบ",
@@ -151,7 +179,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
 
-      {/* Navbar แบบเรียบง่าย */}
       <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2">
@@ -174,7 +201,6 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                {/* 🌟 เข้าด่านตรวจก่อนเข้า Dashboard */}
                 <Button 
                   onClick={handleGoToDashboard}
                   className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
@@ -372,13 +398,19 @@ export default function LandingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Popup เลือกร้านเติมเงิน (Radio Choice) */}
+      {/* Popup เลือกร้าน (จ่ายเงิน หรือ เข้า Dashboard) */}
       <Dialog open={showShopSelectPopup} onOpenChange={setShowShopSelectPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl">เลือกร้านค้าที่ต้องการชำระเงิน</DialogTitle>
+            {/* 🌟 ปรับเปลี่ยน Title และ Description ตาม Action */}
+            <DialogTitle className="text-xl">
+              {shopSelectAction === "dashboard" ? "เลือกร้านค้าที่ต้องการจัดการ" : "เลือกร้านค้าที่ต้องการชำระเงิน"}
+            </DialogTitle>
             <DialogDescription>
-              ระบบพบว่าท่านมีร้านค้าในระบบอยู่แล้ว กรุณาเลือกว่าต้องการซื้อแพ็กเกจ {selectedPlan === "yearly" ? "รายปี" : "รายเดือน"} ให้กับร้านใด
+              {shopSelectAction === "dashboard"
+                ? "ระบบพบว่าท่านมีร้านค้าหลายสาขา กรุณาเลือกร้านค้าที่ต้องการเข้าสู่หน้าจัดการ"
+                : `ระบบพบว่าท่านมีร้านค้าในระบบอยู่แล้ว กรุณาเลือกว่าต้องการซื้อแพ็กเกจ ${selectedPlan === "yearly" ? "รายปี" : "รายเดือน"} ให้กับร้านใด`
+              }
             </DialogDescription>
           </DialogHeader>
           
@@ -419,7 +451,7 @@ export default function LandingPage() {
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button type="button" variant="outline" onClick={() => setShowShopSelectPopup(false)} className="w-full">ยกเลิก</Button>
-            <Button type="button" onClick={handleConfirmShopSelection} className="w-full bg-emerald-600 hover:bg-emerald-700">ยืนยันทำรายการ</Button>
+            <Button type="button" onClick={handleConfirmShopSelection} className="w-full bg-emerald-600 hover:bg-emerald-700">ยืนยัน</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
