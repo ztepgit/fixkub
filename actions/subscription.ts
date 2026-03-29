@@ -1,23 +1,69 @@
 "use server"
 
-import { db } from "@/lib/prisma" // แก้ไข path ให้ตรงกับที่เก็บ prisma client 
+import { db } from "@/lib/prisma" 
 import { addMonths, addYears, isAfter } from "date-fns"
 import { PlanType } from "@prisma/client"
-import { z } from "zod" // 🌟 1. Import Zod เข้ามาใช้งาน
-import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 2. Import ด่านตรวจสิทธิ์
+import { z } from "zod" 
+import { verifyShopAccess } from "@/lib/auth-guard" 
 
-// 🌟 3. สร้าง Schema สำหรับ Validate และ Trim ข้อมูล
+// 🌟 1. สร้าง Schema สำหรับ Validate และ Trim ข้อมูล
 const paymentSchema = z.object({
   shopId: z.string().trim().min(1, "ไม่พบรหัสร้านค้า"),
-  // ใช้ nativeEnum ดัก Type ของแพ็กเกจให้เป๊ะตามที่ Prisma มี
   planToBuy: z.nativeEnum(PlanType, { errorMap: () => ({ message: "ประเภทแพ็กเกจไม่ถูกต้อง" }) }),
   amount: z.number().min(0, "ยอดเงินไม่ถูกต้อง")
 })
 
-// รับค่าเป็น any หรือ string ก่อน เพื่อให้ Zod เป็นตัวกรองและแปลง Type ที่ถูกต้อง
+// 🌟 2. ฟังก์ชันคำนวณวันหมดอายุใหม่ (แยกลูกค้าเก่า/ใหม่)
+export async function calculateNewExpiry(shopId: string, planToBuy: PlanType): Promise<Date> {
+  const now = new Date();
+
+  const shop = await db.shop.findUnique({
+    where: { id: shopId }
+  });
+
+  if (!shop) throw new Error("ไม่พบร้านค้า");
+
+  // เช็คประวัติว่าเคยจ่ายเงินมาก่อนหรือไม่
+  const paidHistoryCount = await db.subscriptionHistory.count({
+    where: { shopId, status: "COMPLETED" }
+  });
+
+  const hasPaidBefore = paidHistoryCount > 0;
+  const isTrial = shop.planType === "FREE_TRIAL";
+
+  // หา Base Date (ตั้งต้นจากวันหมดอายุเดิม หรือ วันนี้)
+  let baseDate = now;
+  if (shop.expiresAt && isAfter(shop.expiresAt, now)) {
+    baseDate = shop.expiresAt;
+  }
+
+  // 💡 Logic การแถมฟรี 30 วัน
+  // ถ้าไม่เคยจ่ายเงิน + ไม่ได้อยู่ในสถานะทดลองใช้ + วันหมดอายุเดิมไม่มีหรือหมดไปแล้ว -> ถือเป็นลูกค้าใหม่ซิงๆ ให้แถม 30 วัน
+  const isNewUserBonusEligible = !hasPaidBefore && !isTrial && !isAfter(shop.expiresAt || new Date(0), now);
+  
+  if (isNewUserBonusEligible) {
+    baseDate = addMonths(baseDate, 1); // บวกฟรี 1 เดือน (30 วัน) เป็นโบนัสตั้งต้น
+  }
+
+  // คำนวณวันหมดอายุใหม่ ตามประเภทแพ็กเกจที่ซื้อทบเข้าไป
+  let newExpiresAt = baseDate;
+  if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
+    newExpiresAt = addMonths(newExpiresAt, 1); // +1 เดือน
+  } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
+    newExpiresAt = addYears(newExpiresAt, 1);  // +1 ปี
+  } else if (planToBuy === "LIFETIME") {
+    newExpiresAt = addYears(newExpiresAt, 99); // ตลอดชีพ (+99 ปีไปเลย)
+  } else {
+    newExpiresAt = addMonths(newExpiresAt, 1); // Fallback กันเหนียว
+  }
+
+  return newExpiresAt;
+}
+
+// 🌟 3. ฟังก์ชันหลักสำหรับประมวลผลการจ่ายเงินสำเร็จ
 export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: string | PlanType, rawAmount: number) {
   try {
-    // 🌟 4. นำค่ามาผ่าน Zod เพื่อ Validate และ Trim
+    // นำค่ามาผ่าน Zod เพื่อ Validate และ Trim
     const validatedData = paymentSchema.parse({
       shopId: rawShopId,
       planToBuy: rawPlanToBuy,
@@ -26,7 +72,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
 
     const { shopId, planToBuy, amount } = validatedData
 
-    // 🌟 5. ด่านตรวจสิทธิ์: ป้องกันคนอื่นยิง API มาอัปเดตแพ็กเกจมั่วๆ หรือเติมเงินให้ร้านคนอื่น
+    // ด่านตรวจสิทธิ์: ป้องกันคนอื่นยิง API มาอัปเดตแพ็กเกจมั่วๆ หรือเติมเงินให้ร้านคนอื่น
     await verifyShopAccess(shopId)
 
     const shop = await db.shop.findUnique({
@@ -35,34 +81,18 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
 
     if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
 
+    // 🌟 4. เรียกใช้ฟังก์ชันคำนวณวันหมดอายุสุดฉลาดของเรา!
+    const newExpiresAt = await calculateNewExpiry(shopId, planToBuy)
     const now = new Date()
-    
-    // 🌟 เช็ควันหมดอายุเดิม (ถ้ายังไม่หมดอายุ ให้เอาวันเดิมมาทบ)
-    const baseDate = (shop.expiresAt && isAfter(shop.expiresAt, now)) 
-      ? shop.expiresAt 
-      : now
 
-    // 🌟 คำนวณวันหมดอายุใหม่ ตามประเภทแพ็กเกจที่ซื้อ
-    let newExpiresAt: Date;
-    if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
-      newExpiresAt = addMonths(baseDate, 1) // +1 เดือน
-    } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
-      newExpiresAt = addYears(baseDate, 1)  // +1 ปี
-    } else if (planToBuy === "LIFETIME") {
-      newExpiresAt = addYears(baseDate, 99) // ตลอดชีพ (+99 ปีไปเลย)
-    } else {
-      newExpiresAt = addMonths(baseDate, 1) // Fallback กันเหนียว
-    }
-
-    // 🌟 บันทึกลง Database แบบ Transaction (ทำพร้อมกัน 3 ตาราง)
-    // เปลี่ยนมาใช้ async (tx) เพื่อให้อ้างอิงตัวแปรข้ามกันได้ง่ายขึ้นถ้าจำเป็น
+    // 🌟 5. บันทึกลง Database แบบ Transaction (ทำพร้อมกัน 3 ตารางเพื่อความชัวร์ 100%)
     await db.$transaction(async (tx) => {
       
       // 1. อัปเดตตารางร้านค้า
       await tx.shop.update({
         where: { id: shopId },
         data: {
-          isActive: true,            // 🌟 สำคัญ! เปลี่ยนเป็น true เพื่อเปิดให้ร้านเข้าระบบได้ทันที
+          isActive: true,            // สำคัญ! เปลี่ยนเป็น true เพื่อเปิดให้ร้านเข้าระบบได้ทันที
           planType: planToBuy,       
           planStatus: "ACTIVE",
           subscriptionStartsAt: now, 
@@ -70,7 +100,7 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
         }
       })
 
-      // 2. สร้างประวัติการชำระเงิน (Subscription History)
+      // 2. สร้างประวัติการแพ็กเกจ (Subscription History)
       await tx.subscriptionHistory.create({
         data: {
           shopId: shopId,
@@ -83,12 +113,12 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
         }
       })
 
-      // 🌟 3. สร้างบิลใบเสร็จ (Payment Transaction)
+      // 3. สร้างบิลการเงิน (Payment Transaction)
       await tx.paymentTransaction.create({
         data: {
           shopId: shopId,
           amount: amount,
-          baseAmount: amount, // ยอดตั้งต้นก่อนหักส่วนลด (ถ้ามี) ตอนนี้ให้เท่ากับที่จ่ายจริงไปก่อน
+          baseAmount: amount, // ยอดตั้งต้นก่อนหักส่วนลด (ถ้ามี)
           plan: planToBuy,
           status: "APPROVED",
           approvedAt: now,
@@ -103,12 +133,11 @@ export async function processPaymentSuccess(rawShopId: string, rawPlanToBuy: str
   } catch (error: any) {
     console.error("Payment Processing Error:", error)
     
-    // 🌟 ดักจับ Error จาก Zod แปลงเป็นภาษาไทยให้อ่านง่าย
+    // ดักจับ Error จาก Zod แปลงเป็นภาษาไทยให้อ่านง่าย
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message }
     }
     
-    // คืนค่า error.message ออกไป เผื่อเป็นข้อความปฏิเสธสิทธิ์จาก verifyShopAccess
     return { success: false, error: error instanceof Error ? error.message : "ไม่สามารถอัปเดตแพ็กเกจได้" }
   }
 }

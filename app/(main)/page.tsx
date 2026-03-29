@@ -56,43 +56,57 @@ export default function LandingPage() {
     }
   }, [])
 
+  // 🌟 ฟังก์ชันจัดการการเลือกแพ็กเกจ (รวมร่าง Logic คัดกรอง 30 วันแล้ว)
   const handleSelectPlan = async (plan: string) => {
     if (!isLoggedIn) {
       setSelectedPlan(plan)
       setShowLoginPopup(true)
-    } else {
-      setSelectedPlan(plan) 
+      return
+    } 
+    
+    setSelectedPlan(plan) 
 
-      if (plan === "free" && userEmail) {
-        const res = await checkUserHasShop(userEmail)
-        
-        if (res.hasShop) {
-          toast({
-            title: "ไม่สามารถรับสิทธิ์ได้",
-            description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้ครั้งแรกเท่านั้น",
-            variant: "destructive",
-          })
-          router.push('/dashboard')
-          return
-        }
-        
-        router.push(`/onboarding?plan=${plan}`)
+    // กรณีที่ 1: เลือกแพ็กเกจทดลองใช้ฟรี
+    if (plan === "free" && userEmail) {
+      const res = await checkUserHasShop(userEmail)
+      
+      if (res.hasShop) {
+        toast({
+          title: "ไม่สามารถรับสิทธิ์ได้",
+          description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้เปิดร้านครั้งแรกเท่านั้น",
+          variant: "destructive",
+        })
+        router.push('/dashboard')
         return
-      }
-
-      if (userEmail && (plan === "monthly" || plan === "yearly")) {
-        const res = await getUserShops(userEmail)
-        
-        if (res.success && res.shops.length > 0) {
-          setUserShops(res.shops)
-          setSelectedShopId(res.shops[0].id) 
-          setShowShopSelectPopup(true)
-          return
-        }
       }
       
       router.push(`/onboarding?plan=${plan}`)
+      return
     }
+
+    // กรณีที่ 2: เลือกแพ็กเกจเสียเงิน (รายเดือน / รายปี)
+    if (userEmail && (plan === "monthly" || plan === "yearly")) {
+      const res = await getUserShops(userEmail)
+      
+      if (res.success && res.shops.length > 0) {
+        // มีร้านอยู่แล้ว -> เปิด Popup ให้เลือกร้านที่จะต่ออายุ (ไม่ขึ้น Toast แถมวัน)
+        setUserShops(res.shops)
+        setSelectedShopId(res.shops[0].id) 
+        setShowShopSelectPopup(true)
+        return
+      } else {
+        // ยังไม่มีร้านเลย -> ถือเป็นลูกค้าใหม่ แจ้งเตือนรับสิทธิ์แถม 30 วัน
+        toast({
+          title: "🎉 ยินดีด้วย!",
+          description: "เนื่องจากเป็นการเปิดร้านครั้งแรก ระบบจะบวกวันทดลองใช้ฟรี 30 วันให้ท่านโดยอัตโนมัติ",
+        })
+        router.push(`/onboarding?plan=${plan}`)
+        return
+      }
+    }
+    
+    // Fallback ป้องกัน Error
+    router.push(`/onboarding?plan=${plan}`)
   }
 
   const handleContinueToLogin = () => {
@@ -108,7 +122,7 @@ export default function LandingPage() {
     setShowShopSelectPopup(false)
   }
 
-  // 🌟 ฟังก์ชันใหม่: ตรวจสอบก่อนเข้า Dashboard
+  // 🌟 ฟังก์ชันตรวจสอบก่อนเข้า Dashboard
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
     
@@ -160,7 +174,7 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                {/* 🌟 เปลี่ยนจาก <Link> เป็น <Button onClick> เพื่อเข้าด่านตรวจ */}
+                {/* 🌟 เข้าด่านตรวจก่อนเข้า Dashboard */}
                 <Button 
                   onClick={handleGoToDashboard}
                   className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
