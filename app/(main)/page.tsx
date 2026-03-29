@@ -9,26 +9,26 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group" 
-import { Label } from "@/components/ui/label" 
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle } from "lucide-react"
 
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
-import { useShopStore } from "@/store/useShopStore" 
+import { useShopStore } from "@/store/useShopStore"
 
 export default function LandingPage() {
   const router = useRouter()
-  const { toast } = useToast() 
-  const updateShop = useShopStore((s) => s.updateShop) 
-  
+  const { toast } = useToast()
+  const updateShop = useShopStore((s) => s.updateShop)
+
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [showLoginPopup, setShowLoginPopup] = useState(false)
@@ -65,13 +65,13 @@ export default function LandingPage() {
       setSelectedPlan(plan)
       setShowLoginPopup(true)
       return
-    } 
-    
-    setSelectedPlan(plan) 
+    }
+
+    setSelectedPlan(plan)
 
     if (plan === "free" && userEmail) {
       const res = await checkUserHasShop(userEmail)
-      
+
       if (res.hasShop) {
         toast({
           title: "ไม่สามารถรับสิทธิ์ได้",
@@ -81,14 +81,14 @@ export default function LandingPage() {
         router.push('/dashboard')
         return
       }
-      
+
       router.push(`/onboarding?plan=${plan}`)
       return
     }
 
     if (userEmail && (plan === "monthly" || plan === "yearly")) {
       const res = await getUserShops(userEmail)
-      
+
       if (res.success && res.shops.length > 0) {
         // 🌟 ดักไม่ให้ STAFF กดจ่ายเงินซื้อแพ็กเกจ
         const isStaffOnly = res.shops.every(s => s.role === "STAFF");
@@ -113,7 +113,7 @@ export default function LandingPage() {
         return
       }
     }
-    
+
     router.push(`/onboarding?plan=${plan}`)
   }
 
@@ -145,11 +145,11 @@ export default function LandingPage() {
   // 🌟 ฟังก์ชันเข้า Dashboard (เช็คเงื่อนไข STAFF)
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
-    
+
     const res = await getUserShops(userEmail);
-    
+
     if (res.success && res.shops && res.shops.length > 0) {
-      
+
       // 🌟 1. เช็ค Role: ถ้ามียูสเซอร์นี้เป็น "STAFF" ในร้านไหนสักร้าน
       // กฎคือ Staff ห้ามย้ายร้าน ดังนั้นจับโยนเข้า Dashboard ของร้านนั้นเลยทันที
       const staffShop = res.shops.find(s => s.role === "STAFF");
@@ -168,7 +168,7 @@ export default function LandingPage() {
         setShowShopSelectPopup(true);
       } else {
         // มี 1 ร้าน เข้า Dashboard ทันที
-        updateShop(res.shops[0]); 
+        updateShop(res.shops[0]);
         router.push('/dashboard');
       }
 
@@ -185,8 +185,8 @@ export default function LandingPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
-    setUserEmail(null) 
-    router.refresh() 
+    setUserEmail(null)
+    router.refresh()
   }
 
   return (
@@ -204,7 +204,7 @@ export default function LandingPage() {
             <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ฟีเจอร์เด่น</Link>
             <Link href="#pricing" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ราคา</Link>
           </nav>
-          
+
           <div className="flex items-center gap-3">
             {!isLoggedIn ? (
               <Link href="/login">
@@ -214,15 +214,15 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <Button 
+                <Button
                   onClick={handleGoToDashboard}
                   className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                 >
                   <LayoutDashboard className="w-4 h-4 mr-2" /> หน้าจัดการร้านค้า
                 </Button>
-                <Button 
-                  onClick={handleLogout} 
-                  variant="ghost" 
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
                   className="hidden md:inline-flex text-slate-500 hover:text-rose-600 hover:bg-rose-50"
                 >
                   <LogOut className="w-4 h-4 mr-2" /> ออกจากระบบ
@@ -251,15 +251,15 @@ export default function LandingPage() {
               รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 onClick={() => handleSelectPlan("free")}
                 className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200"
               >
-                ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
+                เล่น Demo เลย
               </Button>
               <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-slate-600 border-slate-300">
-                ดูวิดีโอสาธิตการใช้งาน
+                ทดลองใช้ฟรี 14 วัน<ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
@@ -396,7 +396,7 @@ export default function LandingPage() {
             </div>
             <DialogTitle className="text-center text-xl">กรุณาเข้าสู่ระบบ</DialogTitle>
             <DialogDescription className="text-center text-base pt-2">
-              ระบบต้องการให้ท่านเข้าสู่ระบบก่อน{selectedPlan === "free" ? "เริ่มต้นทดลองใช้" : "ชำระเงิน"}<br/>เพื่อเชื่อมโยงแพ็กเกจเข้ากับข้อมูลร้านค้าของท่านได้อย่างถูกต้อง
+              ระบบต้องการให้ท่านเข้าสู่ระบบก่อน{selectedPlan === "free" ? "เริ่มต้นทดลองใช้" : "ชำระเงิน"}<br />เพื่อเชื่อมโยงแพ็กเกจเข้ากับข้อมูลร้านค้าของท่านได้อย่างถูกต้อง
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
@@ -424,14 +424,14 @@ export default function LandingPage() {
               }
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4 max-h-[60vh] overflow-y-auto">
             <RadioGroup value={selectedShopId} onValueChange={setSelectedShopId} className="space-y-3">
               {userShops.map((shop) => (
                 <div key={shop.id}>
                   <RadioGroupItem value={shop.id} id={shop.id} className="peer sr-only" />
-                  <Label 
-                    htmlFor={shop.id} 
+                  <Label
+                    htmlFor={shop.id}
                     className="flex items-center p-4 border-2 rounded-xl cursor-pointer peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 hover:bg-slate-50 transition-all"
                   >
                     <Store className="h-5 w-5 text-slate-500 mr-3 peer-data-[state=checked]:text-emerald-600" />
@@ -442,12 +442,12 @@ export default function LandingPage() {
                   </Label>
                 </div>
               ))}
-              
+
               {shopSelectAction === "dashboard" && userShops.every(s => s.role !== "STAFF") && (
                 <div>
                   <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
-                  <Label 
-                    htmlFor="new_shop" 
+                  <Label
+                    htmlFor="new_shop"
                     className="flex items-center p-4 border-2 border-dashed rounded-xl cursor-pointer peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50 hover:bg-slate-50 transition-all"
                   >
                     <PlusCircle className="h-5 w-5 text-slate-400 mr-3 peer-data-[state=checked]:text-blue-600" />
