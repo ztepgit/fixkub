@@ -2,12 +2,11 @@
 
 import { db } from "@/lib/prisma"
 import { differenceInDays, isPast } from "date-fns"
-import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 1. Import ฟังก์ชันด่านตรวจ
+import { verifyShopAccess } from "@/lib/auth-guard" 
 
 export async function checkAndEnforceShopStatus(shopId: string) {
   try {
-    // 🌟 2. ด่านตรวจ: ตรวจสอบสิทธิ์ก่อนว่าผู้ใช้ที่กำลังเรียก API นี้ เป็นเจ้าของร้านจริงๆ
-    // ป้องกันการยิง API มั่วเพื่อแกล้งปิดร้านคนอื่น
+    // ด่านตรวจ: ตรวจสอบสิทธิ์ก่อนว่าผู้ใช้ที่กำลังเรียก API นี้ เป็นเจ้าของร้านจริงๆ
     await verifyShopAccess(shopId)
 
     const shop = await db.shop.findUnique({
@@ -19,27 +18,39 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
     // ถ้าร้านไม่มีวันหมดอายุ (เช่น LIFETIME) หรือยังไม่ถึงวันหมดอายุ
     if (!shop.expiresAt || !isPast(shop.expiresAt)) {
+      // 🌟 เสริม: ถ้าก่อนหน้านี้ร้านเคยหมดอายุ (EXPIRED) แล้วลูกค้าเติมเงินกลับมา 
+      // แต่ระบบยังจำค่าเก่าอยู่ ให้ดึงกลับมาเป็น ACTIVE ให้ถูกต้อง
+      if (shop.planStatus === "EXPIRED") {
+        await db.shop.update({
+          where: { id: shopId },
+          data: { planStatus: "ACTIVE" }
+        })
+      }
       return { status: "ACTIVE", expiresAt: shop.expiresAt } 
     }
 
-    // 🌟 ถ้าเข้าเงื่อนไขนี้ แปลว่า "หมดอายุแล้ว"
+    // ==========================================
+    // 🚨 เข้าเงื่อนไขนี้ แปลว่า "แพ็กเกจหมดอายุแล้ว"
+    // ==========================================
     const daysExpired = differenceInDays(new Date(), shop.expiresAt)
     const daysLeftToPurge = 30 - daysExpired
 
-    // 1. ทำ Soft Delete ทันที (ถ้าสถานะยังเป็น ACTIVE อยู่)
-    if (shop.planStatus === "ACTIVE" || shop.isActive === true) {
+    // 1. อัปเดตสถานะแพ็กเกจเป็น EXPIRED 
+    // 🌟 สำคัญ: เราไม่แตะ isActive: false แล้ว เพื่อให้ลูกค้ายังล็อกอินเข้ามาเจอหน้า Paywall ได้
+    if (shop.planStatus === "ACTIVE") {
       await db.shop.update({
         where: { id: shopId },
         data: { 
           planStatus: "EXPIRED", 
-          isActive: false // ซ่อนร้านจากระบบอื่นๆ 
+          // isActive ไม่ต้องเปลี่ยน ปล่อยให้ล็อกอินได้
         }
       })
     }
 
-    // 2. เช็คว่าเลย 30 วันหรือยัง
+    // 2. เช็คว่าหมด Grace Period (30 วัน) หรือยัง
     if (daysLeftToPurge <= 0) {
-      // ปล่อยให้เป็นหน้าที่ของ CRON Job มาลบ แต่ตอนนี้บล็อกการเข้าถึงไว้ก่อน
+      // ถ้าหมดแล้ว ปล่อยให้เป็นหน้าที่ของ CRON Job จัดการลบข้อมูล 
+      // แต่ในฝั่ง Frontend ส่งสถานะไปบอกว่าร้านนี้กำลังจะปลิว (ไม่ให้ทำอะไรแล้ว)
       return { status: "PENDING_DELETION" }
     }
 
