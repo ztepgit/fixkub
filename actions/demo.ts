@@ -35,8 +35,8 @@ export async function createDemoShopAction() {
         }
       })
 
-      if (demoCountToday >= 10) {
-        return { success: false, error: "IP ของท่านเกินขีดจำกัดการสร้างร้านตัวอย่าง (จำกัด 10 ครั้ง/วัน)" }
+      if (demoCountToday >= 3) {
+        return { success: false, error: "IP ของท่านเกินขีดจำกัดการสร้างร้านตัวอย่าง (จำกัด 3 ครั้ง/วัน)" }
       }
     }
 
