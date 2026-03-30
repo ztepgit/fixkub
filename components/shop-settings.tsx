@@ -399,7 +399,7 @@ export function ShopSettings() {
                 จัดการพนักงาน (Staff)
               </CardTitle>
               <CardDescription>
-                จำกัดพนักงาน 1 คน สำหรับแพ็กเกจปัจจุบัน (โควต้า {staffList.length}/1)
+                สร้างพนักงาน เพื่อเพิ่มหน้าจอใช้งาน (โควต้า {staffList.length}/1)
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
