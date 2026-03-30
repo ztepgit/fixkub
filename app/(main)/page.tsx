@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle } from "lucide-react"
+import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle, Loader2 } from "lucide-react"
 
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
+import { createDemoShopAction } from "@/actions/demo"
 import { useShopStore } from "@/store/useShopStore"
 
 export default function LandingPage() {
@@ -39,6 +40,7 @@ export default function LandingPage() {
   const [selectedShopId, setSelectedShopId] = useState<string>("")
 
   const [shopSelectAction, setShopSelectAction] = useState<"checkout" | "dashboard">("checkout")
+  const [isDemoLoading, setIsDemoLoading] = useState(false)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -90,7 +92,6 @@ export default function LandingPage() {
       const res = await getUserShops(userEmail)
 
       if (res.success && res.shops.length > 0) {
-        // 🌟 ดักไม่ให้ STAFF กดจ่ายเงินซื้อแพ็กเกจ
         const isStaffOnly = res.shops.every(s => s.role === "STAFF");
         if (isStaffOnly) {
           toast({ title: "ไม่มีสิทธิ์ทำรายการ", description: "พนักงานไม่สามารถสั่งซื้อแพ็กเกจได้ กรุณาติดต่อเจ้าของร้าน", variant: "destructive" })
@@ -98,7 +99,6 @@ export default function LandingPage() {
         }
 
         setShopSelectAction("checkout")
-        // กรองมาเฉพาะร้านที่เป็น Owner ให้เลือกจ่ายเงิน
         const ownerShops = res.shops.filter(s => s.role === "OWNER");
         setUserShops(ownerShops);
         setSelectedShopId(ownerShops[0]?.id || "");
@@ -142,7 +142,7 @@ export default function LandingPage() {
     setShowShopSelectPopup(false)
   }
 
-  // 🌟 ฟังก์ชันเข้า Dashboard (ปรับปรุงการดัก Role STAFF อย่างสมบูรณ์)
+  // 🌟 ฟังก์ชันเข้า Dashboard ที่ปรับปรุงใหม่
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
 
@@ -150,30 +150,27 @@ export default function LandingPage() {
 
     if (res.success && res.shops && res.shops.length > 0) {
 
-      // 🌟 1. เช็ค Role: ถ้ามียูสเซอร์นี้เป็น "STAFF" ในร้านไหนสักร้าน
-      // กฎคือ Staff ห้ามย้ายร้าน ดังนั้นจับโยนเข้า Dashboard ของร้านนั้นเลยทันที โดยข้าม Modal
+      // 1. ตรวจสอบ STAFF (พนักงานห้ามย้ายร้าน และไม่ให้เห็น Modal เด็ดขาด)
+      // ใช้ find() เพื่อดึงร้านแรกที่เขาเป็น STAFF (กรณีมีหลายร้าน จะยึดร้านแรก)
       const staffShop = res.shops.find(s => s.role === "STAFF");
       if (staffShop) {
-        updateShop(staffShop); // บันทึกข้อมูลร้านลง Store
-        router.push('/dashboard'); // โยนเข้า Dashboard เลย
-        return; // จบการทำงานฟังก์ชัน ไม่ต้องไปต่อที่เงื่อนไขอื่น
+        updateShop(staffShop); 
+        router.push('/dashboard'); 
+        return; // จบการทำงาน ไม่ต้องโชว์ Modal
       }
 
-      // 🌟 2. ถ้าผู้ใช้ไม่ได้เป็น STAFF (ก็คือเป็น OWNER)
+      // 2. ถ้าหลุดลงมาถึงตรงนี้ แปลว่าเป็น OWNER ล้วนๆ
       if (res.shops.length > 1) {
-        // มี > 1 ร้านค้า เปิด Popup ให้เลือกเข้า
         setShopSelectAction("dashboard");
         setUserShops(res.shops);
         setSelectedShopId(res.shops[0].id);
         setShowShopSelectPopup(true);
       } else {
-        // มี 1 ร้าน เข้า Dashboard ทันที
         updateShop(res.shops[0]);
         router.push('/dashboard');
       }
 
     } else {
-      // 🌟 3. กรณีไม่มีร้านเลย
       toast({
         title: "คุณยังไม่มีร้านค้า",
         description: "กรุณาเลือกแพ็กเกจเพื่อเปิดร้านค้าก่อนเข้าใช้งานระบบ",
@@ -188,6 +185,24 @@ export default function LandingPage() {
     setIsLoggedIn(false)
     setUserEmail(null)
     router.refresh()
+  }
+
+  const handlePlayDemo = async () => {
+    setIsDemoLoading(true)
+    try {
+      const res = await createDemoShopAction()
+      
+      if (res.success && res.shop) {
+        updateShop(res.shop)
+        router.push('/dashboard')
+      } else {
+        throw new Error(res.error || "Failed to create demo shop")
+      }
+    } catch (error) {
+      toast({ title: "ไม่สามารถสร้างร้านตัวอย่างได้", variant: "destructive" })
+    } finally {
+      setIsDemoLoading(false)
+    }
   }
 
   return (
@@ -235,7 +250,6 @@ export default function LandingPage() {
       </header>
 
       <main>
-        {/* Hero Section */}
         <section className="relative overflow-hidden bg-white pt-20 pb-24 lg:pt-32 lg:pb-40">
           <div className="container mx-auto px-4 md:px-6 text-center">
             <Badge className="mb-4 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none px-3 py-1 text-sm">
@@ -257,17 +271,23 @@ export default function LandingPage() {
                 onClick={() => handleSelectPlan("free")}
                 className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200"
               >
-                เล่น Demo เลย
+                ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-slate-600 border-slate-300">
-                ทดลองใช้ฟรี 14 วัน<ArrowRight className="ml-2 h-5 w-5" />
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={handlePlayDemo}
+                disabled={isDemoLoading}
+                className="w-full sm:w-auto h-14 px-8 text-slate-700 border-slate-300 hover:bg-slate-50"
+              >
+                {isDemoLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "👀 "}
+                {isDemoLoading ? "กำลังสร้างร้านตัวอย่าง..." : "ลองเล่นระบบตัวอย่าง"}
               </Button>
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
           </div>
         </section>
 
-        {/* Features Section */}
         <section id="features" className="py-20 bg-slate-50">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
@@ -309,7 +329,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing Section */}
         <section id="pricing" className="py-20 bg-white">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
@@ -319,7 +338,6 @@ export default function LandingPage() {
 
             <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
 
-              {/* แพ็กเกจรายเดือน */}
               <Card className="border-slate-200 shadow-sm">
                 <CardContent className="p-8">
                   <h3 className="text-2xl font-bold text-slate-900">รายเดือน</h3>
@@ -341,7 +359,6 @@ export default function LandingPage() {
                 </CardContent>
               </Card>
 
-              {/* แพ็กเกจรายปี */}
               <Card className="border-emerald-500 shadow-xl shadow-emerald-100 relative">
                 <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-4">
                   <Badge className="bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 text-white border-none px-3 py-1.5 text-sm uppercase font-black shadow-md">
@@ -388,7 +405,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Popup เข้าสู่ระบบ */}
       <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -411,7 +427,6 @@ export default function LandingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Popup เลือกร้าน (จ่ายเงิน หรือ เข้า Dashboard) */}
       <Dialog open={showShopSelectPopup} onOpenChange={setShowShopSelectPopup}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
