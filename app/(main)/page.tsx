@@ -142,7 +142,7 @@ export default function LandingPage() {
     setShowShopSelectPopup(false)
   }
 
-  // 🌟 ฟังก์ชันเข้า Dashboard (เช็คเงื่อนไข STAFF)
+  // 🌟 ฟังก์ชันเข้า Dashboard (ปรับปรุงการดัก Role STAFF อย่างสมบูรณ์)
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
 
@@ -151,17 +151,17 @@ export default function LandingPage() {
     if (res.success && res.shops && res.shops.length > 0) {
 
       // 🌟 1. เช็ค Role: ถ้ามียูสเซอร์นี้เป็น "STAFF" ในร้านไหนสักร้าน
-      // กฎคือ Staff ห้ามย้ายร้าน ดังนั้นจับโยนเข้า Dashboard ของร้านนั้นเลยทันที
+      // กฎคือ Staff ห้ามย้ายร้าน ดังนั้นจับโยนเข้า Dashboard ของร้านนั้นเลยทันที โดยข้าม Modal
       const staffShop = res.shops.find(s => s.role === "STAFF");
       if (staffShop) {
-        updateShop(staffShop);
-        router.push('/dashboard');
-        return;
+        updateShop(staffShop); // บันทึกข้อมูลร้านลง Store
+        router.push('/dashboard'); // โยนเข้า Dashboard เลย
+        return; // จบการทำงานฟังก์ชัน ไม่ต้องไปต่อที่เงื่อนไขอื่น
       }
 
-      // 🌟 2. ถ้าเป็น OWNER
+      // 🌟 2. ถ้าผู้ใช้ไม่ได้เป็น STAFF (ก็คือเป็น OWNER)
       if (res.shops.length > 1) {
-        // มี > 1 ร้าน เปิด Popup ให้เลือกเข้า
+        // มี > 1 ร้านค้า เปิด Popup ให้เลือกเข้า
         setShopSelectAction("dashboard");
         setUserShops(res.shops);
         setSelectedShopId(res.shops[0].id);
@@ -173,6 +173,7 @@ export default function LandingPage() {
       }
 
     } else {
+      // 🌟 3. กรณีไม่มีร้านเลย
       toast({
         title: "คุณยังไม่มีร้านค้า",
         description: "กรุณาเลือกแพ็กเกจเพื่อเปิดร้านค้าก่อนเข้าใช้งานระบบ",
@@ -396,7 +397,7 @@ export default function LandingPage() {
             </div>
             <DialogTitle className="text-center text-xl">กรุณาเข้าสู่ระบบ</DialogTitle>
             <DialogDescription className="text-center text-base pt-2">
-              ระบบต้องการให้ท่านเข้าสู่ระบบก่อน{selectedPlan === "free" ? "เริ่มต้นทดลองใช้" : "ชำระเงิน"}<br />เพื่อเชื่อมโยงแพ็กเกจเข้ากับข้อมูลร้านค้าของท่านได้อย่างถูกต้อง
+              ระบบต้องการให้ท่านเข้าสู่ระบบก่อนทำรายการ
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
@@ -420,7 +421,7 @@ export default function LandingPage() {
             <DialogDescription>
               {shopSelectAction === "dashboard"
                 ? "ระบบพบว่าท่านมีร้านค้าหลายสาขา กรุณาเลือกร้านค้าที่ต้องการเข้าสู่หน้าจัดการ"
-                : `ระบบพบว่าท่านมีร้านค้าในระบบอยู่แล้ว กรุณาเลือกว่าต้องการซื้อแพ็กเกจ ${selectedPlan === "yearly" ? "รายปี" : "รายเดือน"} ให้กับร้านใด`
+                : `กรุณาเลือกว่าต้องการซื้อแพ็กเกจให้กับร้านใด`
               }
             </DialogDescription>
           </DialogHeader>
