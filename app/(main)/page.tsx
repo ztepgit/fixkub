@@ -154,8 +154,8 @@ export default function LandingPage() {
       // ใช้ find() เพื่อดึงร้านแรกที่เขาเป็น STAFF (กรณีมีหลายร้าน จะยึดร้านแรก)
       const staffShop = res.shops.find(s => s.role === "STAFF");
       if (staffShop) {
-        updateShop(staffShop); 
-        router.push('/dashboard'); 
+        updateShop(staffShop);
+        router.push('/dashboard');
         return; // จบการทำงาน ไม่ต้องโชว์ Modal
       }
 
@@ -187,19 +187,34 @@ export default function LandingPage() {
     router.refresh()
   }
 
+  // ในไฟล์ app/(main)/page.tsx ให้ค้นหาบรรทัดที่ 216 แล้วแทนที่บล็อกนี้ครับ:
+
+  // 🌟 3. ฟังก์ชันเรียกสร้างร้าน Demo
   const handlePlayDemo = async () => {
     setIsDemoLoading(true)
     try {
+      // 1. เรียก Server Action ให้ไปสร้าง User และ Shop
       const res = await createDemoShopAction()
       
-      if (res.success && res.shop) {
+      if (res.success && res.credentials && res.shop) {
+        // 🌟 2. นำรหัสที่ Server แอบสร้างให้ มาสั่ง Login ด้วยฝั่ง Client
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: res.credentials.email,
+          password: res.credentials.password,
+        })
+
+        if (loginError) {
+          throw new Error("ล็อกอินเข้าร้านตัวอย่างไม่สำเร็จ: " + loginError.message)
+        }
+
         updateShop(res.shop)
         router.push('/dashboard')
       } else {
         throw new Error(res.error || "Failed to create demo shop")
       }
-    } catch (error) {
-      toast({ title: "ไม่สามารถสร้างร้านตัวอย่างได้", variant: "destructive" })
+    } catch (error: any) {
+      console.error("Demo Error:", error);
+      toast({ title: "ไม่สามารถสร้างร้านตัวอย่างได้", description: error.message, variant: "destructive" })
     } finally {
       setIsDemoLoading(false)
     }
@@ -273,15 +288,25 @@ export default function LandingPage() {
               >
                 ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 onClick={handlePlayDemo}
                 disabled={isDemoLoading}
                 className="w-full sm:w-auto h-14 px-8 text-slate-700 border-slate-300 hover:bg-slate-50"
               >
-                {isDemoLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "👀 "}
-                {isDemoLoading ? "กำลังสร้างร้านตัวอย่าง..." : "ลองเล่นระบบตัวอย่าง"}
+                {/* 🌟 แก้ไข: ห่อ Text Node ด้วย <span> และจัดกลุ่มเงื่อนไขให้ React อ่านง่ายขึ้น */}
+                {isDemoLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <span>กำลังสร้างร้านตัวอย่าง...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">👀</span>
+                    <span>ลองเล่นระบบตัวอย่าง</span>
+                  </>
+                )}
               </Button>
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
