@@ -344,13 +344,13 @@ export async function addShopStaff(shopId: string, staffEmail: string) {
       throw new Error("เฉพาะเจ้าของร้านเท่านั้นที่สามารถเพิ่มพนักงานได้");
     }
 
-    // เช็คจำนวน Staff ว่าเกินโควต้า 1 คนสำหรับแพ็กเกจปัจจุบันหรือไม่ (Phase 1)
+    // เช็คจำนวน Staff ว่าเกินโควต้า 2 คนสำหรับแพ็กเกจปัจจุบันหรือไม่
     const currentStaffCount = await db.shopOwner.count({
       where: { shopId, role: "STAFF" }
     });
 
-    if (currentStaffCount >= 1) {
-      throw new Error("แพ็กเกจปัจจุบันจำกัดพนักงาน 1 คน (รออัปเกรด PRO ใน Phase 2)");
+    if (currentStaffCount >= 2) {
+      throw new Error("แพ็กเกจปัจจุบันจำกัดพนักงาน 2 คน (รออัปเกรด PRO ใน Phase 2)");
     }
 
     // เช็คว่าอีเมลนี้ถูกเชิญมาในร้านนี้แล้วหรือยัง
