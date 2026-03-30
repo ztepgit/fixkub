@@ -297,7 +297,9 @@ export async function getUserShops(email: string) {
             name: true,
             slug: true,
             planType: true,
-            expiresAt: true
+            expiresAt: true,
+            isDemo: true,
+            logoUrl: true,
           }
         }
       }

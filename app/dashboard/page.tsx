@@ -16,9 +16,9 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { SubscriptionBanner } from "@/components/subscription-banner" 
 import { checkAndEnforceShopStatus } from "@/actions/shop-status"
 
-// 🌟 1. Import เพิ่มเติมสำหรับการดึงข้อมูลผู้ใช้และร้านค้า
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
+import { useShopStore } from "@/store/useShopStore"
 
 function JobSyncManager({ shopId }: { shopId: string }) {
   useJobSync(shopId)
@@ -27,14 +27,15 @@ function JobSyncManager({ shopId }: { shopId: string }) {
 
 export default function MainPage() {
   const router = useRouter()
-  
-  // 🌟 2. เปลี่ยนมาใช้ State สำหรับเก็บ shopId ของจริง (เอา Hardcode "shop_test_001" ออก)
+
   const [shopId, setShopId] = useState<string | null>(null)
-  
   const [isChecking, setIsChecking] = useState(true)
   const [expiresAt, setExpiresAt] = useState<Date | string | null>(null)
-  
   const [activeTab, setActiveTab] = useState("dashboard")
+
+  // ✅ Zustand
+  const shop = useShopStore((s) => s.shop)
+  const setShop = useShopStore((s) => s.setShop)
 
   const tabNames: Record<string, string> = {
     dashboard: "ภาพรวม",
@@ -46,7 +47,6 @@ export default function MainPage() {
   useEffect(() => {
     const verifyAccess = async () => {
       try {
-        // 🌟 3. ดึงข้อมูล User ปัจจุบันที่ล็อกอินอยู่
         const { data: { user }, error } = await supabase.auth.getUser()
 
         if (error || !user?.email) {
@@ -54,22 +54,27 @@ export default function MainPage() {
           return
         }
 
-        // 🌟 4. ค้นหาร้านค้าที่ผูกกับอีเมลนี้ผ่าน Server Action
         const shopRes = await getUserShops(user.email)
 
         if (!shopRes.success || shopRes.shops.length === 0) {
-          // ถ้ายังไม่มีร้าน ให้เด้งกลับไปหน้าแรก
           router.push('/')
           return
         }
 
-        // 🌟 5. ได้รหัสร้านของจริงมาแล้ว! (ใช้ร้านแรกที่ดึงมาได้)
-        const realShopId = shopRes.shops[0].id
+        // ✅ ดึง shop ตัวจริง
+        const currentShop = shopRes.shops[0]
+
+        // ✅ ใส่เข้า Zustand (สำคัญสุด)
+        setShop(currentShop)
+
+        // 🧪 debug
+        console.log("shop loaded:", currentShop)
+
+        const realShopId = currentShop.id
         setShopId(realShopId)
 
-        // 🌟 6. นำ shopId ของจริงไปเช็คสถานะแพ็กเกจต่อ
         const res = await checkAndEnforceShopStatus(realShopId)
-        
+
         if (res.status === "EXPIRED" || res.status === "PENDING_DELETION") {
           router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
         } else {
@@ -78,16 +83,21 @@ export default function MainPage() {
             setExpiresAt(res.expiresAt)
           }
         }
+
       } catch (error) {
         console.error("Error checking shop status:", error)
-        router.push('/login') // ถ้ามี Error ใดๆ ให้เตะไปหน้า Login ก่อนปลอดภัยสุด
+        router.push('/login')
       }
     }
-    
-    verifyAccess()
-  }, [router])
 
-  // 🌟 7. เช็คว่าถ้ากำลังโหลด หรือยังไม่ได้ shopId ให้โชว์หน้า Loader หมุนๆ
+    verifyAccess()
+  }, [router, setShop])
+
+  // 🧪 debug อีกชั้น
+  useEffect(() => {
+    console.log("shop from store:", shop)
+  }, [shop])
+
   if (isChecking || !shopId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
@@ -99,15 +109,19 @@ export default function MainPage() {
 
   return (
     <SidebarProvider>
-      {/* 🌟 8. ส่ง shopId ของจริงเข้าไปทำงาน */}
       <JobSyncManager shopId={shopId} />
+
       <div className="min-h-screen flex flex-col w-full bg-slate-50/30">
 
         <DashboardHeader currentTabName={tabNames[activeTab]} />
 
+        {/* ✅ กัน undefined 100% */}
         {expiresAt && (
           <div className="px-4 md:px-6 pt-4 pb-0">
-            <SubscriptionBanner trialEndsAt={expiresAt} />
+            <SubscriptionBanner 
+              trialEndsAt={expiresAt}
+              isDemo={shop?.isDemo ?? false} // 🔥 fix สำคัญ
+            />
           </div>
         )}
 
@@ -118,33 +132,33 @@ export default function MainPage() {
               <TabsTrigger value="dashboard" className="flex-1 md:flex-none flex items-center gap-2">
                 <LayoutDashboard className="w-4 h-4" /> ภาพรวม
               </TabsTrigger>
-              
+
               <TabsTrigger value="queue" className="flex-1 md:flex-none flex items-center gap-2">
                 <ClipboardList className="w-4 h-4" /> กระดานคิว
               </TabsTrigger>
-              
+
               <TabsTrigger value="report" className="flex-1 md:flex-none flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" /> รายงานสถิติ
               </TabsTrigger>
-              
+
               <TabsTrigger value="settings" className="flex-1 md:flex-none flex items-center gap-2">
                 <Settings className="w-4 h-4" /> ตั้งค่าร้านค้า
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="dashboard" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <TabsContent value="dashboard">
               <DashboardOverview />
             </TabsContent>
 
-            <TabsContent value="queue" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <TabsContent value="queue">
               <QueueBoard />
             </TabsContent>
 
-            <TabsContent value="report" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <TabsContent value="report">
               <ReportDashboard />
             </TabsContent>
 
-            <TabsContent value="settings" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <TabsContent value="settings">
               <ShopSettings />
             </TabsContent>
 
