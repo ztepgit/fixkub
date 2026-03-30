@@ -399,7 +399,7 @@ export function ShopSettings() {
                 จัดการพนักงาน (Staff)
               </CardTitle>
               <CardDescription>
-                สร้างพนักงาน เพื่อเพิ่มหน้าจอใช้งาน (โควต้า {staffList.length}/1)
+                สร้างพนักงาน เพื่อเพิ่มหน้าจอใช้งาน ({staffList.length}/1)
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
@@ -458,7 +458,7 @@ export function ShopSettings() {
                   
                   {staffList.length >= 1 && (
                     <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-1.5">
-                      <Info className="h-3 w-3 shrink-0" /> แพ็กเกจของท่านใช้โควต้าพนักงานครบแล้ว
+                      <Info className="h-3 w-3 shrink-0" /> คุณใช้สิทธิ์พนักงานครบแล้ว อัปเกรดเพื่อเพิ่มทีมงานได้สูงสุด 5 คน
                     </p>
                   )}
                 </>
