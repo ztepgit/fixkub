@@ -35,6 +35,7 @@ model Shop {
   themeColor String  @default("#10b981")
 
   isDemo     Boolean @default(false)
+  creatorIp  String? // 🌟 เพิ่มฟิลด์นี้เอาไว้เก็บ IP ของคนที่กดสร้างร้าน Demo
 
   // --- Billing & Subscription ---
   planType   PlanType   @default(FREE_TRIAL)

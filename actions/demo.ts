@@ -3,29 +3,59 @@
 import { db } from "@/lib/prisma"
 import { addHours, subHours, subDays } from "date-fns"
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createClient } from "@/lib/supabase/server" // 🌟 Import Supabase SSR สำหรับ Set Cookie Login
+import { createClient } from "@/lib/supabase/server" 
+import { headers, cookies } from "next/headers" 
 
-// 🌟 1. สร้าง Supabase Admin Client (ใช้ SERVICE_ROLE_KEY)
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // ⚠️ Key นี้ห้ามไปโผล่ฝั่ง Client เด็ดขาด
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
 )
 
 export async function createDemoShopAction() {
   let authUserId: string | null = null;
 
   try {
-    // 🌟 ใช้ randomUUID แทน Math.random ตาม Best Practice
+    // ==========================================
+    // 🛡️ ด่านป้องกันที่ 1: Check Cookie (Soft Block)
+    // ==========================================
+    const cookieStore = await cookies() // 🌟 เติม await ตรงนี้
+    if (cookieStore.get("esyq_demo_created")) {
+      return { success: false, error: "ท่านได้สร้างร้านตัวอย่างไปแล้ว กรุณาลองใหม่ในวันพรุ่งนี้" }
+    }
+
+    // ==========================================
+    // 🛡️ ด่านป้องกันที่ 2: Check IP (Hard Block)
+    // ==========================================
+    const headersList = await headers() // 🌟 เติม await ตรงนี้
+    const forwardedFor = headersList.get("x-forwarded-for")
+    const realIp = headersList.get("x-real-ip")
+    
+    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : realIp?.trim() || "unknown_ip"
+
+    if (ip !== "unknown_ip") {
+      const demoCountToday = await db.shop.count({
+        where: {
+          isDemo: true,
+          creatorIp: ip,
+          createdAt: { gte: subHours(new Date(), 24) } 
+        }
+      })
+
+      if (demoCountToday >= 3) {
+        return { success: false, error: "IP ของท่านเกินขีดจำกัดการสร้างร้านตัวอย่าง (จำกัด 3 ครั้ง/วัน)" }
+      }
+    }
+
+    // --- เข้าสู่กระบวนการสร้างร้าน (Logic เดิม) ---
     const demoId = crypto.randomUUID().split('-')[0];
     const dummyEmail = `demo_${demoId}@esyq.net`;
-    const dummyPassword = crypto.randomUUID(); // ใช้ UUID สุ่มเป็น Password ไปเลย ปลอดภัยสุดๆ
+    const dummyPassword = crypto.randomUUID(); 
 
-    // 🌟 2. ใช้ Admin API สร้าง User พร้อมใส่ user_metadata และสั่ง Auto-Confirm
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: dummyEmail,
       password: dummyPassword,
       email_confirm: true,
-      user_metadata: { isDemo: true } // แยก user demo ออกจาก user จริงให้ชัดเจน
+      user_metadata: { isDemo: true }
     })
 
     if (authError || !authData.user) {
@@ -34,9 +64,8 @@ export async function createDemoShopAction() {
 
     authUserId = authData.user.id;
 
-    // 3. หลังจากได้ Auth User แล้ว ไปสร้างข้อมูลร้านใน Prisma ต่อ
     const demoSlug = `demo-${demoId}`
-    const expiresAt = addHours(new Date(), 24) // 🌟 TTL 24 ชั่วโมง
+    const expiresAt = addHours(new Date(), 24) 
 
     const shop = await db.shop.create({
       data: {
@@ -45,6 +74,7 @@ export async function createDemoShopAction() {
         planType: "PRO_YEARLY", 
         planStatus: "ACTIVE",
         isDemo: true, 
+        creatorIp: ip, 
         expiresAt: expiresAt,
         owners: {
           create: {
@@ -53,7 +83,6 @@ export async function createDemoShopAction() {
             role: "OWNER"
           }
         },
-        // เสกคิวจำลองให้ดูสมจริง
         queues: {
           create: [
             {
@@ -101,8 +130,7 @@ export async function createDemoShopAction() {
       }
     })
 
-    // 🌟 4. Login ให้ User อัตโนมัติฝั่ง Server (Set Session / Cookie ให้เรียบร้อย)
-    const supabase = await createClient(); // เรียกใช้ Supabase Client ของฝั่ง SSR
+    const supabase = await createClient(); 
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email: dummyEmail,
       password: dummyPassword,
@@ -112,7 +140,13 @@ export async function createDemoShopAction() {
       throw new Error("ระบบไม่สามารถ Auto-login ให้ได้");
     }
 
-    // 🌟 5. คืนค่าแค่ Shop กลับไป (ไม่ส่ง Password กลับไปฝั่ง Client เด็ดขาด)
+    // 🌟 3. แปะ Cookie ว่าสร้างไปแล้ว
+    cookieStore.set("esyq_demo_created", "true", { 
+      maxAge: 60 * 60 * 24, // 24 ชั่วโมง
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production" 
+    })
+
     return { 
       success: true, 
       shop: { ...shop, role: "OWNER" } 
@@ -121,7 +155,6 @@ export async function createDemoShopAction() {
   } catch (error) {
     console.error("Create Demo Error:", error)
 
-    // 🌟 6. Rollback: ถ้า Error กลางทาง และมีการสร้าง User Auth ไปแล้ว ให้ลบทิ้งทันที ข้อมูลจะได้ไม่ตกค้าง
     if (authUserId) {
       await supabaseAdmin.auth.admin.deleteUser(authUserId).catch(console.error);
     }
