@@ -195,7 +195,7 @@ export default function LandingPage() {
     try {
       // 1. เรียก Server Action ให้ไปสร้าง User และ Shop
       const res = await createDemoShopAction()
-      
+
       if (res.success && res.credentials && res.shop) {
         // 🌟 2. นำรหัสที่ Server แอบสร้างให้ มาสั่ง Login ด้วยฝั่ง Client
         const { error: loginError } = await supabase.auth.signInWithPassword({
@@ -502,9 +502,13 @@ export default function LandingPage() {
             </RadioGroup>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button type="button" variant="outline" onClick={() => setShowShopSelectPopup(false)} className="w-full">ยกเลิก</Button>
-            <Button type="button" onClick={handleConfirmShopSelection} className="w-full bg-emerald-600 hover:bg-emerald-700">ยืนยัน</Button>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button type="button" onClick={handleConfirmShopSelection} className="w-full bg-emerald-600 hover:bg-emerald-700">
+              ยืนยัน
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setShowShopSelectPopup(false)} className="w-full">
+              ยกเลิก
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
