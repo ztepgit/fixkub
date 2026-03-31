@@ -33,7 +33,6 @@ export default function MainPage() {
   const [expiresAt, setExpiresAt] = useState<Date | string | null>(null)
   const [activeTab, setActiveTab] = useState("dashboard")
 
-  // ✅ Zustand
   const shop = useShopStore((s) => s.shop)
   const setShop = useShopStore((s) => s.setShop)
 
@@ -61,14 +60,8 @@ export default function MainPage() {
           return
         }
 
-        // ✅ ดึง shop ตัวจริง
         const currentShop = shopRes.shops[0]
-
-        // ✅ ใส่เข้า Zustand (สำคัญสุด)
         setShop(currentShop)
-
-        // 🧪 debug
-        console.log("shop loaded:", currentShop)
 
         const realShopId = currentShop.id
         setShopId(realShopId)
@@ -93,16 +86,12 @@ export default function MainPage() {
     verifyAccess()
   }, [router, setShop])
 
-  // 🧪 debug อีกชั้น
-  useEffect(() => {
-    console.log("shop from store:", shop)
-  }, [shop])
-
   if (isChecking || !shopId) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <Loader2 className="h-10 w-10 text-emerald-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">กำลังโหลดข้อมูลร้านค้าของท่าน...</p>
+      // 🌟 1. ปรับหน้า Loading ให้เป็นสีมืดเมื่อเปิด Dark Mode
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="h-10 w-10 text-emerald-600 dark:text-emerald-500 animate-spin mb-4" />
+        <p className="text-slate-500 dark:text-slate-400 font-medium">กำลังโหลดข้อมูลร้านค้าของท่าน...</p>
       </div>
     )
   }
@@ -111,16 +100,16 @@ export default function MainPage() {
     <SidebarProvider>
       <JobSyncManager shopId={shopId} />
 
-      <div className="min-h-screen flex flex-col w-full bg-slate-50/30">
+      {/* 🌟 2. ปรับพื้นหลังหลักของ Dashboard ให้เป็นสีมืด */}
+      <div className="min-h-screen flex flex-col w-full bg-slate-50/30 dark:bg-slate-950">
 
         <DashboardHeader currentTabName={tabNames[activeTab]} />
 
-        {/* ✅ กัน undefined 100% */}
         {expiresAt && (
           <div className="px-4 md:px-6 pt-4 pb-0">
             <SubscriptionBanner 
               trialEndsAt={expiresAt}
-              isDemo={shop?.isDemo ?? false} // 🔥 fix สำคัญ
+              isDemo={shop?.isDemo ?? false}
             />
           </div>
         )}
@@ -128,22 +117,37 @@ export default function MainPage() {
         <main className="p-4 md:p-6 space-y-4 flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
-            <TabsList className="mb-4 bg-slate-100/50 border border-slate-200 flex-wrap h-auto p-1">
-              <TabsTrigger value="dashboard" className="flex-1 md:flex-none flex items-center gap-2">
+            {/* 🌟 3. ปรับสีกล่อง Tabs และสีขอบ ให้แยกชัดเจนใน Dark Mode */}
+            <TabsList className="mb-4 bg-slate-100/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex-wrap h-auto p-1">
+              
+              <TabsTrigger 
+                value="dashboard" 
+                className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
+              >
                 <LayoutDashboard className="w-4 h-4" /> ภาพรวม
               </TabsTrigger>
 
-              <TabsTrigger value="queue" className="flex-1 md:flex-none flex items-center gap-2">
+              <TabsTrigger 
+                value="queue" 
+                className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
+              >
                 <ClipboardList className="w-4 h-4" /> กระดานคิว
               </TabsTrigger>
 
-              <TabsTrigger value="report" className="flex-1 md:flex-none flex items-center gap-2">
+              <TabsTrigger 
+                value="report" 
+                className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
+              >
                 <BarChart3 className="w-4 h-4" /> รายงานสถิติ
               </TabsTrigger>
 
-              <TabsTrigger value="settings" className="flex-1 md:flex-none flex items-center gap-2">
+              <TabsTrigger 
+                value="settings" 
+                className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
+              >
                 <Settings className="w-4 h-4" /> ตั้งค่าร้านค้า
               </TabsTrigger>
+
             </TabsList>
 
             <TabsContent value="dashboard">

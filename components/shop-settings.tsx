@@ -59,7 +59,6 @@ export function ShopSettings() {
     }
   })
 
-  // Query ดึงรายชื่อพนักงาน
   const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
     queryKey: ["shop-staff", shop?.id],
     queryFn: async () => {
@@ -70,7 +69,6 @@ export function ShopSettings() {
     enabled: !!shop?.id
   })
 
-  // Mutation: เพิ่มพนักงาน
   const addStaffMutation = useMutation({
     mutationFn: async (email: string) => {
       const res = await addShopStaff(shop!.id, email);
@@ -87,7 +85,6 @@ export function ShopSettings() {
     }
   })
 
-  // Mutation: ลบพนักงาน
   const removeStaffMutation = useMutation({
     mutationFn: async (email: string) => {
       const res = await removeShopStaff(shop!.id, email);
@@ -222,8 +219,8 @@ export function ShopSettings() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[60vh] w-full items-center justify-center text-slate-400 gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      <div className="flex h-[60vh] w-full items-center justify-center text-slate-400 dark:text-slate-500 gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500 dark:text-emerald-600" />
         <p className="text-lg">กำลังโหลดข้อมูลร้านค้า...</p>
       </div>
     )
@@ -231,65 +228,60 @@ export function ShopSettings() {
 
   if (isError || !shop) {
     return (
-        <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 gap-3">
+        <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 dark:text-rose-400 gap-3">
             <AlertCircle className="h-8 w-8" />
             <p className="text-lg">ไม่พบข้อมูลร้านค้า หรือการเชื่อมต่อมีปัญหา กรุณารีเฟรชหน้าจอ</p>
         </div>
     )
   }
 
-  // บล็อกการเข้าถึงหน้าตั้งค่าของพนักงาน (STAFF)
   if (shop.role === "STAFF") {
     return (
-      <div className="flex flex-col h-[60vh] w-full items-center justify-center text-slate-500 gap-3">
-          <Users className="h-12 w-12 text-slate-300" />
-          <p className="text-lg font-medium text-slate-700">สิทธิ์การใช้งานจำกัด</p>
-          <p className="text-sm text-slate-500">เฉพาะเจ้าของร้านเท่านั้นที่สามารถแก้ไขการตั้งค่า หรือจัดการพนักงานได้</p>
+      <div className="flex flex-col h-[60vh] w-full items-center justify-center text-slate-500 dark:text-slate-400 gap-3">
+          <Users className="h-12 w-12 text-slate-300 dark:text-slate-600" />
+          <p className="text-lg font-medium text-slate-700 dark:text-slate-300">สิทธิ์การใช้งานจำกัด</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">เฉพาะเจ้าของร้านเท่านั้นที่สามารถแก้ไขการตั้งค่า หรือจัดการพนักงานได้</p>
       </div>
     )
   }
 
   return (
     <TooltipProvider>
-      {/* 🌟 เปลี่ยน Grid Layout ให้แบ่งซ้าย-ขวาชัดเจน โดยให้ขวาแคบกว่าซ้าย */}
       <div className="grid gap-8 lg:grid-cols-12 max-w-6xl mx-auto py-6">
         
-        {/* ============================================== */}
-        {/* 🌟 ฝั่งซ้าย (Left Column): ตั้งค่าต่างๆ และจัดการพนักงาน */}
-        {/* ============================================== */}
         <div className="space-y-6 lg:col-span-8">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
-            <p className="text-sm text-slate-500">ปรับแต่งชื่อ โลโก้ และจัดการพนักงาน</p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">ปรับแต่งชื่อ โลโก้ และจัดการพนักงาน</p>
           </div>
 
-          <Card className="border-slate-200 shadow-sm relative overflow-hidden">
+          <Card className="border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden dark:bg-slate-900">
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="shopName" className="font-semibold text-slate-700">ชื่อร้านค้า (Display Name)</Label>
+                <Label htmlFor="shopName" className="font-semibold text-slate-700 dark:text-slate-300">ชื่อร้านค้า (Display Name)</Label>
                 <Input 
                   id="shopName" 
                   value={shopName} 
                   onChange={(e) => setShopName(e.target.value)} 
                   placeholder="เช่น ร้าน A Mobile Repair" 
-                  className="text-lg h-12 focus-visible:ring-emerald-500"
+                  className="text-lg h-12 focus-visible:ring-emerald-500 dark:focus-visible:ring-emerald-600 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-100"
                 />
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="font-semibold text-slate-700">โลโก้ร้าน (Shop Logo)</Label>
-                  <span className="text-xs text-slate-500 bg-emerald-50 text-emerald-700 px-2 py-1 rounded flex items-center">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">โลโก้ร้าน (Shop Logo)</Label>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded flex items-center border dark:border-emerald-900/50">
                     <Info className="h-3 w-3 mr-1" /> เพิ่มความน่าเชื่อถือ
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-6">
-                  <Avatar className="h-20 w-20 border-2 border-slate-100 shadow-sm">
+                  <Avatar className="h-20 w-20 border-2 border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950">
                     {logoPreview ? (
                       <AvatarImage src={logoPreview} alt="Shop Logo" className="object-cover bg-white" />
                     ) : (
-                      <AvatarFallback className="bg-emerald-100 text-emerald-700 text-3xl font-bold">
+                      <AvatarFallback className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-500 text-3xl font-bold">
                         {getInitial(shopName)}
                       </AvatarFallback>
                     )}
@@ -300,33 +292,32 @@ export function ShopSettings() {
                       type="button" 
                       variant="outline" 
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full flex items-center gap-2 border-slate-300 border-dashed hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      className="w-full flex items-center gap-2 border-slate-300 dark:border-slate-700 border-dashed hover:border-emerald-500 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors dark:text-slate-300 dark:bg-slate-900"
                     >
                       <UploadCloud className="h-4 w-4" /> อัปโหลดรูปภาพ
                     </Button>
                     <Input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                    <p className="text-xs text-slate-400">ระบบจะทำการย่อรูปให้อัตโนมัติเพื่อความรวดเร็ว</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">ระบบจะทำการย่อรูปให้อัตโนมัติเพื่อความรวดเร็ว</p>
                   </div>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="bg-slate-50 border-t py-4">
-              <Button onClick={handleSave} disabled={isSaving || !shop?.id} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-base shadow-sm">
+            <CardFooter className="bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-800 py-4">
+              <Button onClick={handleSave} disabled={isSaving || !shop?.id} className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white text-base shadow-sm dark:bg-emerald-700 dark:hover:bg-emerald-600">
                 {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
               </Button>
             </CardFooter>
           </Card>
 
-          {/* ช่องทางแจ้งซ่อม (QR) ย้ายมาอยู่ฝั่งซ้าย */}
-          <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 ${isQrHidden ? 'border-slate-200 border-t-4 border-t-slate-300 bg-slate-50/30' : 'border-slate-200 border-t-4 border-t-blue-500'}`}>
-            <CardHeader className="bg-slate-50/50 border-b pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
+          <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 dark:bg-slate-900 ${isQrHidden ? 'border-slate-200 dark:border-slate-800 border-t-4 border-t-slate-300 dark:border-t-slate-700 bg-slate-50/30 dark:bg-slate-900/50' : 'border-slate-200 dark:border-slate-800 border-t-4 border-t-blue-500 dark:border-t-blue-600'}`}>
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800 pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
               <div className="space-y-1">
-                <CardTitle className={`text-lg flex items-center gap-2 ${isQrHidden ? 'text-slate-500' : 'text-slate-800'}`}>
-                  <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400' : 'text-blue-600'}`} />
+                <CardTitle className={`text-lg flex items-center gap-2 ${isQrHidden ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                  <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400 dark:text-slate-500' : 'text-blue-600 dark:text-blue-500'}`} />
                   {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'ช่องทางแจ้งซ่อม (Booking URL & QR)'}
                 </CardTitle>
-                <CardDescription className={isQrHidden ? 'text-slate-400' : ''}>
+                <CardDescription className={isQrHidden ? 'text-slate-400 dark:text-slate-500' : 'dark:text-slate-400'}>
                   {isQrHidden ? 'กดปุ่มขวาบนเพื่อแสดงอีกครั้ง' : 'แชร์ลิงก์ให้ลูกค้า หรือดาวน์โหลด QR Code นำไปทำป้ายตั้งโต๊ะ'}
                 </CardDescription>
               </div>
@@ -336,7 +327,7 @@ export function ShopSettings() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className={`h-8 w-8 rounded-full shrink-0 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`} 
+                    className={`h-8 w-8 rounded-full shrink-0 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800'}`} 
                     onClick={() => setIsQrHidden(!isQrHidden)}
                   >
                     {isQrHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -350,19 +341,21 @@ export function ShopSettings() {
               <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
                 
                 {isQrHidden ? (
-                  <div className="flex flex-col items-center justify-center h-[156px] w-[156px] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 animate-in fade-in duration-300 shrink-0">
-                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center border-4 border-white shadow-sm mb-2"><QrCode className="h-6 w-6 text-slate-300 opacity-60" /></div>
-                    <p className="text-[10px] font-medium text-slate-400">QR Code ถูกซ่อน</p>
+                  <div className="flex flex-col items-center justify-center h-[156px] w-[156px] bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 animate-in fade-in duration-300 shrink-0">
+                    <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border-4 border-white dark:border-slate-900 shadow-sm mb-2">
+                      <QrCode className="h-6 w-6 text-slate-300 dark:text-slate-600 opacity-60" />
+                    </div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">QR Code ถูกซ่อน</p>
                   </div>
                 ) : (
-                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 transition-transform hover:scale-105 duration-300 shrink-0 animate-in fade-in duration-300">
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-transform hover:scale-105 duration-300 shrink-0 animate-in fade-in duration-300">
                     {shopUrl ? (
                       <div ref={qrWrapperRef}>
                         <QRCodeCanvas value={shopUrl} size={130} bgColor={"#ffffff"} fgColor={"#0f172a"} level={"H"} includeMargin={false} />
                       </div>
                     ) : (
-                      <div className="w-[130px] h-[130px] bg-slate-50 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-center p-2">
-                         <p className="text-xs text-slate-400">ยังไม่มี URL ร้าน<br/>(กรุณาตั้งชื่อ URL)</p>
+                      <div className="w-[130px] h-[130px] bg-slate-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 text-center p-2">
+                         <p className="text-xs text-slate-400 dark:text-slate-500">ยังไม่มี URL ร้าน<br/>(กรุณาตั้งชื่อ URL)</p>
                       </div>
                     )}
                   </div>
@@ -370,18 +363,25 @@ export function ShopSettings() {
                 
                 <div className="flex-1 w-full space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">ลิงก์ร้านค้าของคุณ (URL)</Label>
+                    <Label className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">ลิงก์ร้านค้าของคุณ (URL)</Label>
                     <div className="flex gap-2">
-                      <Input readOnly value={shopUrl || "ยังไม่มี URL ร้านค้า"} className={`bg-slate-50 text-slate-600 border-slate-200 focus-visible:ring-0 cursor-copy ${!shopUrl ? 'text-rose-400 italic' : ''}`} onClick={(e) => (e.target as HTMLInputElement).select()} />
-                      <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200"><Copy className="h-4 w-4" /></Button>
+                      <Input 
+                        readOnly 
+                        value={shopUrl || "ยังไม่มี URL ร้านค้า"} 
+                        className={`bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 focus-visible:ring-0 cursor-copy ${!shopUrl ? 'text-rose-400 italic' : ''}`} 
+                        onClick={(e) => (e.target as HTMLInputElement).select()} 
+                      />
+                      <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-blue-400">
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   
                   <div className="flex gap-2 w-full pt-1">
-                    <Button variant="outline" className="flex-1 text-slate-700 h-10 border-slate-300 hover:bg-slate-50" onClick={copyLink} disabled={!shopUrl}>
-                      <LinkIcon className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์
+                    <Button variant="outline" className="flex-1 text-slate-700 border-slate-300 hover:bg-slate-50 h-10 dark:text-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:hover:text-white" onClick={copyLink} disabled={!shopUrl}>
+                      <LinkIcon className="h-4 w-4 mr-2 text-slate-500 dark:text-slate-400" /> คัดลอกลิงก์
                     </Button>
-                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 h-10 shadow-sm" onClick={downloadQR} disabled={isQrHidden || !shopUrl}>
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-10 shadow-sm" onClick={downloadQR} disabled={isQrHidden || !shopUrl}>
                       <Download className="h-4 w-4 mr-2" /> โหลดคิวอาร์โค้ด
                     </Button>
                   </div>
@@ -391,33 +391,32 @@ export function ShopSettings() {
             </CardContent>
           </Card>
 
-          {/* ส่วนจัดการพนักงาน */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b pb-4">
-              <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                <Users className="h-5 w-5 text-blue-600" />
+          <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:bg-slate-900">
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800 pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-500" />
                 จัดการพนักงาน (Staff)
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="dark:text-slate-400">
                 สร้างพนักงาน เพื่อเพิ่มหน้าจอใช้งาน ({staffList.length}/2)
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               {isStaffLoading ? (
-                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
+                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-slate-300 dark:text-slate-600" /></div>
               ) : (
                 <>
                   {staffList.length > 0 ? (
                     <div className="space-y-3">
                       {staffList.map((staff: any) => (
-                        <div key={staff.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                        <div key={staff.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-sm">
                               {staff.email.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-700">{staff.email}</p>
-                              <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500">STAFF</Badge>
+                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{staff.email}</p>
+                              <Badge variant="secondary" className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">STAFF</Badge>
                             </div>
                           </div>
                           <Button 
@@ -425,7 +424,7 @@ export function ShopSettings() {
                             size="sm" 
                             onClick={() => removeStaffMutation.mutate(staff.email)}
                             disabled={removeStaffMutation.isPending}
-                            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:text-rose-400 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
                           >
                             {removeStaffMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
                           </Button>
@@ -433,23 +432,23 @@ export function ShopSettings() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50">
-                      <p className="text-sm text-slate-500">ยังไม่มีพนักงานในร้านนี้</p>
+                    <div className="text-center py-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50/50 dark:bg-slate-900/50">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">ยังไม่มีพนักงานในร้านนี้</p>
                     </div>
                   )}
-                  {/* เปลี่ยนจาก staffList.length === 0 เป็น staffList.length < 2 */}
+
                   {staffList.length < 2 && (
-                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                    <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <Input 
                         placeholder="กรอกอีเมลพนักงาน..." 
                         value={newStaffEmail}
                         onChange={(e) => setNewStaffEmail(e.target.value)}
-                        className="flex-1"
+                        className="flex-1 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
                       />
                       <Button 
                         onClick={() => addStaffMutation.mutate(newStaffEmail)}
                         disabled={!newStaffEmail.includes("@") || addStaffMutation.isPending}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
                       >
                         <Plus className="h-4 w-4 mr-1" /> เชิญ
                       </Button>
@@ -457,7 +456,7 @@ export function ShopSettings() {
                   )}
                   
                   {staffList.length >= 2 && (
-                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded flex items-center gap-1.5">
+                    <p className="text-xs text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border dark:border-amber-900/50 p-2 rounded flex items-center gap-1.5">
                       <Info className="h-3 w-3 shrink-0" /> คุณใช้สิทธิ์พนักงานครบแล้ว อัปเกรดเพื่อเพิ่มทีมงานได้สูงสุด 5 คน
                     </p>
                   )}
@@ -467,24 +466,20 @@ export function ShopSettings() {
           </Card>
         </div>
 
-        {/* ============================================== */}
-        {/* 🌟 ฝั่งขวา (Right Column): Mobile View (Sticky) */}
-        {/* ============================================== */}
         <div className="lg:col-span-4 relative hidden md:block">
-          {/* ใช้ top-24 เพื่อเว้นระยะจาก Header ด้านบน */}
           <div className="sticky top-24 space-y-4">
             <div className="flex items-center justify-center">
-              <Label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center">
+              <Label className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center">
                 <Store className="h-4 w-4 mr-2" />
                 ตัวอย่างหน้าจอฝั่งลูกค้า
               </Label>
             </div>
             
-            <div className="mx-auto w-full max-w-[320px] bg-slate-100 border-[8px] border-slate-800 rounded-[2.5rem] shadow-xl overflow-hidden relative min-h-[550px] flex flex-col pointer-events-none select-none">
-              {/* ติ่งกล้อง (Notch) */}
-              <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 w-28 mx-auto rounded-b-xl z-20"></div>
+            <div className="mx-auto w-full max-w-[320px] bg-slate-100 dark:bg-slate-900 border-[8px] border-slate-800 dark:border-slate-950 rounded-[2.5rem] shadow-xl overflow-hidden relative min-h-[550px] flex flex-col pointer-events-none select-none">
+              <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 dark:bg-slate-950 w-28 mx-auto rounded-b-xl z-20"></div>
               
-              <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50">
+              <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50 dark:bg-slate-900/50">
+                {/* 🌟 บังคับให้ Mockup ดูเหมือน Light Mode ของฝั่งลูกค้า (เพื่อให้ตรงกับความเป็นจริงที่หน้าลูกค้าเป็น Light Mode เสมอ) */}
                 <div className="bg-white px-5 pt-10 pb-4 rounded-t-[2rem] border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
                   <Avatar className="h-14 w-14 border-2 border-white shadow-md mb-2 bg-white">
                     {logoPreview ? (
@@ -499,7 +494,6 @@ export function ShopSettings() {
                   <p className="text-[10px] text-slate-500 mt-0.5">ฟอร์มแจ้งซ่อมออนไลน์</p>
                 </div>
                 
-                {/* Mockup Form ซ่อม */}
                 <div className="p-4 space-y-4 bg-white mx-3 mt-3 rounded-xl shadow-sm border border-slate-50">
                   <div className="space-y-2">
                     <div className="h-3 w-20 bg-slate-200 rounded"></div>

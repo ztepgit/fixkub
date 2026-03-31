@@ -29,9 +29,8 @@ import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2, Home } 
 
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
-import { ThemeToggle } from "@/components/theme-toggle" // 🌟 นำเข้า ThemeToggle
+import { ThemeToggle } from "@/components/theme-toggle"
 
-// 🌟 1. โหลด QRCodeCanvas แบบ Client-only เพื่อแก้ปัญหา SSR Mismatch
 const QRCodeCanvas = dynamic(
   () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
   { ssr: false }
@@ -44,10 +43,9 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ currentTabName = "ภาพรวม" }: DashboardHeaderProps) {
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
-  const qrWrapperRef = useRef<HTMLDivElement>(null) // 🌟 2. ใช้ useRef อ้างอิง QR เพื่อดาวน์โหลด
+  const qrWrapperRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  // 🌟 3. ใช้ React Query เป็น Source of Truth (จัดการ Loading, Error, Cache ให้เสร็จสรรพ)
   const { data: shop, isLoading } = useQuery({
     queryKey: ["current-shop"],
     queryFn: async () => {
@@ -60,10 +58,9 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       }
       return res.shops[0]
     },
-    staleTime: 1000 * 60 * 5, // Cache ไว้ 5 นาที ไม่ต้องยิงซ้ำรัวๆ
+    staleTime: 1000 * 60 * 5,
   })
 
-  // 🌟 4. ผูก shopUrl แบบ Reactive (ไม่ต้องใช้ useState / useEffect)
   const shopUrl = shop?.slug ? `https://${shop.slug}.esyq.net` : ""
 
   const copyLink = () => {
@@ -105,7 +102,8 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link href="/" className="flex items-center text-slate-400 hover:text-emerald-600 transition-colors p-1">
+                    {/* 🌟 แก้ไข: เพิ่ม dark:text-slate-300 และ dark:hover:text-emerald-400 ให้สว่างขึ้น */}
+                    <Link href="/" className="flex items-center text-slate-400 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400 transition-colors p-1">
                       <Home className="h-4 w-4" />
                     </Link>
                   </TooltipTrigger>
@@ -115,14 +113,15 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                 </Tooltip>
               </TooltipProvider>
             </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden md:block text-slate-300 dark:text-slate-700" />
+            <BreadcrumbSeparator className="hidden md:block text-slate-300 dark:text-slate-600" />
 
             <BreadcrumbItem className="hidden md:block">
-              <span className="text-slate-500 dark:text-slate-400 font-normal cursor-default">
+              {/* 🌟 แก้ไข: เปลี่ยน dark:text-slate-400 เป็น dark:text-slate-300 */}
+              <span className="text-slate-500 dark:text-slate-300 font-normal cursor-default">
                 ระบบจัดการคิว
               </span>
             </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden md:block text-slate-300 dark:text-slate-700" />
+            <BreadcrumbSeparator className="hidden md:block text-slate-300 dark:text-slate-600" />
             
             <BreadcrumbItem>
               <BreadcrumbPage className="font-semibold text-slate-800 dark:text-slate-100">{currentTabName}</BreadcrumbPage>
@@ -133,8 +132,6 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        
-        {/* 🌟 5. วาง ThemeToggle ไว้ตรงนี้ (ก่อนปุ่ม Share) */}
         <ThemeToggle />
 
         <TooltipProvider>
@@ -166,10 +163,10 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
               <div className="flex items-start justify-between pr-4">
                 <div className="space-y-1">
                   <DialogTitle className={`text-xl flex items-center gap-2 ${isQrHidden ? 'text-slate-600 dark:text-slate-300' : 'text-blue-800 dark:text-blue-400'}`}>
-                    <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400 dark:text-slate-300' : 'text-blue-600 dark:text-blue-500'}`} />
+                    <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400 dark:text-slate-400' : 'text-blue-600 dark:text-blue-500'}`} />
                     {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'แชร์ให้ลูกค้าสแกน'}
                   </DialogTitle>
-                  <DialogDescription className={isQrHidden ? 'text-slate-400 dark:text-slate-300' : 'text-blue-600/70 dark:text-blue-400/70'}>
+                  <DialogDescription className={isQrHidden ? 'text-slate-400 dark:text-slate-400' : 'text-blue-600/70 dark:text-blue-400/70'}>
                     ให้ลูกค้าสแกนเพื่อเข้าฟอร์มแจ้งซ่อมออนไลน์
                   </DialogDescription>
                 </div>
@@ -180,7 +177,7 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className={`h-8 w-8 rounded-full -mt-1 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800' : 'text-slate-400 hover:text-blue-600 hover:bg-white/60 dark:hover:bg-slate-800 dark:hover:text-blue-400'}`} 
+                        className={`h-8 w-8 rounded-full -mt-1 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200' : 'text-slate-400 hover:text-blue-600 hover:bg-white/60 dark:text-blue-400/50 dark:hover:bg-slate-800 dark:hover:text-blue-300'}`} 
                         onClick={() => setIsQrHidden(!isQrHidden)}
                       >
                         {isQrHidden ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
@@ -199,13 +196,12 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                 {isQrHidden ? (
                   <div className="flex flex-col items-center justify-center space-y-3 h-[200px] w-full bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 animate-in fade-in duration-300">
                     <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border-4 border-white dark:border-slate-900 shadow-sm mb-1">
-                      <QrCode className="h-6 w-6 text-slate-300 dark:text-slate-300 opacity-60" />
+                      <QrCode className="h-6 w-6 text-slate-300 dark:text-slate-500 opacity-60" />
                     </div>
-                    <p className="text-xs font-medium text-slate-400 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border dark:border-slate-700 shadow-sm">ภาพ QR Code ถูกซ่อนไว้</p>
+                    <p className="text-xs font-medium text-slate-400 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border dark:border-slate-700 shadow-sm">ภาพ QR Code ถูกซ่อนไว้</p>
                   </div>
                 ) : (
                   <div className="bg-white p-4 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-100 transition-transform hover:scale-105 duration-300 animate-in fade-in duration-300 zoom-in-95">
-                    {/* 🌟 5. การจัดการ UI 3 สถานะที่ถูกต้อง: โหลด -> มี URL -> ไม่มี URL */}
                     {isLoading ? (
                       <div className="w-[160px] h-[160px] bg-slate-50 animate-pulse rounded-xl flex items-center justify-center">
                         <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
@@ -232,25 +228,28 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                  {/* 🌟 แก้ไข: หัวข้อ "ลิงก์ร้านค้าของคุณ" ให้สว่างขึ้นในโหมดมืด */}
+                  <Label className="text-xs text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider">
                     ลิงก์ร้านค้าของคุณ (URL)
                   </Label>
                   <div className="flex gap-2">
+                    {/* 🌟 แก้ไข: กล่อง Input ลิงก์ร้าน ให้พื้นหลังมืดขึ้นเล็กน้อย ตัวหนังสือสว่างขึ้น */}
                     <Input 
                       readOnly 
                       value={isLoading ? "กำลังโหลด..." : (shopUrl || "ยังไม่มี URL ร้านค้า")} 
-                      className={`bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 focus-visible:ring-0 cursor-copy h-10 ${!shopUrl && !isLoading ? 'text-rose-400 italic' : ''}`} 
+                      className={`bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 focus-visible:ring-0 cursor-copy h-10 ${!shopUrl && !isLoading ? 'text-rose-400 italic' : ''}`} 
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
-                    <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="h-10 w-10 shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200 dark:border-slate-700 dark:hover:bg-slate-800">
+                    <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="h-10 w-10 shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200 dark:border-slate-800 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-blue-400">
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <Button variant="outline" className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 h-11 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800" onClick={copyLink} disabled={!shopUrl}>
-                    <LinkIcon className="h-4 w-4 mr-2 text-slate-500" /> คัดลอกลิงก์
+                  {/* 🌟 แก้ไข: ปุ่ม "คัดลอกลิงก์" ให้ตัวหนังสือสว่างขึ้น มองเห็นชัดเจนในโหมดมืด */}
+                  <Button variant="outline" className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 h-11 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" onClick={copyLink} disabled={!shopUrl}>
+                    <LinkIcon className="h-4 w-4 mr-2 text-slate-500 dark:text-slate-400" /> คัดลอกลิงก์
                   </Button>
                   <Button 
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-11" 
