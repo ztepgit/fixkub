@@ -1,13 +1,25 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from "@/components/ui/toaster" 
 import { Providers } from "@/components/providers" 
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider" // 🌟 1. นำเข้า ThemeProvider ของเรา
+import { Inter, Noto_Sans_Thai } from "next/font/google"
 
-const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+
+const notoThai = Noto_Sans_Thai({
+  subsets: ["thai"],
+  variable: "--font-thai",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: 'esyQ - Queue Management Dashboard',
@@ -40,7 +52,7 @@ export default function RootLayout({
   return (
     // 🌟 2. สำคัญมาก: ต้องใส่ suppressHydrationWarning ที่ <html> เพื่อป้องกัน Next-Themes ฟ้อง Error ตอนโหลดหน้าเว็บครั้งแรก
     <html lang="th" suppressHydrationWarning> 
-      <body className="font-sans antialiased" suppressHydrationWarning>
+      <body className={`${inter.variable} ${notoThai.variable} font-sans antialiased`} suppressHydrationWarning>
         
         {/* 🌟 3. เอา ThemeProvider ครอบ Component ทั้งหมดไว้ข้างนอกสุด */}
         <ThemeProvider>
