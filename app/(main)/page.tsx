@@ -377,7 +377,7 @@ export default function LandingPage() {
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
                   <ul className="space-y-3 mb-8">
-                    {["สร้างบิลซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รองรับ 1 สาขา", "หน้าเช็คสถานะสำหรับลูกค้า"].map((item, i) => (
+                    {["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รองรับ 1 สาขา", "หน้าเช็คสถานะสำหรับลูกค้า"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-slate-700">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" /> {item}
                       </li>
@@ -406,7 +406,7 @@ export default function LandingPage() {
                     <span className="text-slate-500">/ ปี</span>
                   </div>
                   <ul className="space-y-3 mb-8">
-                    {["ทุกอย่างในแพ็กเกจรายเดือน", "ป้าย QR Code ตั้งโต๊ะ (ไฟล์ PDF)", "ฟรี อัปเดตฟีเจอร์ใหม่ตลอดปี", "ซัพพอร์ตด่วน (Priority)"].map((item, i) => (
+                    {["ทุกอย่างในแพ็กเกจรายเดือน", "ประหยัดกว่าถึง 30%", "ซัพพอร์ตด่วน (Priority)", "กลุ่มไลน์ลูกค้ารายปี"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-slate-700">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" /> {item}
                       </li>
