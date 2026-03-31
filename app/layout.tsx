@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from "@/components/ui/toaster" 
-import { Providers } from "@/components/providers" // 🌟 1. Import Providers ที่เราสร้างขึ้นมาใหม่
+import { Providers } from "@/components/providers" 
 import './globals.css'
+import { ThemeProvider } from "@/components/theme-provider" // 🌟 1. นำเข้า ThemeProvider ของเรา
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -37,13 +38,18 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className="font-sans antialiased" suppressHydrationWarning={true}>
-        {/* 🌟 2. เอา Providers ครอบ {children} และ Component อื่นๆ ที่ต้องการใช้งาน */}
-        <Providers>
-          {children}
-          <Toaster /> 
-        </Providers>
+    // 🌟 2. สำคัญมาก: ต้องใส่ suppressHydrationWarning ที่ <html> เพื่อป้องกัน Next-Themes ฟ้อง Error ตอนโหลดหน้าเว็บครั้งแรก
+    <html lang="th" suppressHydrationWarning> 
+      <body className="font-sans antialiased" suppressHydrationWarning>
+        
+        {/* 🌟 3. เอา ThemeProvider ครอบ Component ทั้งหมดไว้ข้างนอกสุด */}
+        <ThemeProvider>
+          <Providers>
+            {children}
+            <Toaster /> 
+          </Providers>
+        </ThemeProvider>
+        
         <Analytics />
       </body>
     </html>
