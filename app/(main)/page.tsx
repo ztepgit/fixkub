@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle, Loader2 } from "lucide-react"
+import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle, Loader2, Play } from "lucide-react"
 
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
 import { createDemoShopAction } from "@/actions/demo"
@@ -268,34 +268,28 @@ export default function LandingPage() {
         <section className="relative overflow-hidden bg-white pt-20 pb-24 lg:pt-32 lg:pb-40">
           <div className="container mx-auto px-4 md:px-6 text-center">
             <Badge className="mb-4 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none px-3 py-1 text-sm">
-              ✨ ระบบจัดการคิวร้านซ่อมมือถือ อันดับ 1
+              ระบบคิวร้านมือถือ อันดับ 1
             </Badge>
             <h1 className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-7xl">
-              บอกลาบิลกระดาษ <br className="hidden sm:block" />
+              บอกลาคิวกระดาษ <br className="hidden sm:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">
-                ให้ลูกค้าติดตามสถานะซ่อมได้เอง
+                มาใช้ระบบออนไลน์100%
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl">
               จบปัญหาลูกค้าทักแชทถาม "พี่ซ่อมถึงไหนแล้ว?" ด้วยระบบคิวอัจฉริยะ
               รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full mt-2">
+
+              {/* 🌟 1. ปุ่มเล่น Demo: เปลี่ยนเป็นปุ่มทึบ (เช่น สีเทาเข้ม/ดำ หรือสีที่เข้ากับแบรนด์) เพื่อให้ดูเป็น Action หลักที่เข้าถึงง่าย */}
               <Button
                 size="lg"
-                onClick={() => handleSelectPlan("free")}
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200"
-              >
-                ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
                 onClick={handlePlayDemo}
                 disabled={isDemoLoading}
-                className="w-full sm:w-auto h-14 px-8 text-slate-700 border-slate-300 hover:bg-slate-50"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200 transition-all"
+
               >
-                {/* 🌟 แก้ไข: ห่อ Text Node ด้วย <span> และจัดกลุ่มเงื่อนไขให้ React อ่านง่ายขึ้น */}
                 {isDemoLoading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -303,11 +297,22 @@ export default function LandingPage() {
                   </>
                 ) : (
                   <>
-                    <span className="mr-2">👀</span>
-                    <span>ลองเล่นระบบตัวอย่าง</span>
+                    <Play className="mr-2 h-5 w-5 fill-current" />
+                    <span>เล่นร้านตัวอย่าง</span>
                   </>
                 )}
               </Button>
+
+              {/* 🌟 2. ปุ่มทดลองใช้ฟรี: ยังคงสีเขียวไว้สำหรับคนที่พร้อมลุย แต่จัดให้อยู่ระดับสายตาเดียวกัน */}
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => handleSelectPlan("free")}
+                className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-lg h-14 px-8 shadow-sm transition-all"
+              >
+                ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
           </div>
@@ -423,7 +428,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 md:px-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Wrench className="h-6 w-6 text-emerald-500" />
-            <span className="text-2xl font-bold text-white">ESYQ <span className="text-emerald-500">Repair</span></span>
+            <span className="text-2xl font-bold text-white">ESYQ<span className="text-emerald-500">Repair</span></span>
           </div>
           <p className="mb-6">ระบบจัดการร้านซ่อมมือถือ ที่เข้าใจคุณที่สุด</p>
           <p className="text-sm">© 2026 ESYQ. All rights reserved.</p>
