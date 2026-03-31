@@ -352,7 +352,7 @@ export default function LandingPage() {
                     <Smartphone className="h-6 w-6" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2">กระดานจัดการคิว (Kanban)</h3>
-                  <p className="text-slate-600">ช่างเห็นภาพรวมทั้งหมดว่าเครื่องไหนรอแกะ เครื่องไหนรออะไหล่ เปลี่ยนสถานะง่ายๆ แค่คลิกเดียว</p>
+                  <p className="text-slate-600">ช่างเห็นภาพรวมทั้งหมด ตั้งแต่คิวใหม่ กำลังซ่อม ไปจนถึงรอเก็บเงิน เปลี่ยนสถานะง่ายๆ แค่คลิกเดียว</p>
                 </CardContent>
               </Card>
             </div>
