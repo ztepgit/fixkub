@@ -24,12 +24,11 @@ export async function checkAndEnforceShopStatus(shopId: string) {
     if (!shop) return { status: "NOT_FOUND" }
 
     // 🌟 1. ดึงวันที่สิ้นสุดที่แท้จริงออกมา (ให้ความสำคัญกับ expiresAt ก่อน ถ้าเป็น Null ค่อยดู trialEndsAt)
-    // การเขียนแบบนี้แก้ปัญหาการไปแก้ DB ด้วยมือแล้วระบบไม่อัปเดตได้ดีเยี่ยมครับ
     const effectiveExpiryDate = shop.expiresAt || shop.trialEndsAt;
 
-    // 🌟 2. ถ้าร้านไม่มีวันหมดอายุ (เช่น เปิดร้านมารอจ่ายเงิน หรือแพ็กตลอดชีพ) หรือยังไม่ถึงวันหมดอายุ
+    // 🌟 2. ถ้าร้านไม่มีวันหมดอายุ หรือยังไม่ถึงวันหมดอายุ
     if (!effectiveExpiryDate || !isPast(effectiveExpiryDate)) {
-      // ถ้าเคยหมดอายุ แล้วแอดมินหรือระบบต่อเวลาให้ แต่สถานะยังค้างอยู่ ให้ดึงกลับมา ACTIVE
+      // ถ้าเคยหมดอายุ แต่แอดมินหรือระบบต่อเวลาให้ ให้ดึงกลับมา ACTIVE
       if (shop.planStatus === "EXPIRED") {
         await db.shop.update({
           where: { id: shopId },
@@ -47,11 +46,16 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
     // 3. อัปเดตเป็น PENDING_DELETION หากเลยกำหนด Grace Period (30 วัน)
     if (daysLeftToPurge === 0) {
-      await db.shop.update({
-        where: { id: shopId },
-        // @ts-ignore - ป้องกัน Type error หาก PENDING_DELETION ยังไม่มีใน Prisma Schema
-        data: { planStatus: "PENDING_DELETION" }
-      })
+      // ถ้ายังไม่เป็น PENDING_DELETION ค่อยอัปเดต (เพื่อไม่ให้ยิง DB ซ้ำซ้อน)
+      // ใช้ @ts-ignore เฉพาะตรงนี้เผื่อ PENDING_DELETION ยังไม่มีใน Schema
+      // @ts-ignore
+      if (shop.planStatus !== "PENDING_DELETION") {
+        await db.shop.update({
+          where: { id: shopId },
+          // @ts-ignore
+          data: { planStatus: "PENDING_DELETION" }
+        })
+      }
 
       return { 
         status: "PENDING_DELETION", 
@@ -61,6 +65,7 @@ export async function checkAndEnforceShopStatus(shopId: string) {
     }
 
     // 4. อัปเดตสถานะแพ็กเกจเป็น EXPIRED ทันทีใน Database
+    // 🌟 เปลี่ยนมาเช็คว่าเป็น ACTIVE ค่อยเปลี่ยน ดีกว่าเช็คว่า "ไม่เท่ากับ EXPIRED" ครับ
     if (shop.planStatus === "ACTIVE") {
       await db.shop.update({
         where: { id: shopId },

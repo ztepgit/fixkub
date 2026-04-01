@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation" 
+import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { QueueBoard } from "@/components/queue-board"
 import { DashboardOverview } from "@/components/dashboard-overview"
@@ -13,7 +13,7 @@ import { useJobSync } from "@/hooks/useJobSync"
 import { LayoutDashboard, ClipboardList, BarChart3, Settings, Loader2 } from "lucide-react"
 
 import { DashboardHeader } from "@/components/dashboard-header"
-import { SubscriptionBanner } from "@/components/subscription-banner" 
+import { SubscriptionBanner } from "@/components/subscription-banner"
 import { checkAndEnforceShopStatus } from "@/actions/shop-status"
 
 import { supabase } from "@/lib/supabase"
@@ -75,11 +75,15 @@ export default function MainPage() {
         }
 
         // 🌟 ตรวจสอบแบบเด็ดขาด: ถ้าสถานะที่ได้กลับมาคือหมดอายุ ให้เด้ง Paywall ทันที!
-        if (res.status === "EXPIRED" || res.status === "PENDING_DELETION") {
+        if (
+          res.status === "EXPIRED" ||
+          res.status === "PENDING_DELETION" ||
+          res.status === "ERROR"
+        ) {
           router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
-          return // หยุดการทำงานตรงนี้ ไม่ต้องให้มันเรนเดอร์หน้า Dashboard ต่อ
-        } 
-        
+          return
+        }
+
         // ถ้าร้านยังเป็น ACTIVE ให้ปิดหน้าโหลด และเข้าสู่ Dashboard ปกติ
         setIsChecking(false)
 
@@ -111,7 +115,7 @@ export default function MainPage() {
 
         {expiresAt && (
           <div className="px-4 md:px-6 pt-4 pb-0">
-            <SubscriptionBanner 
+            <SubscriptionBanner
               trialEndsAt={expiresAt}
               isDemo={shop?.isDemo ?? false}
             />
@@ -122,30 +126,30 @@ export default function MainPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
             <TabsList className="mb-4 bg-slate-100/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex-wrap h-auto p-1">
-              
-              <TabsTrigger 
-                value="dashboard" 
+
+              <TabsTrigger
+                value="dashboard"
                 className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
               >
                 <LayoutDashboard className="w-4 h-4" /> ภาพรวม
               </TabsTrigger>
 
-              <TabsTrigger 
-                value="queue" 
+              <TabsTrigger
+                value="queue"
                 className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
               >
                 <ClipboardList className="w-4 h-4" /> กระดานคิว
               </TabsTrigger>
 
-              <TabsTrigger 
-                value="report" 
+              <TabsTrigger
+                value="report"
                 className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
               >
                 <BarChart3 className="w-4 h-4" /> รายงานสถิติ
               </TabsTrigger>
 
-              <TabsTrigger 
-                value="settings" 
+              <TabsTrigger
+                value="settings"
                 className="flex-1 md:flex-none flex items-center gap-2 dark:data-[state=active]:bg-slate-800 dark:text-slate-400 dark:data-[state=active]:text-slate-100"
               >
                 <Settings className="w-4 h-4" /> ตั้งค่าร้านค้า
