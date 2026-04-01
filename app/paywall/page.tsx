@@ -56,8 +56,8 @@ export default function PaywallPage() {
           return
         }
 
-        // ดึงวันคงเหลือจริงๆ จาก Database (ถ้าไม่มีให้เผื่อไว้ที่ 30)
-        const actualDaysLeft = res.daysLeftToPurge !== undefined ? res.daysLeftToPurge : 30
+        // 🌟 แก้ไขจุดที่เกิด Error: ตรวจสอบว่าเป็น type number จริงๆ ก่อนใช้ ถ้าไม่ใช่ (เป็น null/undefined) ให้ใช้ 30
+        const actualDaysLeft = typeof res.daysLeftToPurge === 'number' ? res.daysLeftToPurge : 30
         const safeDaysLeft = Math.max(0, actualDaysLeft) // ป้องกันค่าติดลบ
         
         setDaysLeft(safeDaysLeft)

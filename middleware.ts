@@ -1,4 +1,3 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
@@ -12,7 +11,6 @@ export const config = {
   ],
 };
 
-// 🌟 ต้องเปลี่ยนเป็น async function เพื่อให้รองรับ await supabase.auth.getUser()
 export default async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const hostname = request.headers.get("host") || "";
@@ -74,8 +72,13 @@ export default async function middleware(request: NextRequest) {
   // ==========================================
   // 🛡️ ส่วนที่ 3: ระบบป้องกันหน้าเว็บ (Route Protection)
   // ==========================================
-  // ระบุ Path ที่บังคับว่า "ต้องล็อกอิน" ถึงจะเข้าได้
-  const isProtectedRoute = url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/super-admin');
+  
+  // 🌟 เพิ่ม /paywall และ /checkout เข้าไปในหน้าสำคัญที่ต้อง Login ก่อน
+  const isProtectedRoute = 
+    url.pathname.startsWith('/dashboard') || 
+    url.pathname.startsWith('/super-admin') ||
+    url.pathname.startsWith('/paywall') ||
+    url.pathname.startsWith('/checkout');
 
   if (!user && isProtectedRoute) {
     // ถ้ายังไม่ได้ Login ให้เตะกลับไปหน้า /login
@@ -83,10 +86,11 @@ export default async function middleware(request: NextRequest) {
   }
 
   if (user && url.pathname.startsWith('/login')) {
-    // ถ้า Login แล้ว แต่เผลอกดมาหน้า /login ให้เตะเข้า /dashboard ทันที
+    // 🌟 ถ้า Login แล้ว แต่เผลอกดมาหน้า /login เราเตะไปหน้า /dashboard 
+    // แล้วปล่อยให้หน้า Dashboard ไปเช็คสถานะ Paywall ด้วยตัวเอง (เหมือนเดิม)
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // คืนค่า Response สุดท้าย (ที่มีการตั้งค่าทั้ง Subdomain Rewrite และ Auth Cookie ครบถ้วนแล้ว)
+  // คืนค่า Response สุดท้าย
   return response;
 }
