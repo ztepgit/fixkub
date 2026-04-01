@@ -430,7 +430,7 @@ export default function LandingPage() {
             <Wrench className="h-6 w-6 text-emerald-500" />
             <span className="text-2xl font-bold text-white">ESYQ <span className="text-emerald-500">Repair</span></span>
           </div>
-          <p className="mb-6">แก้ปัญหาหน้าร้าน</p>
+          {/* <p className="mb-6">แก้ปัญหาหน้าร้าน</p> */}
           <p className="text-sm">© 2026 ESYQ Systems. All rights reserved.</p>
         </div>
       </footer>
