@@ -315,6 +315,7 @@ export default function LandingPage() {
 
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
+            <p className="mt-4 text-sm text-slate-500">💡 โปรโมชั่น: ชำระเงินวันนี้ (ไม่ทดลองใช้ฟรี 14 วัน) แถมฟรี 30 วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูรายละเอียด!</Link></p>
           </div>
         </section>
 
@@ -363,7 +364,7 @@ export default function LandingPage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">ราคาคุ้มค่า คืนทุนตั้งแต่บิลแรก</h2>
-              <p className="mt-4 text-lg text-slate-600">ไม่มีเก็บเปอร์เซ็นต์ (GP) จ่ายราคาเดียวจบ</p>
+              <p className="mt-4 text-lg text-slate-600">แถมฟรี 30วัน สำหรับผู้ใช้ใหม่ (ระบบตรวจสอบอัตโนมัติ)</p>
             </div>
 
             <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
