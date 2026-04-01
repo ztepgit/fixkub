@@ -314,7 +314,7 @@ export default function LandingPage() {
 
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
-            <p className="mt-4 text-sm text-slate-500">🧧 โปรโมชั่น: ชำระเงินวันนี้ (ไม่ทดลองใช้ฟรี 14วัน) แถมฟรี 30วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูรายละเอียด!</Link></p>
+            <p className="mt-4 text-sm text-slate-500">🧧 โปรโมชั่น: สมัครวันนี้ (ไม่ทดลองใช้ฟรี 14วัน) แถมฟรี 30วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูเลย!</Link></p>
           </div>
         </section>
 
