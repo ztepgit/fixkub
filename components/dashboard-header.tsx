@@ -167,7 +167,7 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                     {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'แชร์ให้ลูกค้าสแกน'}
                   </DialogTitle>
                   <DialogDescription className={isQrHidden ? 'text-slate-400 dark:text-slate-400' : 'text-blue-600/70 dark:text-blue-400/70'}>
-                    ให้ลูกค้าสแกนเพื่อเข้าฟอร์มแจ้งซ่อมออนไลน์
+                    แจ้งซ่อมออนไลน์
                   </DialogDescription>
                 </div>
                 

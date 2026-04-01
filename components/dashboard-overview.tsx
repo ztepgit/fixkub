@@ -255,7 +255,7 @@ export function DashboardOverview() {
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
             <CardHeader>
               <CardTitle className="dark:text-slate-100">รายการอัปเดตล่าสุด</CardTitle>
-              <CardDescription className="dark:text-slate-400">คิวซ่อมล่าสุดจากระบบ Store (ซิงค์แบบ Hybrid)</CardDescription>
+              <CardDescription className="dark:text-slate-400">งานที่เคลื่อนไหวในระบบ</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[420px] pr-4">

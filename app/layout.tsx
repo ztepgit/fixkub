@@ -22,7 +22,7 @@ const notoThai = Noto_Sans_Thai({
 })
 
 export const metadata: Metadata = {
-  title: 'esyQ - Queue Management Dashboard',
+  title: 'esyq - ระบบคิวออนไลน์',
   description: 'Simple queue management for local shops',
   generator: 'v0.app',
   icons: {

@@ -312,8 +312,8 @@ export function QueueBoard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 shrink-0">
           <div>
             {/* 🌟 ปรับสี Title และ Subtitle */}
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">กระดานคิวงานซ่อม</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">อัปเดตสถานะงานซ่อมได้ง่ายๆ (Hybrid Sync)</p>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">กระดานคิว</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">อัปเดตสถานะได้ง่ายๆ</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
 
@@ -449,7 +449,7 @@ export function QueueBoard() {
                     <Trash2 className="h-5 w-5" /> ถังขยะ (งานที่ถูกยกเลิก)
                   </SheetTitle>
                   <SheetDescription className="dark:text-slate-400">
-                    งานในถังขยะจะถูกลบถาวรอัตโนมัติเมื่อครบ 30 วัน
+                    งานในถังขยะจะถูกลบอัตโนมัติใน 30 วัน
                   </SheetDescription>
                 </SheetHeader>
 
