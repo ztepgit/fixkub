@@ -20,7 +20,6 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle, Loader2, Play } from "lucide-react"
-
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
 import { createDemoShopAction } from "@/actions/demo"
 import { useShopStore } from "@/store/useShopStore"
@@ -310,12 +309,12 @@ export default function LandingPage() {
                 onClick={() => handleSelectPlan("free")}
                 className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-lg h-14 px-8 shadow-sm transition-all"
               >
-                ทดลองใช้ฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" />
+                ทดลองใช้ฟรี 14วัน <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
 
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
-            <p className="mt-4 text-sm text-slate-500">💡 โปรโมชั่น: ชำระเงินวันนี้ (ไม่ทดลองใช้ฟรี 14 วัน) แถมฟรี 30 วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูรายละเอียด!</Link></p>
+            <p className="mt-4 text-sm text-slate-500">🧧 โปรโมชั่น: ชำระเงินวันนี้ (ไม่ทดลองใช้ฟรี 14วัน) แถมฟรี 30วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูรายละเอียด!</Link></p>
           </div>
         </section>
 
