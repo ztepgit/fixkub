@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
 import { addDays } from "date-fns"
 import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 1. เพิ่ม import ด่านตรวจ
+import { isAfter } from "date-fns"
 
 // ==========================================
 // 🌟 Schemas สำหรับ Validate และ Trim ข้อมูล

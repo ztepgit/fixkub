@@ -6,7 +6,7 @@ import { verifyShopAccess } from "@/lib/auth-guard"
 
 export async function checkAndEnforceShopStatus(shopId: string) {
   try {
-    // ด่านตรวจ: ตรวจสอบสิทธิ์ก่อนว่าผู้ใช้ที่กำลังเรียก API นี้ เป็นเจ้าของร้านจริงๆ
+    // 🌟 ด่านตรวจ: ป้องกันคนอื่นมาแอบเช็ค
     await verifyShopAccess(shopId)
 
     const shop = await db.shop.findUnique({
@@ -16,48 +16,46 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
     if (!shop) return { status: "NOT_FOUND" }
 
-    // ถ้าร้านไม่มีวันหมดอายุ (เช่น LIFETIME) หรือยังไม่ถึงวันหมดอายุ
+    // 🌟 ถ้าร้านไม่มีวันหมดอายุ (เช่น LIFETIME) หรือยังไม่ถึงวันหมดอายุ
     if (!shop.expiresAt || !isPast(shop.expiresAt)) {
-      // 🌟 เสริม: ถ้าก่อนหน้านี้ร้านเคยหมดอายุ (EXPIRED) แล้วลูกค้าเติมเงินกลับมา 
-      // แต่ระบบยังจำค่าเก่าอยู่ ให้ดึงกลับมาเป็น ACTIVE ให้ถูกต้อง
+      // ถ้าเคยหมดอายุ แล้วแอดมินหรือระบบต่อเวลาให้ แต่สถานะยังค้างอยู่ ให้ดึงกลับมา ACTIVE
       if (shop.planStatus === "EXPIRED") {
         await db.shop.update({
           where: { id: shopId },
           data: { planStatus: "ACTIVE" }
         })
       }
-      return { status: "ACTIVE", expiresAt: shop.expiresAt } 
+      return { status: "ACTIVE", expiresAt: shop.expiresAt, daysLeftToPurge: null } 
     }
 
     // ==========================================
-    // 🚨 เข้าเงื่อนไขนี้ แปลว่า "แพ็กเกจหมดอายุแล้ว"
+    // 🚨 เข้าเงื่อนไขนี้ แปลว่า "แพ็กเกจหมดอายุแล้ว (isPast = true)"
     // ==========================================
     const daysExpired = differenceInDays(new Date(), shop.expiresAt)
-    const daysLeftToPurge = 30 - daysExpired
+    const daysLeftToPurge = Math.max(0, 30 - daysExpired) // คำนวณไม่ให้ติดลบ
 
-    // 1. อัปเดตสถานะแพ็กเกจเป็น EXPIRED 
-    // 🌟 สำคัญ: เราไม่แตะ isActive: false แล้ว เพื่อให้ลูกค้ายังล็อกอินเข้ามาเจอหน้า Paywall ได้
+    // 1. อัปเดตสถานะแพ็กเกจเป็น EXPIRED ทันทีใน Database
     if (shop.planStatus === "ACTIVE") {
       await db.shop.update({
         where: { id: shopId },
-        data: { 
-          planStatus: "EXPIRED", 
-          // isActive ไม่ต้องเปลี่ยน ปล่อยให้ล็อกอินได้
-        }
+        data: { planStatus: "EXPIRED" } // ไม่แตะ isActive ปล่อยให้ล็อกอินได้
       })
     }
 
-    // 2. เช็คว่าหมด Grace Period (30 วัน) หรือยัง
-    if (daysLeftToPurge <= 0) {
-      // ถ้าหมดแล้ว ปล่อยให้เป็นหน้าที่ของ CRON Job จัดการลบข้อมูล 
-      // แต่ในฝั่ง Frontend ส่งสถานะไปบอกว่าร้านนี้กำลังจะปลิว (ไม่ให้ทำอะไรแล้ว)
-      return { status: "PENDING_DELETION" }
+    // 2. เช็คว่าเลย Grace Period (30 วัน) หรือยัง
+    if (daysLeftToPurge === 0) {
+      return { 
+        status: "PENDING_DELETION", 
+        expiresAt: shop.expiresAt, 
+        daysLeftToPurge: 0 
+      }
     }
 
-    // 3. ส่งข้อมูลไปให้หน้า Frontend เด้งไปหน้า Paywall
+    // 3. ส่งข้อมูลยืนยันว่า EXPIRED กลับไปให้ Frontend จัดการเด้งหน้า Paywall
     return { 
       status: "EXPIRED", 
-      daysLeftToPurge, // ส่งจำนวนวันที่เหลือไปขู่ลูกค้าในหน้า Paywall
+      expiresAt: shop.expiresAt, 
+      daysLeftToPurge 
     }
 
   } catch (error) {

@@ -66,16 +66,22 @@ export default function MainPage() {
         const realShopId = currentShop.id
         setShopId(realShopId)
 
+        // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time)
         const res = await checkAndEnforceShopStatus(realShopId)
 
+        // 🌟 เก็บค่าวันหมดอายุไว้เสมอ
+        if (res.expiresAt) {
+          setExpiresAt(res.expiresAt)
+        }
+
+        // 🌟 ตรวจสอบแบบเด็ดขาด: ถ้าสถานะที่ได้กลับมาคือหมดอายุ ให้เด้ง Paywall ทันที!
         if (res.status === "EXPIRED" || res.status === "PENDING_DELETION") {
           router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
-        } else {
-          setIsChecking(false)
-          if (res.expiresAt) {
-            setExpiresAt(res.expiresAt)
-          }
-        }
+          return // หยุดการทำงานตรงนี้ ไม่ต้องให้มันเรนเดอร์หน้า Dashboard ต่อ
+        } 
+        
+        // ถ้าร้านยังเป็น ACTIVE ให้ปิดหน้าโหลด และเข้าสู่ Dashboard ปกติ
+        setIsChecking(false)
 
       } catch (error) {
         console.error("Error checking shop status:", error)
@@ -88,7 +94,6 @@ export default function MainPage() {
 
   if (isChecking || !shopId) {
     return (
-      // 🌟 1. ปรับหน้า Loading ให้เป็นสีมืดเมื่อเปิด Dark Mode
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
         <Loader2 className="h-10 w-10 text-emerald-600 dark:text-emerald-500 animate-spin mb-4" />
         <p className="text-slate-500 dark:text-slate-400 font-medium">กำลังโหลดข้อมูลร้านค้าของท่าน...</p>
@@ -100,7 +105,6 @@ export default function MainPage() {
     <SidebarProvider>
       <JobSyncManager shopId={shopId} />
 
-      {/* 🌟 2. ปรับพื้นหลังหลักของ Dashboard ให้เป็นสีมืด */}
       <div className="min-h-screen flex flex-col w-full bg-slate-50/30 dark:bg-slate-950">
 
         <DashboardHeader currentTabName={tabNames[activeTab]} />
@@ -117,7 +121,6 @@ export default function MainPage() {
         <main className="p-4 md:p-6 space-y-4 flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
-            {/* 🌟 3. ปรับสีกล่อง Tabs และสีขอบ ให้แยกชัดเจนใน Dark Mode */}
             <TabsList className="mb-4 bg-slate-100/50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex-wrap h-auto p-1">
               
               <TabsTrigger 
