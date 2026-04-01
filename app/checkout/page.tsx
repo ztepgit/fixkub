@@ -65,7 +65,7 @@ function CheckoutForm() {
   useEffect(() => {
     if (!shopId) {
       toast({ title: "ไม่พบข้อมูลร้านค้า", description: "กรุณาทำรายการตามขั้นตอน", variant: "destructive" })
-      router.push("/payment")
+      router.push("/pricing")
     }
   }, [shopId, router, toast])
 
@@ -421,7 +421,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-slate-50/50 py-10 px-4">
       <div className="container mx-auto max-w-5xl mb-8">
-        <Link href="/payment">
+        <Link href="/pricing">
           <Button variant="ghost" className="text-slate-500 hover:text-slate-800 -ml-4 font-bold">
             <ArrowLeft className="h-4 w-4 mr-2" /> ยกเลิกและกลับไปเลือกแพ็กเกจ
           </Button>
