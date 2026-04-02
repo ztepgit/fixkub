@@ -141,30 +141,24 @@ export default function LandingPage() {
     setShowShopSelectPopup(false)
   }
 
-  // 🌟 ฟังก์ชันเข้า Dashboard ที่ปรับปรุงใหม่
+// 🌟 ฟังก์ชันเข้า Dashboard ที่ปรับปรุงใหม่ (รองรับ STAFF หลายสาขา)
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
 
     const res = await getUserShops(userEmail);
 
     if (res.success && res.shops && res.shops.length > 0) {
-
-      // 1. ตรวจสอบ STAFF (พนักงานห้ามย้ายร้าน และไม่ให้เห็น Modal เด็ดขาด)
-      // ใช้ find() เพื่อดึงร้านแรกที่เขาเป็น STAFF (กรณีมีหลายร้าน จะยึดร้านแรก)
-      const staffShop = res.shops.find(s => s.role === "STAFF");
-      if (staffShop) {
-        updateShop(staffShop);
-        router.push('/dashboard');
-        return; // จบการทำงาน ไม่ต้องโชว์ Modal
-      }
-
-      // 2. ถ้าหลุดลงมาถึงตรงนี้ แปลว่าเป็น OWNER ล้วนๆ
+      
+      // 🌟 1. ถ้าร้านค้าในระบบมีมากกว่า 1 ร้าน ให้โชว์ Modal ให้เลือกสาขาเสมอ!
+      // ไม่ว่าจะเป็น OWNER หรือ STAFF ก็ตาม
       if (res.shops.length > 1) {
         setShopSelectAction("dashboard");
-        setUserShops(res.shops);
+        setUserShops(res.shops); // 🌟 ดึงมาทุกร้านที่เขาเกี่ยวข้อง ไม่ต้อง filter
         setSelectedShopId(res.shops[0].id);
         setShowShopSelectPopup(true);
-      } else {
+      } 
+      // 🌟 2. ถ้ามีร้านเดียวในระบบ ให้พาพุ่งเข้าไปที่ Dashboard ของร้านนั้นเลย
+      else {
         updateShop(res.shops[0]);
         router.push('/dashboard');
       }
@@ -478,18 +472,25 @@ export default function LandingPage() {
                   <RadioGroupItem value={shop.id} id={shop.id} className="peer sr-only" />
                   <Label
                     htmlFor={shop.id}
-                    className="flex items-center p-4 border-2 rounded-xl cursor-pointer peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 hover:bg-slate-50 transition-all"
+                    className="flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50 hover:bg-slate-50 transition-all"
                   >
-                    <Store className="h-5 w-5 text-slate-500 mr-3 peer-data-[state=checked]:text-emerald-600" />
-                    <div className="flex-1">
-                      <p className="font-bold text-slate-900 text-base">{shop.name}</p>
-                      <p className="text-xs text-slate-500">URL: {shop.slug}.esyq.net</p>
+                    <div className="flex items-center">
+                      <Store className="h-5 w-5 text-slate-500 mr-3 peer-data-[state=checked]:text-emerald-600" />
+                      <div>
+                        <p className="font-bold text-slate-900 text-base">{shop.name}</p>
+                        <p className="text-xs text-slate-500">URL: {shop.slug}.esyq.net</p>
+                      </div>
                     </div>
+                    {/* 🌟 แสดง Badge ให้เห็นชัดเจนว่าเป็น STAFF หรือ OWNER ของสาขานี้ */}
+                    <Badge variant="outline" className={shop.role === "OWNER" ? "border-amber-200 text-amber-700 bg-amber-50" : "border-blue-200 text-blue-700 bg-blue-50"}>
+                      {shop.role}
+                    </Badge>
                   </Label>
                 </div>
               ))}
 
-              {shopSelectAction === "dashboard" && userShops.every(s => s.role !== "STAFF") && (
+              {/* 🌟 อนุญาตให้โชว์ปุ่มสร้างร้านใหม่ ถ้าไม่ได้เป็นพนักงานล้วน 100% */}
+              {shopSelectAction === "dashboard" && userShops.some(s => s.role === "OWNER") && (
                 <div>
                   <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
                   <Label
