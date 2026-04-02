@@ -32,22 +32,27 @@ const createQueueSchema = z.object({
 // ดึง Type ออกมาจาก Zod Schema ไปใช้เป็น Input
 export type CreateQueueInput = z.input<typeof createQueueSchema>;
 
+// ==========================================
+// 🌟 สร้างคิวใหม่ (เปิดให้ลูกค้าแจ้งซ่อมได้โดยไม่ต้อง Login)
+// ==========================================
 export async function createQueue(input: CreateQueueInput) {
   try {
     // 🛡️ ด่านที่ 1: ตรวจสอบและล้างข้อมูลด้วย Zod
     const safeData = createQueueSchema.parse(input);
 
-    // 🛡️ ด่านที่ 2: ตรวจสอบสิทธิ์ (Auth Guard) ป้องกันการสร้างคิวให้ร้านอื่น
-    await verifyShopAccess(safeData.shopId);
-
-    // ตรวจสอบว่า Shop มีอยู่จริงไหม 
+    // 🚨 สำคัญ: ลบ verifyShopAccess ออก เพราะลูกค้าไม่ได้ Login
+    // 🛡️ ด่านที่ 2: ตรวจสอบว่า Shop มีอยู่จริงและเปิดรับงานหรือไม่ (Public Check)
     const shop = await db.shop.findUnique({
       where: { id: safeData.shopId },
-      select: { id: true }
+      select: { id: true, isActive: true, planStatus: true }
     });
 
     if (!shop) {
       return { success: false, error: "ไม่พบข้อมูลร้านค้านี้ในระบบ" };
+    }
+
+    if (!shop.isActive || shop.planStatus !== "ACTIVE") {
+      return { success: false, error: "ขออภัย ร้านค้างดรับงานซ่อมชั่วคราว" };
     }
 
     // 🌟 สร้างรหัสคิวซ่อมแบบสุ่ม 4 หลัก (เช่น Q-8F2A)
@@ -88,14 +93,13 @@ export async function createQueue(input: CreateQueueInput) {
 
     return {
       success: false,
-      // ส่ง error.message ออกไปเผื่อเป็น Error จาก verifyShopAccess
-      error: error.message || "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง"
+      error: "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง"
     };
   }
 }
 
 // ==========================================
-// ฟังก์ชันดึงข้อมูลคิวทั้งหมดของร้าน
+// ฟังก์ชันดึงข้อมูลคิวทั้งหมดของร้าน (ต้อง Login)
 // ==========================================
 export async function getQueues(shopId: string) {
   try {
@@ -115,7 +119,7 @@ export async function getQueues(shopId: string) {
 }
 
 // ==========================================
-// 🌟 อัปเดตสถานะคิวซ่อม
+// 🌟 อัปเดตสถานะคิวซ่อม (ต้อง Login)
 // ==========================================
 export async function updateQueueStatus(id: string, status: string, additionalData?: any) {
   try {
@@ -174,7 +178,7 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
 }
 
 // ==========================================
-// 🌟 ดึงข้อมูลคิวสำหรับหน้าเช็คสถานะของลูกค้า
+// 🌟 ดึงข้อมูลคิวสำหรับหน้าเช็คสถานะของลูกค้า 
 // 🚨 หมายเหตุ: ฟังก์ชันนี้สำหรับ PUBLIC (ลูกค้า) จึงไม่มี verifyShopAccess
 // ==========================================
 export async function getCustomerQueues(shopId: string, searchKey: string) {
@@ -192,6 +196,7 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
         ]
       },
       orderBy: { createdAt: 'desc' },
+      take: 10 // เพื่อความปลอดภัย จำกัดการดึงข้อมูลหน้าบ้านไม่ให้มากเกินไป
     });
 
     return { success: true, data: queues };
@@ -202,7 +207,7 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
 }
 
 // ==========================================
-// 🌟 ดึงงาน Top 50 สำหรับ Dashboard
+// 🌟 ดึงงาน Top 50 สำหรับ Dashboard (ต้อง Login)
 // ==========================================
 export async function getTop50Jobs(shopId: string) {
   try {
@@ -254,7 +259,7 @@ export async function getTop50Jobs(shopId: string) {
 }
 
 // ==========================================
-// 🌟 ค้นหา / ดูประวัติ (รองรับ Pagination)
+// 🌟 ค้นหา / ดูประวัติ (รองรับ Pagination) (ต้อง Login)
 // ==========================================
 export async function searchJobHistory(shopId: string, query: string, page = 1, limit = 20) {
   try {
