@@ -11,30 +11,32 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label" 
+import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 
 // 🌟 Import ไอคอน
-import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save, CheckCircle2, XCircle, Image as ImageIcon, UploadCloud, Link as LinkIcon, Trash2, GripVertical,Badge } from "lucide-react"
+import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save, CheckCircle2, XCircle, Image as ImageIcon, UploadCloud, Link as LinkIcon, Trash2, GripVertical, Badge } from "lucide-react"
 
-// 🌟 Import ฟังก์ชัน (สมมติว่ามี Action สำหรับ Carousel)
+// 🌟 Import ฟังก์ชัน
 import { createShopAction, checkSlugAvailability } from "@/actions/super-admin"
 import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 import { updatePaymentSettings, getSystemSettings } from "@/actions/setting"
 
-// 🌟 Mock Type สำหรับ Carousel (รอคุณอัปเดต Prisma)
+// 🌟 Import Server Actions สำหรับ Carousel
+import { getCarouselItems, createCarouselItem, updateCarouselItem, deleteCarouselItem, reorderCarouselItems } from "@/actions/carousel"
+
 type CarouselItem = {
   id: string;
   imageUrl: string;
-  title?: string;
-  link?: string;
+  title: string | null;
+  link: string | null;
   isActive: boolean;
   order: number;
 }
 
 export default function SuperAdminCreateShopPage() {
   const { toast } = useToast()
-  
+
   // ==========================================
   // 🏪 State: Create Shop
   // ==========================================
@@ -64,7 +66,7 @@ export default function SuperAdminCreateShopPage() {
 
   useEffect(() => {
     if (watchName && !form.formState.dirtyFields.slug) {
-      const generatedSlug = watchName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')     
+      const generatedSlug = watchName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       form.setValue("slug", generatedSlug, { shouldValidate: true })
     }
   }, [watchName, form])
@@ -80,7 +82,7 @@ export default function SuperAdminCreateShopPage() {
     setSlugStatus("idle")
 
     const res = await checkSlugAvailability(currentSlug)
-    
+
     if (res.success) {
       if (res.available) {
         setSlugStatus("available")
@@ -99,11 +101,11 @@ export default function SuperAdminCreateShopPage() {
   const onSubmitShop = async (values: CreateShopInput) => {
     setIsSubmittingShop(true)
     const res = await createShopAction(values)
-    
+
     if (res.success) {
       toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: `เพิ่มร้าน ${values.name} เข้าระบบเรียบร้อยแล้ว` })
-      form.reset() 
-      setSlugStatus("idle") 
+      form.reset()
+      setSlugStatus("idle")
     } else {
       if (res.error?.includes("URL") || res.error?.includes("Slug")) {
         form.setError("slug", { type: "manual", message: res.error })
@@ -114,7 +116,6 @@ export default function SuperAdminCreateShopPage() {
     }
     setIsSubmittingShop(false)
   }
-
 
   // ==========================================
   // 💳 State: Payment Settings
@@ -137,35 +138,51 @@ export default function SuperAdminCreateShopPage() {
   const handleSavePayment = async () => {
     setIsSavingPayment(true)
 
-    const cleanPromptpay = promptpayId.replace(/[-\s]/g, "") 
+    const cleanPromptpay = promptpayId.replace(/[-\s]/g, "")
     const cleanAccountName = accountName.trim()
 
     setPromptpayId(cleanPromptpay)
     setAccountName(cleanAccountName)
 
     const res = await updatePaymentSettings(cleanPromptpay, cleanAccountName)
-    
+
     if (res.success) {
       toast({ title: "✅ บันทึกสำเร็จ", description: "อัปเดตข้อมูลบัญชีรับเงินเรียบร้อยแล้ว" })
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
     }
-    
+
     setIsSavingPayment(false)
   }
 
   // ==========================================
-  // 🖼️ State: Carousel Management (ใหม่)
+  // 🖼️ State: Carousel Management
   // ==========================================
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploadingCarousel, setIsUploadingCarousel] = useState(false)
+  const [isSavingCarousel, setIsSavingCarousel] = useState(false)
   
-  // 🌟 Mock ข้อมูลเริ่มต้น (เดี๋ยวเปลี่ยนเป็น fetch จาก DB จริงๆ)
-  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([
-    { id: "1", imageUrl: "/placeholder-carousel-1.jpg", title: "ฉลองเปิดตัว ESYQ!", link: "#pricing", isActive: true, order: 1 },
-    { id: "2", imageUrl: "/placeholder-carousel-2.jpg", title: "แจกฟรี 30 วัน", link: "", isActive: false, order: 2 },
-  ])
+  // 🌟 ใช้ State เก็บรูปของจริงจาก DB
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([])
+  const [isLoadingCarousel, setIsLoadingCarousel] = useState(true)
 
+  // 🌟 ดึงข้อมูล Carousel เมื่อโหลดหน้าเว็บ
+  const fetchCarousel = async () => {
+    setIsLoadingCarousel(true)
+    const res = await getCarouselItems()
+    if (res.success && res.data) {
+      setCarouselItems(res.data)
+    } else {
+      toast({ title: "โหลดข้อมูลแบนเนอร์ล้มเหลว", variant: "destructive" })
+    }
+    setIsLoadingCarousel(false)
+  }
+
+  useEffect(() => {
+    fetchCarousel()
+  }, [])
+
+  // 🌟 จัดการอัปโหลดรูปลง Supabase และ DB
   const handleCarouselFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
@@ -173,41 +190,74 @@ export default function SuperAdminCreateShopPage() {
         toast({ title: "ไฟล์ไม่รองรับ", description: "กรุณาอัปโหลดไฟล์รูปภาพ", variant: "destructive" })
         return
       }
-      
-      // 🌟 TODO: เปลี่ยนไปเรียก Server Action อัปโหลดรูปลง Storage จริงๆ
+
       setIsUploadingCarousel(true)
       
-      // จำลองการโหลด
-      setTimeout(() => {
-        const fakeUrl = URL.createObjectURL(file)
-        const newItem: CarouselItem = {
-          id: Math.random().toString(36).substring(7),
-          imageUrl: fakeUrl,
-          title: "",
-          link: "",
-          isActive: true, // เปิดใช้งานอัตโนมัติเมื่ออัปโหลด
-          order: carouselItems.length + 1
-        }
-        setCarouselItems([...carouselItems, newItem])
-        setIsUploadingCarousel(false)
+      const formData = new FormData()
+      formData.append("image", file)
+      
+      const res = await createCarouselItem(formData)
+
+      if (res.success) {
         toast({ title: "✅ อัปโหลดสำเร็จ", description: "เพิ่มรูปลงใน Carousel แล้ว" })
-      }, 1000)
+        await fetchCarousel() // โหลดข้อมูลใหม่เพื่อโชว์รูป
+      } else {
+        toast({ title: "❌ อัปโหลดไม่สำเร็จ", description: res.error, variant: "destructive" })
+      }
+      
+      setIsUploadingCarousel(false)
+      
+      // รีเซ็ต Input เพื่อให้สามารถอัปโหลดรูปเดิมซ้ำได้ (ถ้าต้องการ)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
     }
   }
 
-  const updateCarouselItem = (id: string, updates: Partial<CarouselItem>) => {
+  // 🌟 อัปเดตข้อมูล State ในหน้าจอแบบ Real-time
+  const handleLocalUpdate = (id: string, updates: Partial<CarouselItem>) => {
     setCarouselItems(items => items.map(item => item.id === id ? { ...item, ...updates } : item))
   }
 
-  const deleteCarouselItem = (id: string) => {
+  // 🌟 ลบรูปออกจาก Storage และ DB ทันที
+  const handleDeleteCarouselItem = async (id: string, imageUrl: string) => {
+    if (!confirm("คุณต้องการลบแบนเนอร์นี้ใช่หรือไม่? (การกระทำนี้ไม่สามารถกู้คืนได้)")) return;
+
+    // อัปเดต UI ทันที
     setCarouselItems(items => items.filter(item => item.id !== id))
-    toast({ title: "🗑️ ลบรูปภาพสำเร็จ" })
+    
+    const res = await deleteCarouselItem(id, imageUrl)
+    if (res.success) {
+      toast({ title: "🗑️ ลบรูปภาพสำเร็จ" })
+    } else {
+      toast({ title: "ลบรูปภาพไม่สำเร็จ", description: res.error, variant: "destructive" })
+      await fetchCarousel() // ถ้าพัง ให้โหลดกลับมาใหม่
+    }
   }
 
-  // 🌟 ฟังก์ชันจำลองการกดบันทึก (ตอนต่อ API ค่อยแก้เป็นส่งก้อน Array ไปเซฟ)
-  const handleSaveCarousel = async () => {
-    toast({ title: "✅ บันทึกการเปลี่ยนแปลง", description: "ระบบจำลองการบันทึกข้อมูลแล้ว" })
-    console.log("Saving Carousel Data:", carouselItems)
+  // 🌟 บันทึกการเปลี่ยนแปลง (ลำดับ, ข้อความ, ลิงก์, สถานะ)
+  const handleSaveCarouselSettings = async () => {
+    setIsSavingCarousel(true)
+    
+    try {
+      // 1. ส่งคำสั่งอัปเดตข้อมูล (Title, Link, Status) ของทุกรายการ
+      for (const item of carouselItems) {
+        await updateCarouselItem(item.id, {
+          title: item.title || "",
+          link: item.link || "",
+          isActive: item.isActive
+        })
+      }
+
+      // 2. ถ้ามีการทำ UI ลากวาง (Drag & Drop) ในอนาคต ให้เพิ่มโค้ดบรรทัดนี้:
+      // await reorderCarouselItems(carouselItems.map((item, i) => ({ id: item.id, order: i + 1 })))
+
+      toast({ title: "✅ บันทึกการเปลี่ยนแปลงสำเร็จ", description: "อัปเดตข้อมูลแบนเนอร์บนหน้าเว็บไซต์แล้ว" })
+    } catch (error) {
+      toast({ title: "เกิดข้อผิดพลาดในการบันทึก", variant: "destructive" })
+    }
+    
+    setIsSavingCarousel(false)
   }
 
   return (
@@ -234,11 +284,11 @@ export default function SuperAdminCreateShopPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmitShop)} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
-                
+
                 {/* SECTION: Basic Info */}
                 <Card className="border-slate-200 shadow-sm md:col-span-2">
                   <CardHeader className="bg-slate-50/50 border-b pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2"><Store className="h-5 w-5 text-blue-600"/> ข้อมูลร้านค้า (Basic Info)</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><Store className="h-5 w-5 text-blue-600" /> ข้อมูลร้านค้า (Basic Info)</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4 md:grid-cols-2 pt-6">
                     <FormField control={form.control} name="name" render={({ field }) => (
@@ -258,10 +308,10 @@ export default function SuperAdminCreateShopPage() {
                               <span className="bg-slate-100 border border-r-0 border-slate-200 text-slate-500 px-3 h-10 rounded-l-md text-sm flex items-center whitespace-nowrap">esyq.net/shop/</span>
                               <Input className="rounded-l-none focus-visible:ring-blue-500" placeholder="a-mobile" {...field} />
                             </div>
-                            <Button 
-                              type="button" 
-                              variant="secondary" 
-                              onClick={handleCheckSlug} 
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={handleCheckSlug}
                               disabled={isCheckingSlug || !watchSlug || watchSlug.length < 3}
                               className="shrink-0"
                             >
@@ -269,15 +319,15 @@ export default function SuperAdminCreateShopPage() {
                             </Button>
                           </div>
                         </FormControl>
-                        
+
                         {slugStatus === "available" && (
                           <p className="text-sm font-medium text-emerald-600 flex items-center mt-1.5">
-                            <CheckCircle2 className="h-4 w-4 mr-1.5"/> URL นี้ว่าง สามารถใช้งานได้!
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" /> URL นี้ว่าง สามารถใช้งานได้!
                           </p>
                         )}
                         {slugStatus === "taken" && (
                           <p className="text-sm font-medium text-rose-500 flex items-center mt-1.5">
-                            <XCircle className="h-4 w-4 mr-1.5"/> ขออภัย URL นี้มีผู้ใช้งานแล้ว
+                            <XCircle className="h-4 w-4 mr-1.5" /> ขออภัย URL นี้มีผู้ใช้งานแล้ว
                           </p>
                         )}
                         <FormMessage />
@@ -308,7 +358,7 @@ export default function SuperAdminCreateShopPage() {
                 {/* SECTION: Owner */}
                 <Card className="border-slate-200 shadow-sm">
                   <CardHeader className="bg-slate-50/50 border-b pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5 text-indigo-600"/> บัญชีเจ้าของร้าน (Owner)</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5 text-indigo-600" /> บัญชีเจ้าของร้าน (Owner)</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     <FormField control={form.control} name="ownerEmail" render={({ field }) => (
@@ -325,7 +375,7 @@ export default function SuperAdminCreateShopPage() {
                 {/* SECTION: Agent */}
                 <Card className="border-slate-200 shadow-sm">
                   <CardHeader className="bg-slate-50/50 border-b pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5 text-amber-600"/> รหัสแนะนำ (Agent)</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5 text-amber-600" /> รหัสแนะนำ (Agent)</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     <FormField control={form.control} name="agentCode" render={({ field }) => (
@@ -342,10 +392,10 @@ export default function SuperAdminCreateShopPage() {
                 {/* SECTION: Plan / Billing */}
                 <Card className="border-slate-200 shadow-sm md:col-span-2">
                   <CardHeader className="bg-slate-50/50 border-b pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2"><Settings className="h-5 w-5 text-emerald-600"/> แพ็กเกจและการเปิดใช้งาน (Billing)</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><Settings className="h-5 w-5 text-emerald-600" /> แพ็กเกจและการเปิดใช้งาน (Billing)</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-6 md:grid-cols-2 pt-6">
-                    
+
                     <div className="space-y-4 border-r pr-6 border-slate-100">
                       <FormField control={form.control} name="planType" render={({ field }) => (
                         <FormItem>
@@ -374,7 +424,7 @@ export default function SuperAdminCreateShopPage() {
                               <FormLabel className={watchPlanType === 'FREE_TRIAL' ? 'text-slate-400' : 'text-slate-700'}>เปิดบิลรับเงินทันที</FormLabel>
                             </div>
                             <FormControl>
-                              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={watchPlanType === "FREE_TRIAL"} className="data-[state=checked]:bg-blue-600"/>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} disabled={watchPlanType === "FREE_TRIAL"} className="data-[state=checked]:bg-blue-600" />
                             </FormControl>
                           </FormItem>
                         )} />
@@ -422,20 +472,20 @@ export default function SuperAdminCreateShopPage() {
           <Card className="border-slate-200 shadow-sm max-w-2xl">
             <CardHeader className="bg-slate-50/50 border-b pb-4">
               <CardTitle className="text-xl flex items-center gap-2">
-                <CreditCard className="h-6 w-6 text-indigo-600"/> บัญชีรับชำระเงิน (PromptPay)
+                <CreditCard className="h-6 w-6 text-indigo-600" /> บัญชีรับชำระเงิน (PromptPay)
               </CardTitle>
               <CardDescription>
                 ตั้งค่าบัญชีพร้อมเพย์ส่วนกลางของแพลตฟอร์ม ระบบจะนำเลขนี้ไปสร้าง QR Code พร้อมยอดเงินอัตโนมัติตามแพ็กเกจ (Basic/Pro) ในหน้า Payment ให้ลูกค้าสแกนจ่าย
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
-              
+
               <div className="space-y-2">
                 <Label>PromptPay ID <span className="text-red-500">*</span></Label>
-                <Input 
-                  value={promptpayId} 
-                  onChange={(e) => setPromptpayId(e.target.value)} 
-                  placeholder="เบอร์โทรศัพท์ หรือ เลขบัตรประชาชน 13 หลัก" 
+                <Input
+                  value={promptpayId}
+                  onChange={(e) => setPromptpayId(e.target.value)}
+                  placeholder="เบอร์โทรศัพท์ หรือ เลขบัตรประชาชน 13 หลัก"
                   className="h-12 text-lg font-medium"
                 />
                 <p className="text-xs text-slate-500">ระบบจะนำเลขนี้ไปสร้าง QR Code แบบระบุยอดเงินให้อัตโนมัติ (Dynamic QR)</p>
@@ -443,10 +493,10 @@ export default function SuperAdminCreateShopPage() {
 
               <div className="space-y-2">
                 <Label>ชื่อบัญชี (Account Name) <span className="text-red-500">*</span></Label>
-                <Input 
-                  value={accountName} 
-                  onChange={(e) => setAccountName(e.target.value)} 
-                  placeholder="เช่น บจก. อีซี่คิว โซลูชั่น หรือ นาย สมชาย ใจดี" 
+                <Input
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="เช่น บจก. อีซี่คิว โซลูชั่น หรือ นาย สมชาย ใจดี"
                   className="h-12 text-lg"
                 />
                 <p className="text-xs text-slate-500">ชื่อที่จะแสดงบนหน้าจอให้ลูกค้าตรวจสอบก่อนโอนเงิน</p>
@@ -454,9 +504,9 @@ export default function SuperAdminCreateShopPage() {
 
             </CardContent>
             <div className="flex justify-end gap-4 p-6 pt-0">
-              <Button 
-                onClick={handleSavePayment} 
-                disabled={!promptpayId || !accountName || isSavingPayment} 
+              <Button
+                onClick={handleSavePayment}
+                disabled={!promptpayId || !accountName || isSavingPayment}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[200px] h-11"
               >
                 {isSavingPayment ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> กำลังบันทึก...</> : <><Save className="mr-2 h-4 w-4" /> บันทึกการตั้งค่าชำระเงิน</>}
@@ -466,10 +516,10 @@ export default function SuperAdminCreateShopPage() {
         </TabsContent>
 
         {/* ========================================== */}
-        {/* 🌟 TAB: จัดการ Carousel (NEW!) */}
+        {/* 🌟 TAB: จัดการ Carousel (Real Data connected) */}
         {/* ========================================== */}
         <TabsContent value="carousel" className="animate-in fade-in duration-300 space-y-6">
-          
+
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -478,7 +528,7 @@ export default function SuperAdminCreateShopPage() {
               </h2>
               <p className="text-sm text-slate-500 mt-1">อัปโหลดแบนเนอร์โปรโมชั่น จัดเรียงลำดับ และตั้งค่าลิงก์ไปยังส่วนต่างๆ</p>
             </div>
-            <Button 
+            <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingCarousel}
               className="bg-fuchsia-600 hover:bg-fuchsia-700"
@@ -490,90 +540,94 @@ export default function SuperAdminCreateShopPage() {
           </div>
 
           <div className="grid gap-4">
-            {carouselItems.map((item, index) => (
-              <Card key={item.id} className="border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row group">
-                {/* 🌟 ด้ามจับสำหรับ Drag (จำลอง UI ไว้ก่อน) */}
-                <div className="bg-slate-50 flex items-center justify-center p-2 border-r border-slate-100 cursor-grab text-slate-400 group-hover:text-slate-600">
-                  <GripVertical className="h-5 w-5" />
-                </div>
-
-                {/* 🌟 พรีวิวรูปภาพ */}
-                <div className="w-full md:w-64 h-32 md:h-auto bg-slate-100 shrink-0 relative border-b md:border-b-0 md:border-r border-slate-200">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt="Carousel Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                      <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
-                      <span className="text-xs">ไม่มีรูปภาพ</span>
-                    </div>
-                  )}
-                  {/* Badge บอกสถานะมุมขวาบน */}
-                  <Badge className={`absolute top-2 right-2 shadow-sm ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}>
-                    {item.isActive ? "เปิดใช้งาน" : "ปิดชั่วคราว"}
-                  </Badge>
-                </div>
-
-                {/* 🌟 ฟอร์มแก้ไขรายละเอียดของแต่ละรูป */}
-                <div className="p-5 flex-1 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">หัวข้อแบนเนอร์ (Internal Note)</Label>
-                    <Input 
-                      placeholder="เช่น แบนเนอร์โปรโมชั่นสงกรานต์" 
-                      value={item.title || ""} 
-                      onChange={(e) => updateCarouselItem(item.id, { title: e.target.value })}
-                      className="bg-slate-50"
-                    />
-                  </div>
-                  
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <LinkIcon className="h-3 w-3" /> ลิงก์ปลายทาง (เมื่อลูกค้าคลิกรูป)
-                    </Label>
-                    <Input 
-                      placeholder="เช่น #pricing หรือ https://google.com" 
-                      value={item.link || ""} 
-                      onChange={(e) => updateCarouselItem(item.id, { link: e.target.value })}
-                      className="bg-slate-50"
-                    />
-                    <p className="text-[10px] text-slate-400">สามารถใส่ ID ของ Section เช่น `#pricing` หรือ `#features` ได้</p>
-                  </div>
-                </div>
-
-                {/* 🌟 ส่วนควบคุมขวาสุด (เปิด/ปิด และ ลบ) */}
-                <div className="bg-slate-50 p-5 border-l border-slate-100 flex flex-row md:flex-col items-center justify-between gap-4 md:w-32 shrink-0">
-                  <div className="flex flex-col items-center gap-2 w-full">
-                    <Label className="text-xs font-medium text-slate-500">สถานะแบนเนอร์</Label>
-                    <Switch 
-                      checked={item.isActive} 
-                      onCheckedChange={(checked) => updateCarouselItem(item.id, { isActive: checked })}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                  </div>
-
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => deleteCarouselItem(item.id)}
-                    className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 w-full"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" /> ลบทิ้ง
-                  </Button>
-                </div>
-              </Card>
-            ))}
-
-            {carouselItems.length === 0 && (
+            {isLoadingCarousel ? (
+              <div className="flex justify-center items-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : carouselItems.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                 <ImageIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-500 font-medium">ยังไม่มีแบนเนอร์ในระบบ</p>
                 <p className="text-slate-400 text-sm mt-1">คลิก "เพิ่มแบนเนอร์ใหม่" เพื่อเริ่มต้น</p>
               </div>
+            ) : (
+              carouselItems.map((item, index) => (
+                <Card key={item.id} className="border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row group">
+                  {/* 🌟 ด้ามจับสำหรับ Drag */}
+                  <div className="bg-slate-50 flex items-center justify-center p-2 border-r border-slate-100 cursor-grab text-slate-400 group-hover:text-slate-600">
+                    <GripVertical className="h-5 w-5" />
+                  </div>
+
+                  {/* 🌟 พรีวิวรูปภาพ */}
+                  <div className="w-full md:w-64 h-32 md:h-auto bg-slate-100 shrink-0 relative border-b md:border-b-0 md:border-r border-slate-200">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="Carousel Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                        <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
+                        <span className="text-xs">ไม่มีรูปภาพ</span>
+                      </div>
+                    )}
+                    {/* Badge บอกสถานะมุมขวาบน */}
+                    <Badge className={`absolute top-2 right-2 shadow-sm ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                      {item.isActive ? "เปิดใช้งาน" : "ปิดชั่วคราว"}
+                    </Badge>
+                  </div>
+
+                  {/* 🌟 ฟอร์มแก้ไขรายละเอียดของแต่ละรูป */}
+                  <div className="p-5 flex-1 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">หัวข้อแบนเนอร์ (Internal Note)</Label>
+                      <Input
+                        placeholder="เช่น แบนเนอร์โปรโมชั่นสงกรานต์"
+                        value={item.title || ""}
+                        onChange={(e) => handleLocalUpdate(item.id, { title: e.target.value })}
+                        className="bg-slate-50"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                        <LinkIcon className="h-3 w-3" /> ลิงก์ปลายทาง (เมื่อลูกค้าคลิกรูป)
+                      </Label>
+                      <Input
+                        placeholder="เช่น #pricing หรือ https://google.com"
+                        value={item.link || ""}
+                        onChange={(e) => handleLocalUpdate(item.id, { link: e.target.value })}
+                        className="bg-slate-50"
+                      />
+                      <p className="text-[10px] text-slate-400">สามารถใส่ ID ของ Section เช่น `#pricing` หรือ `#features` ได้</p>
+                    </div>
+                  </div>
+
+                  {/* 🌟 ส่วนควบคุมขวาสุด (เปิด/ปิด และ ลบ) */}
+                  <div className="bg-slate-50 p-5 border-l border-slate-100 flex flex-row md:flex-col items-center justify-between gap-4 md:w-32 shrink-0">
+                    <div className="flex flex-col items-center gap-2 w-full">
+                      <Label className="text-xs font-medium text-slate-500">สถานะแบนเนอร์</Label>
+                      <Switch
+                        checked={item.isActive}
+                        onCheckedChange={(checked) => handleLocalUpdate(item.id, { isActive: checked })}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCarouselItem(item.id, item.imageUrl)}
+                      className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 w-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" /> ลบทิ้ง
+                    </Button>
+                  </div>
+                </Card>
+              ))
             )}
           </div>
 
           <div className="flex justify-end pt-6 border-t mt-8">
-            <Button onClick={handleSaveCarousel} className="bg-slate-900 hover:bg-slate-800 text-white min-w-[200px] h-11">
-              <Save className="h-4 w-4 mr-2" /> บันทึกลำดับและการตั้งค่า Carousel
+            <Button onClick={handleSaveCarouselSettings} disabled={isSavingCarousel} className="bg-slate-900 hover:bg-slate-800 text-white min-w-[200px] h-11">
+              {isSavingCarousel ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> กำลังบันทึก...</> : <><Save className="h-4 w-4 mr-2" /> บันทึกลำดับและการตั้งค่า Carousel</>}
             </Button>
           </div>
 
