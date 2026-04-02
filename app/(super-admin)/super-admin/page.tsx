@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -14,25 +14,111 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label" 
 import { useToast } from "@/hooks/use-toast"
 
-// 🌟 Import ไอคอน CheckCircle2 และ XCircle เพิ่มเติม
-import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save, CheckCircle2, XCircle } from "lucide-react"
+// 🌟 Import ไอคอน
+import { Store, User, CreditCard, Settings, ShieldAlert, Loader2, Save, CheckCircle2, XCircle, Image as ImageIcon, UploadCloud, Link as LinkIcon, Trash2, GripVertical,Badge } from "lucide-react"
 
-// 🌟 Import ฟังก์ชัน checkSlugAvailability ที่เราเพิ่งสร้าง
+// 🌟 Import ฟังก์ชัน (สมมติว่ามี Action สำหรับ Carousel)
 import { createShopAction, checkSlugAvailability } from "@/actions/super-admin"
 import { createShopSchema, type CreateShopInput } from "@/lib/validations/shop"
 import { updatePaymentSettings, getSystemSettings } from "@/actions/setting"
 
+// 🌟 Mock Type สำหรับ Carousel (รอคุณอัปเดต Prisma)
+type CarouselItem = {
+  id: string;
+  imageUrl: string;
+  title?: string;
+  link?: string;
+  isActive: boolean;
+  order: number;
+}
+
 export default function SuperAdminCreateShopPage() {
   const { toast } = useToast()
   
-  // State สำหรับฟอร์มสร้างร้าน
+  // ==========================================
+  // 🏪 State: Create Shop
+  // ==========================================
   const [isSubmittingShop, setIsSubmittingShop] = useState(false)
-  
-  // 🌟 State สำหรับปุ่มเช็ค Slug
   const [isCheckingSlug, setIsCheckingSlug] = useState(false)
   const [slugStatus, setSlugStatus] = useState<"idle" | "available" | "taken">("idle")
 
-  // State สำหรับฟอร์มตั้งค่า Payment
+  const form = useForm<CreateShopInput>({
+    resolver: zodResolver(createShopSchema),
+    defaultValues: {
+      name: "", slug: "", logoUrl: "", themeColor: "#10b981", ownerEmail: "",
+      planType: "FREE_TRIAL", trialDays: 30, startImmediately: false, agentCode: "", isActive: true,
+    }
+  })
+
+  const watchPlanType = form.watch("planType")
+  const watchName = form.watch("name")
+  const watchSlug = form.watch("slug")
+
+  useEffect(() => {
+    if (slugStatus !== "idle") setSlugStatus("idle")
+  }, [watchSlug])
+
+  useEffect(() => {
+    if (watchPlanType === "FREE_TRIAL") form.setValue("startImmediately", false)
+  }, [watchPlanType, form])
+
+  useEffect(() => {
+    if (watchName && !form.formState.dirtyFields.slug) {
+      const generatedSlug = watchName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')     
+      form.setValue("slug", generatedSlug, { shouldValidate: true })
+    }
+  }, [watchName, form])
+
+  const handleCheckSlug = async () => {
+    const currentSlug = form.getValues("slug")
+    if (!currentSlug || currentSlug.length < 3) {
+      form.setError("slug", { type: "manual", message: "Slug ต้องมีอย่างน้อย 3 ตัวอักษร" })
+      return
+    }
+
+    setIsCheckingSlug(true)
+    setSlugStatus("idle")
+
+    const res = await checkSlugAvailability(currentSlug)
+    
+    if (res.success) {
+      if (res.available) {
+        setSlugStatus("available")
+        form.clearErrors("slug")
+      } else {
+        setSlugStatus("taken")
+        form.setError("slug", { type: "manual", message: "URL นี้มีผู้ใช้งานแล้ว กรุณาเปลี่ยนใหม่" })
+      }
+    } else {
+      toast({ title: "ระบบขัดข้อง", description: "ไม่สามารถเช็ค URL ได้ในขณะนี้", variant: "destructive" })
+    }
+
+    setIsCheckingSlug(false)
+  }
+
+  const onSubmitShop = async (values: CreateShopInput) => {
+    setIsSubmittingShop(true)
+    const res = await createShopAction(values)
+    
+    if (res.success) {
+      toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: `เพิ่มร้าน ${values.name} เข้าระบบเรียบร้อยแล้ว` })
+      form.reset() 
+      setSlugStatus("idle") 
+    } else {
+      if (res.error?.includes("URL") || res.error?.includes("Slug")) {
+        form.setError("slug", { type: "manual", message: res.error })
+        setSlugStatus("taken")
+      } else {
+        toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
+      }
+    }
+    setIsSubmittingShop(false)
+  }
+
+
+  // ==========================================
+  // 💳 State: Payment Settings
+  // ==========================================
   const [isSavingPayment, setIsSavingPayment] = useState(false)
   const [promptpayId, setPromptpayId] = useState("")
   const [accountName, setAccountName] = useState("")
@@ -68,80 +154,60 @@ export default function SuperAdminCreateShopPage() {
     setIsSavingPayment(false)
   }
 
-  const form = useForm<CreateShopInput>({
-    resolver: zodResolver(createShopSchema),
-    defaultValues: {
-      name: "", slug: "", logoUrl: "", themeColor: "#10b981", ownerEmail: "",
-      planType: "FREE_TRIAL", trialDays: 30, startImmediately: false, agentCode: "", isActive: true,
-    }
-  })
+  // ==========================================
+  // 🖼️ State: Carousel Management (ใหม่)
+  // ==========================================
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploadingCarousel, setIsUploadingCarousel] = useState(false)
+  
+  // 🌟 Mock ข้อมูลเริ่มต้น (เดี๋ยวเปลี่ยนเป็น fetch จาก DB จริงๆ)
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([
+    { id: "1", imageUrl: "/placeholder-carousel-1.jpg", title: "ฉลองเปิดตัว ESYQ!", link: "#pricing", isActive: true, order: 1 },
+    { id: "2", imageUrl: "/placeholder-carousel-2.jpg", title: "แจกฟรี 30 วัน", link: "", isActive: false, order: 2 },
+  ])
 
-  const watchPlanType = form.watch("planType")
-  const watchName = form.watch("name")
-  const watchSlug = form.watch("slug")
-
-  // 🌟 ถ้าพิมพ์แก้ Slug ใหม่ ให้รีเซ็ตสถานะกลับเป็น idle
-  useEffect(() => {
-    if (slugStatus !== "idle") setSlugStatus("idle")
-  }, [watchSlug])
-
-  useEffect(() => {
-    if (watchPlanType === "FREE_TRIAL") form.setValue("startImmediately", false)
-  }, [watchPlanType, form])
-
-  useEffect(() => {
-    if (watchName && !form.formState.dirtyFields.slug) {
-      const generatedSlug = watchName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')     
-      form.setValue("slug", generatedSlug, { shouldValidate: true })
-    }
-  }, [watchName, form])
-
-  // 🌟 ฟังก์ชันตรวจสอบ Slug เมื่อกดปุ่ม
-  const handleCheckSlug = async () => {
-    const currentSlug = form.getValues("slug")
-    if (!currentSlug || currentSlug.length < 3) {
-      form.setError("slug", { type: "manual", message: "Slug ต้องมีอย่างน้อย 3 ตัวอักษร" })
-      return
-    }
-
-    setIsCheckingSlug(true)
-    setSlugStatus("idle")
-
-    const res = await checkSlugAvailability(currentSlug)
-    
-    if (res.success) {
-      if (res.available) {
-        setSlugStatus("available")
-        form.clearErrors("slug")
-      } else {
-        setSlugStatus("taken")
-        form.setError("slug", { type: "manual", message: "URL นี้มีผู้ใช้งานแล้ว กรุณาเปลี่ยนใหม่" })
+  const handleCarouselFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      if (!file.type.startsWith("image/")) {
+        toast({ title: "ไฟล์ไม่รองรับ", description: "กรุณาอัปโหลดไฟล์รูปภาพ", variant: "destructive" })
+        return
       }
-    } else {
-      toast({ title: "ระบบขัดข้อง", description: "ไม่สามารถเช็ค URL ได้ในขณะนี้", variant: "destructive" })
+      
+      // 🌟 TODO: เปลี่ยนไปเรียก Server Action อัปโหลดรูปลง Storage จริงๆ
+      setIsUploadingCarousel(true)
+      
+      // จำลองการโหลด
+      setTimeout(() => {
+        const fakeUrl = URL.createObjectURL(file)
+        const newItem: CarouselItem = {
+          id: Math.random().toString(36).substring(7),
+          imageUrl: fakeUrl,
+          title: "",
+          link: "",
+          isActive: true, // เปิดใช้งานอัตโนมัติเมื่ออัปโหลด
+          order: carouselItems.length + 1
+        }
+        setCarouselItems([...carouselItems, newItem])
+        setIsUploadingCarousel(false)
+        toast({ title: "✅ อัปโหลดสำเร็จ", description: "เพิ่มรูปลงใน Carousel แล้ว" })
+      }, 1000)
     }
-
-    setIsCheckingSlug(false)
   }
 
-  const onSubmitShop = async (values: CreateShopInput) => {
-    setIsSubmittingShop(true)
-    const res = await createShopAction(values)
-    
-    if (res.success) {
-      toast({ title: "✅ สร้างร้านค้าสำเร็จ", description: `เพิ่มร้าน ${values.name} เข้าระบบเรียบร้อยแล้ว` })
-      form.reset() 
-      setSlugStatus("idle") // รีเซ็ตสถานะ Slug ด้วย
-    } else {
-      // 🌟 ดักกรณีที่มีคนจดชิงไปพอดีตอนกด Submit
-      if (res.error?.includes("URL") || res.error?.includes("Slug")) {
-        form.setError("slug", { type: "manual", message: res.error })
-        setSlugStatus("taken")
-      } else {
-        toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
-      }
-    }
-    setIsSubmittingShop(false)
+  const updateCarouselItem = (id: string, updates: Partial<CarouselItem>) => {
+    setCarouselItems(items => items.map(item => item.id === id ? { ...item, ...updates } : item))
+  }
+
+  const deleteCarouselItem = (id: string) => {
+    setCarouselItems(items => items.filter(item => item.id !== id))
+    toast({ title: "🗑️ ลบรูปภาพสำเร็จ" })
+  }
+
+  // 🌟 ฟังก์ชันจำลองการกดบันทึก (ตอนต่อ API ค่อยแก้เป็นส่งก้อน Array ไปเซฟ)
+  const handleSaveCarousel = async () => {
+    toast({ title: "✅ บันทึกการเปลี่ยนแปลง", description: "ระบบจำลองการบันทึกข้อมูลแล้ว" })
+    console.log("Saving Carousel Data:", carouselItems)
   }
 
   return (
@@ -154,12 +220,16 @@ export default function SuperAdminCreateShopPage() {
         <p className="text-slate-500 mt-2">จัดการระบบส่วนกลาง และสร้างร้านค้าใหม่</p>
       </div>
 
-      <Tabs defaultValue="create-shop" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8 bg-slate-100">
-          <TabsTrigger value="create-shop" className="text-base">🏪 สร้างร้านค้าใหม่</TabsTrigger>
-          <TabsTrigger value="payment-settings" className="text-base">💳 ตั้งค่าการรับชำระเงิน</TabsTrigger>
+      <Tabs defaultValue="carousel" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-8 bg-slate-100 h-12">
+          <TabsTrigger value="create-shop" className="text-sm font-medium">🏪 สร้างร้านค้า</TabsTrigger>
+          <TabsTrigger value="payment-settings" className="text-sm font-medium">💳 ตั้งค่ารับเงิน</TabsTrigger>
+          <TabsTrigger value="carousel" className="text-sm font-medium">🖼️ จัดการ Carousel</TabsTrigger>
         </TabsList>
 
+        {/* ========================================== */}
+        {/* TAB: สร้างร้านค้า */}
+        {/* ========================================== */}
         <TabsContent value="create-shop">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmitShop)} className="space-y-6">
@@ -183,7 +253,6 @@ export default function SuperAdminCreateShopPage() {
                       <FormItem>
                         <FormLabel>URL ร้านค้า (Slug) <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          {/* 🌟 ปรับโครงสร้าง UI ช่อง Slug เพื่อใส่ปุ่มตรวจสอบ */}
                           <div className="flex items-center gap-2">
                             <div className="flex items-center flex-1">
                               <span className="bg-slate-100 border border-r-0 border-slate-200 text-slate-500 px-3 h-10 rounded-l-md text-sm flex items-center whitespace-nowrap">esyq.net/shop/</span>
@@ -201,7 +270,6 @@ export default function SuperAdminCreateShopPage() {
                           </div>
                         </FormControl>
                         
-                        {/* 🌟 แสดงข้อความ Feedback สีเขียว/แดง ใต้ช่องกรอก */}
                         {slugStatus === "available" && (
                           <p className="text-sm font-medium text-emerald-600 flex items-center mt-1.5">
                             <CheckCircle2 className="h-4 w-4 mr-1.5"/> URL นี้ว่าง สามารถใช้งานได้!
@@ -347,6 +415,9 @@ export default function SuperAdminCreateShopPage() {
           </Form>
         </TabsContent>
 
+        {/* ========================================== */}
+        {/* TAB: ตั้งค่า Payment */}
+        {/* ========================================== */}
         <TabsContent value="payment-settings" className="animate-in fade-in duration-300">
           <Card className="border-slate-200 shadow-sm max-w-2xl">
             <CardHeader className="bg-slate-50/50 border-b pb-4">
@@ -393,6 +464,121 @@ export default function SuperAdminCreateShopPage() {
             </div>
           </Card>
         </TabsContent>
+
+        {/* ========================================== */}
+        {/* 🌟 TAB: จัดการ Carousel (NEW!) */}
+        {/* ========================================== */}
+        <TabsContent value="carousel" className="animate-in fade-in duration-300 space-y-6">
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <ImageIcon className="h-6 w-6 text-fuchsia-600" />
+                แบนเนอร์หน้าแรก (Hero Carousel)
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">อัปโหลดแบนเนอร์โปรโมชั่น จัดเรียงลำดับ และตั้งค่าลิงก์ไปยังส่วนต่างๆ</p>
+            </div>
+            <Button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingCarousel}
+              className="bg-fuchsia-600 hover:bg-fuchsia-700"
+            >
+              {isUploadingCarousel ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UploadCloud className="h-4 w-4 mr-2" />}
+              เพิ่มแบนเนอร์ใหม่
+            </Button>
+            <Input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleCarouselFileChange} />
+          </div>
+
+          <div className="grid gap-4">
+            {carouselItems.map((item, index) => (
+              <Card key={item.id} className="border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row group">
+                {/* 🌟 ด้ามจับสำหรับ Drag (จำลอง UI ไว้ก่อน) */}
+                <div className="bg-slate-50 flex items-center justify-center p-2 border-r border-slate-100 cursor-grab text-slate-400 group-hover:text-slate-600">
+                  <GripVertical className="h-5 w-5" />
+                </div>
+
+                {/* 🌟 พรีวิวรูปภาพ */}
+                <div className="w-full md:w-64 h-32 md:h-auto bg-slate-100 shrink-0 relative border-b md:border-b-0 md:border-r border-slate-200">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt="Carousel Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                      <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
+                      <span className="text-xs">ไม่มีรูปภาพ</span>
+                    </div>
+                  )}
+                  {/* Badge บอกสถานะมุมขวาบน */}
+                  <Badge className={`absolute top-2 right-2 shadow-sm ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                    {item.isActive ? "เปิดใช้งาน" : "ปิดชั่วคราว"}
+                  </Badge>
+                </div>
+
+                {/* 🌟 ฟอร์มแก้ไขรายละเอียดของแต่ละรูป */}
+                <div className="p-5 flex-1 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">หัวข้อแบนเนอร์ (Internal Note)</Label>
+                    <Input 
+                      placeholder="เช่น แบนเนอร์โปรโมชั่นสงกรานต์" 
+                      value={item.title || ""} 
+                      onChange={(e) => updateCarouselItem(item.id, { title: e.target.value })}
+                      className="bg-slate-50"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                      <LinkIcon className="h-3 w-3" /> ลิงก์ปลายทาง (เมื่อลูกค้าคลิกรูป)
+                    </Label>
+                    <Input 
+                      placeholder="เช่น #pricing หรือ https://google.com" 
+                      value={item.link || ""} 
+                      onChange={(e) => updateCarouselItem(item.id, { link: e.target.value })}
+                      className="bg-slate-50"
+                    />
+                    <p className="text-[10px] text-slate-400">สามารถใส่ ID ของ Section เช่น `#pricing` หรือ `#features` ได้</p>
+                  </div>
+                </div>
+
+                {/* 🌟 ส่วนควบคุมขวาสุด (เปิด/ปิด และ ลบ) */}
+                <div className="bg-slate-50 p-5 border-l border-slate-100 flex flex-row md:flex-col items-center justify-between gap-4 md:w-32 shrink-0">
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <Label className="text-xs font-medium text-slate-500">สถานะแบนเนอร์</Label>
+                    <Switch 
+                      checked={item.isActive} 
+                      onCheckedChange={(checked) => updateCarouselItem(item.id, { isActive: checked })}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                  </div>
+
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => deleteCarouselItem(item.id)}
+                    className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 w-full"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> ลบทิ้ง
+                  </Button>
+                </div>
+              </Card>
+            ))}
+
+            {carouselItems.length === 0 && (
+              <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                <ImageIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">ยังไม่มีแบนเนอร์ในระบบ</p>
+                <p className="text-slate-400 text-sm mt-1">คลิก "เพิ่มแบนเนอร์ใหม่" เพื่อเริ่มต้น</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-6 border-t mt-8">
+            <Button onClick={handleSaveCarousel} className="bg-slate-900 hover:bg-slate-800 text-white min-w-[200px] h-11">
+              <Save className="h-4 w-4 mr-2" /> บันทึกลำดับและการตั้งค่า Carousel
+            </Button>
+          </div>
+
+        </TabsContent>
+
       </Tabs>
     </div>
   )

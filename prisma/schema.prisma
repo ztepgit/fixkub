@@ -236,3 +236,28 @@ enum PaymentStatus {
   APPROVED
   REJECTED
 }
+
+// ==========================================
+// 8. CAROUSEL ITEM (ภาพแบนเนอร์/โฆษณา หน้า Landing Page)
+// ==========================================
+model CarouselItem {
+  id        String   @id @default(cuid())
+  
+  // 🌟 ข้อมูลหลักที่ต้องโชว์
+  imageUrl  String   // URL ของรูปภาพ (บังคับมี)
+  title     String?  // หัวข้อ (เผื่อแอดมินใส่ไว้โน้ตดูเอง หรือถ้าอนาคตอยากให้มี Text วางทับรูป)
+  link      String?  // ลิงก์ปลายทางเมื่อลูกค้าคลิกรูป (เช่น #pricing, /register, https://...)
+
+  // 🌟 ข้อมูลสถานะและการจัดเรียง
+  isActive  Boolean  @default(true) // เปิด/ปิด การแสดงผล
+  order     Int      @default(0)    // ลำดับการแสดงผล (เอาไว้ทำ Drag & Drop Sort)
+
+  // 🌟 ข้อมูลเชิงสถิติเบื้องต้น (Optional - แนะนำให้มีไว้เพื่อ Tracking)
+  clickCount Int     @default(0)    // จำนวนครั้งที่คนคลิก (เอาไว้ทำ A/B Test หรือดูว่าคนสนใจโปรไหน)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 🌟 Index เพื่อให้ดึงข้อมูลมาเรียงลำดับที่หน้า Landing ได้เร็วที่สุด
+  @@index([isActive, order])
+}
