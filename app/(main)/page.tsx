@@ -61,6 +61,7 @@ export default function LandingPage() {
     }
   }, [])
 
+  // 🌟 ฟังก์ชันการเลือกแพ็กเกจ ที่แก้ไขแล้ว
   const handleSelectPlan = async (plan: string) => {
     if (!isLoggedIn) {
       setSelectedPlan(plan)
@@ -91,16 +92,12 @@ export default function LandingPage() {
       const res = await getUserShops(userEmail)
 
       if (res.success && res.shops.length > 0) {
-        const isStaffOnly = res.shops.every(s => s.role === "STAFF");
-        if (isStaffOnly) {
-          toast({ title: "ไม่มีสิทธิ์ทำรายการ", description: "พนักงานไม่สามารถสั่งซื้อแพ็กเกจได้ กรุณาติดต่อเจ้าของร้าน", variant: "destructive" })
-          return;
-        }
-
+        // 🌟 ลบการเช็ค isStaffOnly ออก อนุญาตให้ STAFF กดซื้อแพ็กเกจให้ร้านได้
+        
         setShopSelectAction("checkout")
-        const ownerShops = res.shops.filter(s => s.role === "OWNER");
-        setUserShops(ownerShops);
-        setSelectedShopId(ownerShops[0]?.id || "");
+        // 🌟 ดึงมาทุกร้านเลย ไม่ต้อง filter เอาแค่ OWNER
+        setUserShops(res.shops);
+        setSelectedShopId(res.shops[0]?.id || "");
         setShowShopSelectPopup(true)
         return
       } else {
@@ -141,23 +138,18 @@ export default function LandingPage() {
     setShowShopSelectPopup(false)
   }
 
-// 🌟 ฟังก์ชันเข้า Dashboard ที่ปรับปรุงใหม่ (รองรับ STAFF หลายสาขา)
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
 
     const res = await getUserShops(userEmail);
 
     if (res.success && res.shops && res.shops.length > 0) {
-      
-      // 🌟 1. ถ้าร้านค้าในระบบมีมากกว่า 1 ร้าน ให้โชว์ Modal ให้เลือกสาขาเสมอ!
-      // ไม่ว่าจะเป็น OWNER หรือ STAFF ก็ตาม
       if (res.shops.length > 1) {
         setShopSelectAction("dashboard");
-        setUserShops(res.shops); // 🌟 ดึงมาทุกร้านที่เขาเกี่ยวข้อง ไม่ต้อง filter
+        setUserShops(res.shops); 
         setSelectedShopId(res.shops[0].id);
         setShowShopSelectPopup(true);
       } 
-      // 🌟 2. ถ้ามีร้านเดียวในระบบ ให้พาพุ่งเข้าไปที่ Dashboard ของร้านนั้นเลย
       else {
         updateShop(res.shops[0]);
         router.push('/dashboard');
@@ -180,17 +172,12 @@ export default function LandingPage() {
     router.refresh()
   }
 
-  // ในไฟล์ app/(main)/page.tsx ให้ค้นหาบรรทัดที่ 216 แล้วแทนที่บล็อกนี้ครับ:
-
-  // 🌟 3. ฟังก์ชันเรียกสร้างร้าน Demo
   const handlePlayDemo = async () => {
     setIsDemoLoading(true)
     try {
-      // 1. เรียก Server Action ให้ไปสร้าง User และ Shop
       const res = await createDemoShopAction()
 
       if (res.success && res.credentials && res.shop) {
-        // 🌟 2. นำรหัสที่ Server แอบสร้างให้ มาสั่ง Login ด้วยฝั่ง Client
         const { error: loginError } = await supabase.auth.signInWithPassword({
           email: res.credentials.email,
           password: res.credentials.password,
@@ -275,13 +262,11 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full mt-2">
 
-              {/* 🌟 1. ปุ่มเล่น Demo: เปลี่ยนเป็นปุ่มทึบ (เช่น สีเทาเข้ม/ดำ หรือสีที่เข้ากับแบรนด์) เพื่อให้ดูเป็น Action หลักที่เข้าถึงง่าย */}
               <Button
                 size="lg"
                 onClick={handlePlayDemo}
                 disabled={isDemoLoading}
                 className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200 transition-all"
-
               >
                 {isDemoLoading ? (
                   <>
@@ -296,7 +281,6 @@ export default function LandingPage() {
                 )}
               </Button>
 
-              {/* 🌟 2. ปุ่มทดลองใช้ฟรี: ยังคงสีเขียวไว้สำหรับคนที่พร้อมลุย แต่จัดให้อยู่ระดับสายตาเดียวกัน */}
               <Button
                 size="lg"
                 variant="outline"
@@ -424,7 +408,6 @@ export default function LandingPage() {
             <Wrench className="h-6 w-6 text-emerald-500" />
             <span className="text-2xl font-bold text-white">ESYQ <span className="text-emerald-500">Repair</span></span>
           </div>
-          {/* <p className="mb-6">แก้ปัญหาหน้าร้าน</p> */}
           <p className="text-sm">© 2026 ESYQ Systems. All rights reserved.</p>
         </div>
       </footer>
@@ -481,7 +464,6 @@ export default function LandingPage() {
                         <p className="text-xs text-slate-500">URL: {shop.slug}.esyq.net</p>
                       </div>
                     </div>
-                    {/* 🌟 แสดง Badge ให้เห็นชัดเจนว่าเป็น STAFF หรือ OWNER ของสาขานี้ */}
                     <Badge variant="outline" className={shop.role === "OWNER" ? "border-amber-200 text-amber-700 bg-amber-50" : "border-blue-200 text-blue-700 bg-blue-50"}>
                       {shop.role}
                     </Badge>
