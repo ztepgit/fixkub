@@ -116,10 +116,10 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         {/* แถวที่ 2: รุ่น & สี */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <div className="flex flex-col gap-2.5">
-            <Label htmlFor="deviceModel" className="font-semibold text-slate-700">รุ่นมือถือ/iPad หรืออื่นๆ<span className="text-red-500">*</span></Label>
+            <Label htmlFor="deviceModel" className="font-semibold text-slate-700">รุ่นมือถือ/อุปกรณ์<span className="text-red-500">*</span></Label>
             <Input 
               id="deviceModel" 
-              placeholder="เช่น iPhone 13" 
+              placeholder="เช่น iPhone 14" 
               value={deviceModel}
               onChange={(e) => setDeviceModel(e.target.value)}
             />

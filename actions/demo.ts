@@ -99,7 +99,7 @@ export async function createDemoShopAction() {
               jobRef: "REP-001",
               customerName: "คุณสมชาย",
               phoneNumber: "0812345678",
-              deviceModel: "iPhone 13 Pro",
+              deviceModel: "iPhone 14 Pro",
               issue: "จอเขียว รอตีราคา",
               serviceName: "เปลี่ยนจอ",
               status: "PENDING"
@@ -126,7 +126,7 @@ export async function createDemoShopAction() {
             {
               jobRef: "REP-004",
               customerName: "คุณวิภา",
-              deviceModel: "iPhone 11",
+              deviceModel: "iPhone 12",
               issue: "เปลี่ยนฟิล์ม+จอ เสร็จแล้ว",
               serviceName: "เปลี่ยนจอ",
               estimatedPrice: 2500,

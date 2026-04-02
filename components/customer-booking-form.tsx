@@ -177,7 +177,7 @@ export function CustomerBookingForm({
             <div className="space-y-4 rounded-xl bg-slate-50/50 p-4 border border-slate-100">
               <Label className="text-base font-semibold flex items-center gap-2"><Smartphone className="h-4 w-4 text-emerald-600" /> 2. ข้อมูลตัวเครื่อง</Label>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label className="text-sm">รุ่นมือถือ <span className="text-red-500">*</span></Label><Input placeholder="เช่น iPhone 13" value={deviceModel} onChange={(e) => setDeviceModel(e.target.value)} className="bg-white" /></div>
+                <div className="space-y-2"><Label className="text-sm">รุ่นมือถือ/อุปกรณ์ <span className="text-red-500">*</span></Label><Input placeholder="เช่น iPhone 14" value={deviceModel} onChange={(e) => setDeviceModel(e.target.value)} className="bg-white" /></div>
                 <div className="space-y-2"><Label className="text-sm">สีเครื่อง</Label><Input placeholder="เช่น ดำ" value={deviceColor} onChange={(e) => setDeviceColor(e.target.value)} className="bg-white" /></div>
               </div>
               <div className="space-y-2"><Label className="text-sm">รายละเอียดเพิ่มเติม (ถ้ามี)</Label><Textarea placeholder="เช่น ทำตกจอแตก" className="resize-none bg-white min-h-[80px]" value={issue} onChange={(e) => setIssue(e.target.value)} /></div>

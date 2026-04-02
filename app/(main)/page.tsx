@@ -267,7 +267,7 @@ export default function LandingPage() {
         <section className="relative overflow-hidden bg-white pt-20 pb-24 lg:pt-32 lg:pb-40">
           <div className="container mx-auto px-4 md:px-6 text-center">
             <Badge className="mb-4 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none px-3 py-1 text-sm">
-              ระบบคิวร้านมือถือ อันดับ 1
+             ยินดีต้อนรับ
             </Badge>
             <h1 className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-7xl">
               บอกลาคิวกระดาษ <br className="hidden sm:block" />

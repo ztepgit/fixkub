@@ -11,19 +11,19 @@ import { z } from "zod";
 const createQueueSchema = z.object({
   shopId: z.string().cuid("รหัสร้านค้าไม่ถูกต้อง"), // ป้องกันการยิง API มั่ว
   customerName: z.string().trim().min(1, "กรุณากรอกชื่อลูกค้า").max(100, "ชื่อยาวเกินไป"),
-  
+
   // 🌟 พรีกระบวนการ (Pre-process) เบอร์โทรศัพท์
   phoneNumber: z.string()
     .trim()
     .min(1, "กรุณากรอกเบอร์โทรศัพท์")
     .transform((val) => val.replace(/[-\s]/g, "")) // 🪄 Normalize: ลบขีดและช่องว่างออก
-    .pipe(z.string().regex(/^0\d{8,9}$/, "เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 9-10 หลัก)")), 
-  
-  deviceModel: z.string().trim().min(1, "กรุณากรอกรุ่นมือถือ").max(100, "ชื่อรุ่นยาวเกินไป"),
+    .pipe(z.string().regex(/^0\d{8,9}$/, "เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 9-10 หลัก)")),
+
+  deviceModel: z.string().trim().min(1, "กรุณากรอกรุ่นมือถือ/อุปกรณ์").max(100, "ชื่อรุ่นยาวเกินไป"),
   deviceColor: z.string().trim().max(50, "ระบุสีสั้นๆ พอครับ").optional().or(z.literal("")),
   issue: z.string().trim().max(500, "รายละเอียดต้องไม่เกิน 500 ตัวอักษร").optional().or(z.literal("")),
   serviceName: z.string().trim().min(1, "กรุณาเลือกบริการ").max(100, "ชื่อบริการยาวเกินไป"),
-  
+
   serialNumber: z.string().trim().max(100, "Serial Number ยาวเกินไป").optional().or(z.literal("")),
   imei: z.string().trim().max(50, "IMEI ยาวเกินไป").optional().or(z.literal("")),
   isManualEntry: z.boolean().optional().default(false)
@@ -58,38 +58,38 @@ export async function createQueue(input: CreateQueueInput) {
     const newQueue = await db.queue.create({
       data: {
         shopId: safeData.shopId,
-        jobRef: generatedJobRef, 
+        jobRef: generatedJobRef,
         customerName: safeData.customerName,
         phoneNumber: safeData.phoneNumber, // เบอร์นี้สะอาด ไร้ขีดแล้ว
         deviceModel: safeData.deviceModel,
         deviceColor: safeData.deviceColor || null,
-        serialNumber: safeData.serialNumber || null, 
-        imei: safeData.imei || null,                
+        serialNumber: safeData.serialNumber || null,
+        imei: safeData.imei || null,
         issue: safeData.issue || null,
-        serviceName: safeData.serviceName, 
+        serviceName: safeData.serviceName,
         isManualEntry: safeData.isManualEntry,
-        status: "PENDING", 
+        status: "PENDING",
       },
     });
 
-    return { 
-      success: true, 
-      data: newQueue, 
-      message: "สร้างคิวสำเร็จ!" 
+    return {
+      success: true,
+      data: newQueue,
+      message: "สร้างคิวสำเร็จ!"
     };
 
   } catch (error: any) {
     console.error("❌ Error creating queue:", error);
-    
+
     // ถ้าพังเพราะ Zod ให้ดึงข้อความแจ้งเตือนภาษาไทยออกมาแสดงที่ UI
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message };
     }
 
-    return { 
-      success: false, 
+    return {
+      success: false,
       // ส่ง error.message ออกไปเผื่อเป็น Error จาก verifyShopAccess
-      error: error.message || "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง" 
+      error: error.message || "เกิดข้อผิดพลาดในการสร้างคิว กรุณาลองใหม่อีกครั้ง"
     };
   }
 }
@@ -99,12 +99,12 @@ export async function createQueue(input: CreateQueueInput) {
 // ==========================================
 export async function getQueues(shopId: string) {
   try {
-     // 🌟 ด่านตรวจ: ถ้าไม่ใช่เจ้าร้าน มันจะ Error และเด้งไป catch ทันที
+    // 🌟 ด่านตรวจ: ถ้าไม่ใช่เจ้าร้าน มันจะ Error และเด้งไป catch ทันที
     await verifyShopAccess(shopId);
 
     const queues = await db.queue.findMany({
       where: { shopId: shopId },
-      orderBy: { createdAt: 'asc' }, 
+      orderBy: { createdAt: 'asc' },
     });
 
     return { success: true, data: queues };
@@ -131,26 +131,26 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
     // 🌟 2. ด่านตรวจ: ป้องกันการแอบสุ่ม ID คิวของร้านอื่นเพื่ออัปเดต
     await verifyShopAccess(existingQueue.shopId);
 
-    const updateData: any = { 
-      status, 
-      ...additionalData 
+    const updateData: any = {
+      status,
+      ...additionalData
     };
 
     // บันทึกเวลาตามสถานะ
     if (status === "WAITING" && !existingQueue.acceptedAt) {
-      updateData.acceptedAt = new Date(); 
-    } 
+      updateData.acceptedAt = new Date();
+    }
     else if (status === "PROCESSING" && !existingQueue.startedAt) {
-      updateData.startedAt = new Date(); 
-    } 
+      updateData.startedAt = new Date();
+    }
     else if (status === "REPAIRED" && !existingQueue.repairedAt) {
-      updateData.repairedAt = new Date(); 
-    } 
+      updateData.repairedAt = new Date();
+    }
     else if (status === "COMPLETED" && !existingQueue.completedAt) {
-      updateData.completedAt = new Date(); 
+      updateData.completedAt = new Date();
     }
     else if (status === "CANCELLED" && !existingQueue.cancelledAt) {
-      updateData.cancelledAt = new Date(); 
+      updateData.cancelledAt = new Date();
     }
 
     const updatedQueue = await db.queue.update({
@@ -158,17 +158,17 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
       data: updateData,
     });
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       data: updatedQueue,
       message: "อัปเดตสถานะสำเร็จ"
     };
 
   } catch (error: any) {
     console.error("❌ Error updating queue status:", error);
-    return { 
-      success: false, 
-      error: error.message || "เกิดข้อผิดพลาดในการอัปเดตสถานะ" 
+    return {
+      success: false,
+      error: error.message || "เกิดข้อผิดพลาดในการอัปเดตสถานะ"
     };
   }
 }
@@ -188,12 +188,12 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
         OR: [
           { phoneNumber: { contains: cleanSearchKey } },
           { jobRef: { contains: searchKey.toUpperCase() } },
-          { customerName: { contains: searchKey, mode: 'insensitive' } } 
+          { customerName: { contains: searchKey, mode: 'insensitive' } }
         ]
       },
       orderBy: { createdAt: 'desc' },
     });
-    
+
     return { success: true, data: queues };
   } catch (error) {
     console.error("Error fetching customer queues:", error);
@@ -210,12 +210,12 @@ export async function getTop50Jobs(shopId: string) {
     await verifyShopAccess(shopId);
 
     const jobs = await db.queue.findMany({
-      where: { 
+      where: {
         shopId,
         status: { in: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] }
       },
-      orderBy: { updatedAt: 'desc' }, 
-      take: 100, 
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
     })
 
     if (jobs.length < 50) {
@@ -229,13 +229,13 @@ export async function getTop50Jobs(shopId: string) {
 
     const getPriority = (status: string) => {
       switch (status) {
-        case "PROCESSING": return 1 
-        case "WAITING": return 2    
-        case "PENDING": return 3    
-        case "REPAIRED": return 4   
-        case "COMPLETED": return 5  
-        case "ARCHIVED": return 6   
-        case "CANCELLED": return 7  
+        case "PROCESSING": return 1
+        case "WAITING": return 2
+        case "PENDING": return 3
+        case "REPAIRED": return 4
+        case "COMPLETED": return 5
+        case "ARCHIVED": return 6
+        case "CANCELLED": return 7
         default: return 8
       }
     }
@@ -244,7 +244,7 @@ export async function getTop50Jobs(shopId: string) {
       const pDiff = getPriority(a.status) - getPriority(b.status)
       if (pDiff !== 0) return pDiff
       return b.updatedAt.getTime() - a.updatedAt.getTime()
-    }).slice(0, 50) 
+    }).slice(0, 50)
 
     return { success: true, data: sortedJobs }
   } catch (error: any) {
@@ -262,7 +262,7 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
     await verifyShopAccess(shopId);
 
     const skip = (page - 1) * limit;
-    
+
     // 💡 Normalize query ถ้าผู้ใช้พิมพ์เบอร์โทรแบบมีขีดมาค้นหา
     const cleanQuery = query ? query.replace(/[-\s]/g, "") : query;
 
@@ -270,7 +270,7 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
       OR: [
         { jobRef: { contains: query, mode: 'insensitive' as const } },
         { customerName: { contains: query, mode: 'insensitive' as const } },
-        { phoneNumber: { contains: cleanQuery } }, 
+        { phoneNumber: { contains: cleanQuery } },
         { deviceModel: { contains: query, mode: 'insensitive' as const } },
       ]
     } : {};
