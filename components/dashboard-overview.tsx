@@ -107,9 +107,16 @@ export function DashboardOverview() {
   const today = new Date()
   const todayCount = jobs.filter(j => isSameDay(new Date(j.createdAt), today)).length
   const activeCount = jobs.filter(j => ['PENDING', 'WAITING', 'PROCESSING'].includes(j.status)).length
-  const readyCount = jobs.filter(j => j.status === 'REPAIRED').length
+  
+  // 🌟 แก้ไข: นับรวมงานที่ "รอรับ" (REPAIRED) + งานที่ "ส่งมอบแล้วในวันนี้" (COMPLETED)
+  const readyCount = jobs.filter(j => 
+    j.status === 'REPAIRED' || 
+    (j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
+  ).length
+
+  // 🌟 ปรับปรุง: ใช้ completedAt เพื่อความแม่นยำในการนับรายได้
   const revenueToday = jobs
-    .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.updatedAt || j.createdAt), today))
+    .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
     .reduce((sum, j) => sum + (Number(j.estimatedPrice) || 0), 0)
 
   const updateJobMutation = useMutation({
@@ -190,10 +197,8 @@ export function DashboardOverview() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">ภาพรวมของร้าน (Overview)</h2>
-            {/* 🌟 1. Subtitle สว่างขึ้น */}
             <p className="text-sm text-slate-500 dark:text-slate-400">สรุปสถิติและสถานะงานซ่อมประจำวัน</p>
           </div>
-          {/* 🌟 2. ปุ่มสลับซ่อน/แสดง ให้เห็นชัดใน Dark Mode */}
           <Button variant="outline" onClick={() => setIsHidden(!isHidden)} className="text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm">
             {isHidden ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
             {isHidden ? "ดูข้อมูลสถิติ" : "ซ่อนข้อมูลสถิติ"}
@@ -237,7 +242,6 @@ export function DashboardOverview() {
             </CardContent>
           </Card>
 
-          {/* 🌟 3. Card รายได้ ปรับสี Indigo ให้อ่านง่ายบนพื้นดำ */}
           <Card className="shadow-sm border-indigo-100 bg-indigo-50/50 dark:border-indigo-900 dark:bg-indigo-950/20 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-400">รายได้วันนี้</CardTitle>
@@ -297,7 +301,6 @@ export function DashboardOverview() {
 
                         <div className="text-right shrink-0 flex flex-col items-end gap-2">
                           <div className="flex items-center gap-2">
-                            {/* 🌟 4. Badge สถานะ ปรับสี Dark Mode ให้อ่านง่าย */}
                             <Badge variant="outline" className={
                               job.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800" :
                                 job.status === "CANCELLED" || job.status === "ARCHIVED" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800" :
