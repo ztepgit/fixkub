@@ -105,16 +105,20 @@ export function DashboardOverview() {
   }, [jobToView])
 
   const today = new Date()
+  
+  // 🌟 แจ้งซ่อมวันนี้: นับเฉพาะงานที่ถูกสร้างในวันนี้
   const todayCount = jobs.filter(j => isSameDay(new Date(j.createdAt), today)).length
+  
+  // 🌟 กำลังดำเนินการ: นับงานที่ยังค้างอยู่ในสถานะรอ/กำลังซ่อม (ไม่สนว่าสร้างวันไหน)
   const activeCount = jobs.filter(j => ['PENDING', 'WAITING', 'PROCESSING'].includes(j.status)).length
   
-  // 🌟 แก้ไข: นับรวมงานที่ "รอรับ" (REPAIRED) + งานที่ "ส่งมอบแล้วในวันนี้" (COMPLETED)
+  // 🌟 แก้ไข: นับรวมทุกงานที่ "ซ่อมเสร็จภายในวันนี้"
+  // ไม่สนใจว่าตอนนี้สถานะจะเป็นอะไร (ดอง, ทิ้ง, คืนลูกค้า) ตราบใดที่ repairedAt คือวันนี้ = นับเป็นผลงานวันนี้
   const readyCount = jobs.filter(j => 
-    j.status === 'REPAIRED' || 
-    (j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
+    j.repairedAt && isSameDay(new Date(j.repairedAt), today)
   ).length
 
-  // 🌟 ปรับปรุง: ใช้ completedAt เพื่อความแม่นยำในการนับรายได้
+  // 🌟 รายได้วันนี้: นับเฉพาะงานที่ COMPLETED และส่งมอบในวันนี้
   const revenueToday = jobs
     .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
     .reduce((sum, j) => sum + (Number(j.estimatedPrice) || 0), 0)
@@ -232,7 +236,7 @@ export function DashboardOverview() {
 
           <Card className="shadow-sm border-emerald-100 dark:border-emerald-900 dark:bg-slate-900 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">ซ่อมเสร็จแล้ว</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">ซ่อมเสร็จแล้ว (วันนี้)</CardTitle>
               <PackageCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
             </CardHeader>
             <CardContent>
