@@ -24,6 +24,8 @@ import { updatePaymentSettings, getSystemSettings } from "@/actions/setting"
 
 // 🌟 Import Server Actions สำหรับ Carousel
 import { getCarouselItems, createCarouselItem, updateCarouselItem, deleteCarouselItem, reorderCarouselItems } from "@/actions/carousel"
+// เพิ่มบรรทัดนี้ลงไปในกลุ่ม Import ด้านบน
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 
 type CarouselItem = {
   id: string;
@@ -235,7 +237,17 @@ export default function SuperAdminCreateShopPage() {
     }
   }
 
-  // 🌟 บันทึกการเปลี่ยนแปลง (ลำดับ, ข้อความ, ลิงก์, สถานะ)
+  // 🌟 ฟังก์ชันจัดการเมื่อลากวางเสร็จสิ้น (สลับตำแหน่งใน State)
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return; // ถ้าลากไปปล่อยนอกกรอบ ให้ยกเลิก
+
+    const items = Array.from(carouselItems);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setCarouselItems(items);
+  }
+
   const handleSaveCarouselSettings = async () => {
     setIsSavingCarousel(true)
     
@@ -249,8 +261,8 @@ export default function SuperAdminCreateShopPage() {
         })
       }
 
-      // 2. ถ้ามีการทำ UI ลากวาง (Drag & Drop) ในอนาคต ให้เพิ่มโค้ดบรรทัดนี้:
-      // await reorderCarouselItems(carouselItems.map((item, i) => ({ id: item.id, order: i + 1 })))
+      // 🌟 2. ปลดล็อกโค้ดนี้ เพื่อส่งลำดับใหม่ไปบันทึกลง Database
+      await reorderCarouselItems(carouselItems.map((item, i) => ({ id: item.id, order: i + 1 })))
 
       toast({ title: "✅ บันทึกการเปลี่ยนแปลงสำเร็จ", description: "อัปเดตข้อมูลแบนเนอร์บนหน้าเว็บไซต์แล้ว" })
     } catch (error) {
@@ -541,88 +553,112 @@ export default function SuperAdminCreateShopPage() {
 
           <div className="grid gap-4">
             {isLoadingCarousel ? (
-              <div className="flex justify-center items-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-              </div>
-            ) : carouselItems.length === 0 ? (
-              <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-                <ImageIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">ยังไม่มีแบนเนอร์ในระบบ</p>
-                <p className="text-slate-400 text-sm mt-1">คลิก "เพิ่มแบนเนอร์ใหม่" เพื่อเริ่มต้น</p>
-              </div>
-            ) : (
-              carouselItems.map((item, index) => (
-                <Card key={item.id} className="border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row group">
-                  {/* 🌟 ด้ามจับสำหรับ Drag */}
-                  <div className="bg-slate-50 flex items-center justify-center p-2 border-r border-slate-100 cursor-grab text-slate-400 group-hover:text-slate-600">
-                    <GripVertical className="h-5 w-5" />
+            <div className="flex justify-center items-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+          ) : carouselItems.length === 0 ? (
+            <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+              <ImageIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 font-medium">ยังไม่มีแบนเนอร์ในระบบ</p>
+              <p className="text-slate-400 text-sm mt-1">คลิก "เพิ่มแบนเนอร์ใหม่" เพื่อเริ่มต้น</p>
+            </div>
+          ) : (
+            // 🌟 เริ่มต้น Drag & Drop Area
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="carousel-list">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="grid gap-4">
+                    
+                    {carouselItems.map((item, index) => (
+                      <Draggable key={item.id} draggableId={item.id} index={index}>
+                        {(provided, snapshot) => (
+                          <Card 
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`border-slate-200 overflow-hidden flex flex-col md:flex-row group transition-shadow ${
+                              snapshot.isDragging ? "shadow-xl ring-2 ring-fuchsia-500 z-50 bg-white" : "shadow-sm bg-white"
+                            }`}
+                          >
+                            {/* 🌟 ด้ามจับสำหรับ Drag (เอา dragHandleProps มาใส่ตรงนี้) */}
+                            <div 
+                              {...provided.dragHandleProps}
+                              className="bg-slate-50 flex items-center justify-center p-2 border-r border-slate-100 cursor-grab active:cursor-grabbing text-slate-400 group-hover:text-slate-600 hover:bg-slate-100"
+                            >
+                              <GripVertical className="h-5 w-5" />
+                            </div>
+
+                            {/* 🌟 พรีวิวรูปภาพ */}
+                            <div className="w-full md:w-64 h-32 md:h-auto bg-slate-100 shrink-0 relative border-b md:border-b-0 md:border-r border-slate-200">
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt="Carousel Preview" className="w-full h-full object-cover pointer-events-none" />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                                  <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
+                                  <span className="text-xs">ไม่มีรูปภาพ</span>
+                                </div>
+                              )}
+                              <Badge className={`absolute top-2 right-2 shadow-sm ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                                {item.isActive ? "เปิดใช้งาน" : "ปิดชั่วคราว"}
+                              </Badge>
+                            </div>
+
+                            {/* 🌟 ฟอร์มแก้ไขรายละเอียดของแต่ละรูป */}
+                            <div className="p-5 flex-1 grid gap-4 md:grid-cols-2">
+                              <div className="space-y-1.5 md:col-span-2">
+                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">หัวข้อแบนเนอร์ (Internal Note)</Label>
+                                <Input
+                                  placeholder="เช่น แบนเนอร์โปรโมชั่นสงกรานต์"
+                                  value={item.title || ""}
+                                  onChange={(e) => handleLocalUpdate(item.id, { title: e.target.value })}
+                                  className="bg-slate-50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5 md:col-span-2">
+                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                                  <LinkIcon className="h-3 w-3" /> ลิงก์ปลายทาง (เมื่อลูกค้าคลิกรูป)
+                                </Label>
+                                <Input
+                                  placeholder="เช่น #pricing หรือ https://google.com"
+                                  value={item.link || ""}
+                                  onChange={(e) => handleLocalUpdate(item.id, { link: e.target.value })}
+                                  className="bg-slate-50"
+                                />
+                              </div>
+                            </div>
+
+                            {/* 🌟 ส่วนควบคุมขวาสุด (เปิด/ปิด และ ลบ) */}
+                            <div className="bg-slate-50 p-5 border-l border-slate-100 flex flex-row md:flex-col items-center justify-between gap-4 md:w-32 shrink-0">
+                              <div className="flex flex-col items-center gap-2 w-full">
+                                <Label className="text-xs font-medium text-slate-500">สถานะแบนเนอร์</Label>
+                                <Switch
+                                  checked={item.isActive}
+                                  onCheckedChange={(checked) => handleLocalUpdate(item.id, { isActive: checked })}
+                                  className="data-[state=checked]:bg-emerald-500"
+                                />
+                              </div>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteCarouselItem(item.id, item.imageUrl)}
+                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 w-full"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> ลบทิ้ง
+                              </Button>
+                            </div>
+                          </Card>
+                        )}
+                      </Draggable>
+                    ))}
+                    
+                    {/* ตัวช่วยไม่ให้ UI กระตุกตอนลาก */}
+                    {provided.placeholder}
                   </div>
-
-                  {/* 🌟 พรีวิวรูปภาพ */}
-                  <div className="w-full md:w-64 h-32 md:h-auto bg-slate-100 shrink-0 relative border-b md:border-b-0 md:border-r border-slate-200">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="Carousel Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                        <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
-                        <span className="text-xs">ไม่มีรูปภาพ</span>
-                      </div>
-                    )}
-                    {/* Badge บอกสถานะมุมขวาบน */}
-                    <Badge className={`absolute top-2 right-2 shadow-sm ${item.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}>
-                      {item.isActive ? "เปิดใช้งาน" : "ปิดชั่วคราว"}
-                    </Badge>
-                  </div>
-
-                  {/* 🌟 ฟอร์มแก้ไขรายละเอียดของแต่ละรูป */}
-                  <div className="p-5 flex-1 grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5 md:col-span-2">
-                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">หัวข้อแบนเนอร์ (Internal Note)</Label>
-                      <Input
-                        placeholder="เช่น แบนเนอร์โปรโมชั่นสงกรานต์"
-                        value={item.title || ""}
-                        onChange={(e) => handleLocalUpdate(item.id, { title: e.target.value })}
-                        className="bg-slate-50"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5 md:col-span-2">
-                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                        <LinkIcon className="h-3 w-3" /> ลิงก์ปลายทาง (เมื่อลูกค้าคลิกรูป)
-                      </Label>
-                      <Input
-                        placeholder="เช่น #pricing หรือ https://google.com"
-                        value={item.link || ""}
-                        onChange={(e) => handleLocalUpdate(item.id, { link: e.target.value })}
-                        className="bg-slate-50"
-                      />
-                      <p className="text-[10px] text-slate-400">สามารถใส่ ID ของ Section เช่น `#pricing` หรือ `#features` ได้</p>
-                    </div>
-                  </div>
-
-                  {/* 🌟 ส่วนควบคุมขวาสุด (เปิด/ปิด และ ลบ) */}
-                  <div className="bg-slate-50 p-5 border-l border-slate-100 flex flex-row md:flex-col items-center justify-between gap-4 md:w-32 shrink-0">
-                    <div className="flex flex-col items-center gap-2 w-full">
-                      <Label className="text-xs font-medium text-slate-500">สถานะแบนเนอร์</Label>
-                      <Switch
-                        checked={item.isActive}
-                        onCheckedChange={(checked) => handleLocalUpdate(item.id, { isActive: checked })}
-                        className="data-[state=checked]:bg-emerald-500"
-                      />
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteCarouselItem(item.id, item.imageUrl)}
-                      className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 w-full"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" /> ลบทิ้ง
-                    </Button>
-                  </div>
-                </Card>
-              ))
-            )}
+                )}
+              </Droppable>
+            </DragDropContext>
+          )}
           </div>
 
           <div className="flex justify-end pt-6 border-t mt-8">
