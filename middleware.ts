@@ -85,10 +85,10 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  // ในไฟล์ middleware.ts (ประมาณบรรทัดที่ 71)
   if (user && url.pathname.startsWith('/login')) {
-    // 🌟 ถ้า Login แล้ว แต่เผลอกดมาหน้า /login เราเตะไปหน้า /dashboard 
-    // แล้วปล่อยให้หน้า Dashboard ไปเช็คสถานะ Paywall ด้วยตัวเอง (เหมือนเดิม)
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    // 🌟 แก้ไข: เตะไปหน้า Landing Page ก่อน เพื่อให้หน้า Landing เป็นคนเช็คว่าควรไปไหนต่อ
+    return NextResponse.redirect(new URL('/', request.url)); 
   }
 
   // คืนค่า Response สุดท้าย

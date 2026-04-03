@@ -40,6 +40,9 @@ export default function LandingPage() {
 
   const [shopSelectAction, setShopSelectAction] = useState<"checkout" | "dashboard">("checkout")
   const [isDemoLoading, setIsDemoLoading] = useState(false)
+  
+  // 🌟 เพิ่ม flag กันยิงซ้ำ (Context Selection Problem Guard)
+  const [hasRouted, setHasRouted] = useState(false)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -61,7 +64,30 @@ export default function LandingPage() {
     }
   }, [])
 
-  // 🌟 ฟังก์ชันการเลือกแพ็กเกจ ที่แก้ไขแล้ว
+  // 🌟 useEffect สำหรับ Auto Routing เมื่อเข้าสู่ระบบเสร็จแล้ว
+  useEffect(() => {
+    const handleAutoRouting = async () => {
+      // 🛡️ Guard: ถ้าไม่มีอีเมล, ยังไม่ล็อกอิน, ยิง route ไปแล้ว หรือ กำลังเปิด Modal อยู่ ให้หยุดการทำงานทันที
+      if (!userEmail || !isLoggedIn || hasRouted || showShopSelectPopup) return
+
+      setHasRouted(true)
+
+      const res = await getUserShops(userEmail)
+
+      if (res.success && res.shops && res.shops.length > 0) {
+        // ถ้ามีร้านเดียว พาเข้า Dashboard อัตโนมัติเลย (ไม่ต้องให้เสียเวลากด)
+        if (res.shops.length === 1) {
+          updateShop(res.shops[0])
+          router.push(`/dashboard?shopId=${res.shops[0].id}`)
+        }
+        // ถ้ามีหลายร้าน (หรือเป็น Staff หลายร้าน) ระบบจะไม่ออโต้ ปล่อยให้อยู่หน้า Landing Page ตามปกติ
+      }
+    }
+
+    handleAutoRouting()
+  }, [userEmail, isLoggedIn, hasRouted, showShopSelectPopup, router, updateShop])
+
+  // 🌟 ฟังก์ชันการเลือกแพ็กเกจ
   const handleSelectPlan = async (plan: string) => {
     if (!isLoggedIn) {
       setSelectedPlan(plan)
@@ -92,10 +118,7 @@ export default function LandingPage() {
       const res = await getUserShops(userEmail)
 
       if (res.success && res.shops.length > 0) {
-        // 🌟 ลบการเช็ค isStaffOnly ออก อนุญาตให้ STAFF กดซื้อแพ็กเกจให้ร้านได้
-        
         setShopSelectAction("checkout")
-        // 🌟 ดึงมาทุกร้านเลย ไม่ต้อง filter เอาแค่ OWNER
         setUserShops(res.shops);
         setSelectedShopId(res.shops[0]?.id || "");
         setShowShopSelectPopup(true)
@@ -120,8 +143,6 @@ export default function LandingPage() {
   const handleConfirmShopSelection = () => {
     if (shopSelectAction === "dashboard") {
       if (selectedShopId === "new_shop") {
-        // 🌟 แก้ไข: ถ้ามาจากปุ่มหน้าจัดการร้าน แล้วกดสร้างร้านใหม่ ให้ยิงไปหน้า Onboarding เลย
-        // เพื่อให้เขากรอกชื่อร้านและได้ shopId ออกมาก่อน (ยังไม่ต้องส่ง plan ไปก็ได้)
         router.push(`/onboarding`)
       } else {
         const selectedShop = userShops.find(s => String(s.id) === String(selectedShopId))
@@ -131,12 +152,9 @@ export default function LandingPage() {
         }
       }
     } else {
-      // กรณี shopSelectAction === "checkout" (กดมาจากหน้า Pricing)
       if (selectedShopId === "new_shop") {
-        // 🌟 ถูกต้องแล้ว: ถ้าเขาเลือกแพ็กเกจมาแล้ว และกดสร้างร้านใหม่ ต้องไป Onboarding ก่อนเช่นกัน
         router.push(`/onboarding?plan=${selectedPlan}`)
       } else {
-        // ถ้าเลือกร้านที่มีอยู่แล้ว ก็ไปหน้า Checkout เพื่อจ่ายเงินต่ออายุได้เลย
         router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
       }
     }
@@ -157,7 +175,7 @@ export default function LandingPage() {
       } 
       else {
         updateShop(res.shops[0]);
-        router.push('/dashboard');
+        router.push(`/dashboard?shopId=${res.shops[0].id}`);
       }
 
     } else {
@@ -174,6 +192,7 @@ export default function LandingPage() {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
     setUserEmail(null)
+    setHasRouted(false) // 🌟 เคลียร์ flag เพื่อให้ล็อกอินรอบหน้า Auto-route ทำงานได้อีก
     router.refresh()
   }
 
@@ -193,7 +212,7 @@ export default function LandingPage() {
         }
 
         updateShop(res.shop)
-        router.push('/dashboard')
+        router.push(`/dashboard?shopId=${res.shop.id}`) // 🌟 เผื่อไว้ ส่ง id ผ่าน url ด้วย
       } else {
         throw new Error(res.error || "Failed to create demo shop")
       }

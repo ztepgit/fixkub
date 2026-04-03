@@ -5,8 +5,9 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   
-  // ถ้าพารามิเตอร์ next ไม่มี ให้ตั้งค่าเริ่มต้นเด้งไปหน้า /dashboard
-  const next = requestUrl.searchParams.get('next') || '/dashboard'
+  // ในไฟล์ app/auth/callback/route.ts (ประมาณบรรทัดที่ 9)
+  // 🌟 แก้ไข: ถ้าพารามิเตอร์ next ไม่มี ให้ตั้งค่าเริ่มต้นเด้งไปหน้า Landing Page (/) แทน
+  const next = requestUrl.searchParams.get('next') || '/'
 
   if (code) {
     const supabase = await createClient()
