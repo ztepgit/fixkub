@@ -52,14 +52,14 @@ function CheckoutForm() {
 
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
-    price: 199,
-    priceText: "฿199.00",
+    price: 299,
+    priceText: "฿299.00",
     period: "ต่อเดือน",
     features: ["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รองรับ 1 สาขา", "หน้าเช็คสถานะสำหรับลูกค้า"]
   } : {
     title: "แพ็กเกจรายปี (คุ้มที่สุด)",
-    price: 1690,
-    priceText: "฿1,690.00",
+    price: 2490,
+    priceText: "฿2,490.00",
     period: "ต่อปี",
     features: ["สร้างคิวซ่อมไม่จำกัด", "ประหยัดกว่าถึง 30%", "ซัพพอร์ตด่วน (Priority)", "กลุ่มไลน์ลูกค้ารายปี"]
   }

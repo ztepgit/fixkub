@@ -84,11 +84,11 @@ export function SubscriptionBanner({
 
   const PricingBlock = () => (
     <div className="flex flex-col space-y-1 my-3 bg-white/60 p-3 rounded-md border border-black/5 w-fit">
-      <span className="text-sm font-medium text-slate-700">฿ 199 / เดือน</span>
+      <span className="text-sm font-medium text-slate-700">฿ 299 / เดือน</span>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-bold text-emerald-700">⭐ ฿ 1,690 / ปี</span>
+        <span className="text-sm font-bold text-emerald-700">⭐ ฿ 2,490 / ปี</span>
         <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
-          ประหยัด 698 บาท
+          ประหยัด 1,098 บาท
         </span>
       </div>
     </div>

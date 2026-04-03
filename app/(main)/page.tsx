@@ -351,11 +351,11 @@ export default function LandingPage() {
                   <h3 className="text-2xl font-bold text-slate-900">รายเดือน</h3>
                   <p className="text-slate-500 mt-2">เหมาะสำหรับร้านเปิดใหม่</p>
                   <div className="my-6 flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900">฿199</span>
+                    <span className="text-4xl font-extrabold text-slate-900">฿299</span>
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
                   <ul className="space-y-3 mb-8">
-                    {["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รองรับ 1 สาขา", "หน้าเช็คสถานะสำหรับลูกค้า"].map((item, i) => (
+                    {["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รายงานรายได้", "หน้าเช็คสถานะสำหรับลูกค้า"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-slate-700">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" /> {item}
                       </li>
@@ -370,7 +370,7 @@ export default function LandingPage() {
               <Card className="border-emerald-500 shadow-xl shadow-emerald-100 relative">
                 <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-4">
                   <Badge className="bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 text-white border-none px-3 py-1.5 text-sm uppercase font-black shadow-md">
-                    คุ้มที่สุด ประหยัด 698.-
+                    คุ้มที่สุด ประหยัด 1,098.-
                   </Badge>
                 </div>
                 <CardContent className="p-8">
@@ -380,11 +380,11 @@ export default function LandingPage() {
                   </div>
                   <p className="text-slate-500 mt-2">ประหยัดกว่า จ่ายครั้งเดียวใช้ยาวๆ</p>
                   <div className="my-6 flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900">฿1,690</span>
+                    <span className="text-4xl font-extrabold text-slate-900">฿2,490</span>
                     <span className="text-slate-500">/ ปี</span>
                   </div>
                   <ul className="space-y-3 mb-8">
-                    {["ทุกอย่างในแพ็กเกจรายเดือน", "ประหยัดกว่าถึง 30%", "ซัพพอร์ตด่วน (Priority)", "กลุ่มไลน์ลูกค้ารายปี"].map((item, i) => (
+                    {["ทุกอย่างในแพ็กเกจรายเดือน", "ประหยัดกว่าถึง 30%", "ซัพพอร์ตด่วน (Priority)", "ทดลองฟีเจอร์ใหม่ก่อนใคร"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-slate-700">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" /> {item}
                       </li>
