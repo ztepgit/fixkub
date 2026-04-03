@@ -60,20 +60,34 @@ export default function MainPage() {
           return
         }
 
-        // 🌟 [จุดที่แก้ไข] เช็คว่ามีร้านที่เลือกมาจากหน้า Landing หรือไม่
-        let currentShop = shop;
-        const isShopSelectedValid = currentShop && shopRes.shops.some(s => s.id === currentShop!.id);
+        // 🌟 1. ดึง shopId จาก URL Query Parameters (Best Practice)
+        const urlParams = new URLSearchParams(window.location.search)
+        const shopIdFromQuery = urlParams.get('shopId')
 
-        if (!isShopSelectedValid) {
-          // ถ้าไม่มี หรือเลือกร้านผิด ให้ดึงร้านแรกสุด (Index 0)
-          currentShop = shopRes.shops[0]
-          setShop(currentShop) // ทับค่าลง Zustand
+        let currentShop;
+
+        // 🌟 2. ถ้ามี Query Param ส่งมา ให้ยึดร้านจาก URL เป็นหลัก
+        if (shopIdFromQuery) {
+          currentShop = shopRes.shops.find(s => s.id === shopIdFromQuery)
+
+          // (Optional) ลบ query param ออกจาก URL เพื่อความสะอาดตา หลังอ่านค่าเสร็จแล้ว
+          window.history.replaceState(null, '', '/dashboard')
         }
 
+        // 🌟 3. ถ้าไม่มี Query Param ค่อยกลับไปดู Zustand หรือ Fallback เป็นร้านแรกสุด
+        if (!currentShop) {
+          const freshShopState = useShopStore.getState().shop;
+          const isShopSelectedValid = freshShopState && shopRes.shops.some(s => s.id === freshShopState.id);
+
+          currentShop = isShopSelectedValid ? freshShopState : shopRes.shops[0];
+        }
+
+        // ทับค่าที่ถูกต้องลง Zustand และ State ของหน้านี้
+        setShop(currentShop)
         const realShopId = currentShop!.id
         setShopId(realShopId)
 
-        // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time)
+        // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
         const res = await checkAndEnforceShopStatus(realShopId)
 
         // 🌟 เก็บค่าวันหมดอายุไว้เสมอ
@@ -102,7 +116,7 @@ export default function MainPage() {
 
     verifyAccess()
     // ไม่ใส่ shop ลงใน dependency array เพื่อป้องกันการ re-render ซ้ำซ้อนตอน setShop
-  }, [router, setShop]) 
+  }, [router, setShop])
 
   if (isChecking || !shopId) {
     return (

@@ -122,12 +122,12 @@ export default function LandingPage() {
       if (selectedShopId === "new_shop") {
         document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
       } else {
-        // 🛠️ แก้บรรทัดนี้: บังคับเป็น String ทั้งคู่ตอนเทียบ
-      const selectedShop = userShops.find(s => String(s.id) === String(selectedShopId))
+        const selectedShop = userShops.find(s => String(s.id) === String(selectedShopId))
         if (selectedShop) {
-          updateShop(selectedShop)
+          updateShop(selectedShop) // อัปเดตไว้เป็น Cache พื้นฐาน
+          // 🌟 ยิงผ่าน URL ไปเลย ชัวร์สุด 100% (URL is the Source of Truth)
+          router.push(`/dashboard?shopId=${selectedShop.id}`)
         }
-        router.push('/dashboard')
       }
     } else {
       if (selectedShopId === "new_shop") {
