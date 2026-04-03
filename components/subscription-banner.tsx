@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { AlertTriangle, Clock, AlertCircle, X, Sparkles } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { AlertTriangle, Clock, AlertCircle, X, Sparkles, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+
+// 🌟 Import supabase สำหรับให้ปุ่มเปิดร้านจริงทำการ Logout
+import { supabase } from "@/lib/supabase"
 
 export function SubscriptionBanner({
   trialEndsAt,
@@ -14,10 +18,10 @@ export function SubscriptionBanner({
   isDemo?: boolean
 }) {
 
-  console.log("isDemo:", isDemo)
-
+  const router = useRouter()
   const [isVisible, setIsVisible] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // ✅ FIX: ประกาศ storageKey ที่ TOP LEVEL ใช้ได้ทั้งไฟล์
   const storageKey = `esyq_dismissed_threshold_${isDemo ? "demo" : "real"}`
@@ -26,10 +30,31 @@ export function SubscriptionBanner({
     setIsMounted(true)
   }, [])
 
+  // 🌟 ฟังก์ชันจัดการการกดปุ่ม "เปิดร้านจริง" สำหรับบัญชี Demo
+  const handleOpenRealShop = async () => {
+    setIsLoggingOut(true)
+    try {
+      // 1. ล็อกเอาท์ออกจากบัญชี Demo ปลอมทิ้งซะ
+      await supabase.auth.signOut()
+      
+      // 2. ล้างค่า Auto-Route ที่เราเพิ่งทำไว้ เพื่อให้หน้า Landing ทำงานได้ปกติ
+      sessionStorage.removeItem("hasAutoRouted")
+      
+      // 3. เตะไปหน้า Landing Page ตรงส่วนราคา เพื่อให้เขาเริ่ม Flow การสมัครด้วยอีเมลจริง
+      router.push('/#pricing')
+    } catch (error) {
+      console.error("Error signing out from demo:", error)
+      // เผื่อพัง ก็เตะไปหน้าแรกดื้อๆ เลย
+      window.location.href = '/#pricing'
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
   // ✅ กัน hydration bug
   if (!isMounted) return null
 
-  // ✅ DEMO MODE: ไม่โชว์เตือนหมดอายุ
+  // ✅ DEMO MODE: ไม่โชว์เตือนหมดอายุ แต่จะโชว์ปุ่มเปิดร้านจริง
   if (isDemo) {
     return (
       <Alert className="mb-6 border-emerald-200 bg-emerald-50 text-emerald-800">
@@ -40,11 +65,15 @@ export function SubscriptionBanner({
         <AlertDescription className="mt-1">
           <p>ทดลองได้เต็มระบบ 24 ชั่วโมง</p>
 
-          <Link href="/#pricing">
-            <Button size="sm" className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-              เปิดร้านจริง
-            </Button>
-          </Link>
+          <Button 
+            size="sm" 
+            onClick={handleOpenRealShop}
+            disabled={isLoggingOut}
+            className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isLoggingOut ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            เปิดร้านจริง
+          </Button>
         </AlertDescription>
       </Alert>
     )

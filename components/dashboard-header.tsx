@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { useQuery } from "@tanstack/react-query"
 import { 
@@ -25,7 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 
-import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2, Home } from "lucide-react"
+import { QrCode, Copy, Download, Link as LinkIcon, Eye, EyeOff, Loader2, Home, LogOut } from "lucide-react"
 
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
@@ -41,8 +42,10 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ currentTabName = "ภาพรวม" }: DashboardHeaderProps) {
+  const router = useRouter()
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const qrWrapperRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
@@ -91,6 +94,27 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
     }
   }
 
+  // 🌟 ฟังก์ชันกลับหน้าแรก (แบบไม่ให้โดนเตะกลับ)
+  const handleGoHome = (e: React.MouseEvent) => {
+    e.preventDefault()
+    // ตั้งค่า flag เพื่อบอกหน้า Landing Page ว่า "ไม่ต้องเตะฉันกลับมา Dashboard อีกนะ"
+    sessionStorage.setItem("hasAutoRouted", "true")
+    router.push("/")
+  }
+
+  // 🌟 ฟังก์ชันออกจากระบบแบบล้างค่าสะอาด
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+      sessionStorage.removeItem("hasAutoRouted") // ล้าง flag การเตะออโต้
+      window.location.href = "/" // ใช้ window.location.href เพื่อล้าง State ทั้งหมดในเครื่อง
+    } catch (error) {
+      console.error("Logout Error:", error)
+      setIsLoggingOut(false)
+    }
+  }
+
   return (
     <header className="flex w-full h-16 md:h-20 shrink-0 items-center justify-between border-b px-4 md:px-6 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
       
@@ -102,10 +126,10 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    {/* 🌟 แก้ไข: เพิ่ม dark:text-slate-300 และ dark:hover:text-emerald-400 ให้สว่างขึ้น */}
-                    <Link href="/" className="flex items-center text-slate-400 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400 transition-colors p-1">
+                    {/* 🌟 ผูกปุ่ม Home เข้ากับ handleGoHome */}
+                    <a href="/" onClick={handleGoHome} className="flex items-center text-slate-400 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400 transition-colors p-1">
                       <Home className="h-4 w-4" />
-                    </Link>
+                    </a>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs">
                     กลับหน้าเว็บไซต์หลัก
@@ -116,7 +140,6 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
             <BreadcrumbSeparator className="hidden md:block text-slate-300 dark:text-slate-600" />
 
             <BreadcrumbItem className="hidden md:block">
-              {/* 🌟 แก้ไข: เปลี่ยน dark:text-slate-400 เป็น dark:text-slate-300 */}
               <span className="text-slate-500 dark:text-slate-300 font-normal cursor-default">
                 ระบบจัดการคิว
               </span>
@@ -152,6 +175,23 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
             <QrCode className="w-5 h-5" />
           </Button>
         </TooltipProvider>
+
+        {/* 🌟 เพิ่มปุ่ม Logout เป็น "ทางออกฉุกเฉิน" */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/30 ml-2"
+          title="ออกจากระบบ"
+        >
+          {isLoggingOut ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          <span className="hidden lg:inline ml-2">ออกจากระบบ</span>
+        </Button>
 
         <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
           <DialogContent 
@@ -228,12 +268,10 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  {/* 🌟 แก้ไข: หัวข้อ "ลิงก์ร้านค้าของคุณ" ให้สว่างขึ้นในโหมดมืด */}
                   <Label className="text-xs text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider">
                     ลิงก์ร้านค้าของคุณ (URL)
                   </Label>
                   <div className="flex gap-2">
-                    {/* 🌟 แก้ไข: กล่อง Input ลิงก์ร้าน ให้พื้นหลังมืดขึ้นเล็กน้อย ตัวหนังสือสว่างขึ้น */}
                     <Input 
                       readOnly 
                       value={isLoading ? "กำลังโหลด..." : (shopUrl || "ยังไม่มี URL ร้านค้า")} 
@@ -247,7 +285,6 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  {/* 🌟 แก้ไข: ปุ่ม "คัดลอกลิงก์" ให้ตัวหนังสือสว่างขึ้น มองเห็นชัดเจนในโหมดมืด */}
                   <Button variant="outline" className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 h-11 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" onClick={copyLink} disabled={!shopUrl}>
                     <LinkIcon className="h-4 w-4 mr-2 text-slate-500 dark:text-slate-400" /> คัดลอกลิงก์
                   </Button>
