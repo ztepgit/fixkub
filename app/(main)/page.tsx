@@ -122,7 +122,8 @@ export default function LandingPage() {
       if (selectedShopId === "new_shop") {
         document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
       } else {
-        const selectedShop = userShops.find(s => s.id === selectedShopId)
+        // 🛠️ แก้บรรทัดนี้: บังคับเป็น String ทั้งคู่ตอนเทียบ
+      const selectedShop = userShops.find(s => String(s.id) === String(selectedShopId))
         if (selectedShop) {
           updateShop(selectedShop)
         }

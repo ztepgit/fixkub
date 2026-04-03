@@ -60,10 +60,17 @@ export default function MainPage() {
           return
         }
 
-        const currentShop = shopRes.shops[0]
-        setShop(currentShop)
+        // 🌟 [จุดที่แก้ไข] เช็คว่ามีร้านที่เลือกมาจากหน้า Landing หรือไม่
+        let currentShop = shop;
+        const isShopSelectedValid = currentShop && shopRes.shops.some(s => s.id === currentShop!.id);
 
-        const realShopId = currentShop.id
+        if (!isShopSelectedValid) {
+          // ถ้าไม่มี หรือเลือกร้านผิด ให้ดึงร้านแรกสุด (Index 0)
+          currentShop = shopRes.shops[0]
+          setShop(currentShop) // ทับค่าลง Zustand
+        }
+
+        const realShopId = currentShop!.id
         setShopId(realShopId)
 
         // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time)
@@ -94,7 +101,8 @@ export default function MainPage() {
     }
 
     verifyAccess()
-  }, [router, setShop])
+    // ไม่ใส่ shop ลงใน dependency array เพื่อป้องกันการ re-render ซ้ำซ้อนตอน setShop
+  }, [router, setShop]) 
 
   if (isChecking || !shopId) {
     return (
