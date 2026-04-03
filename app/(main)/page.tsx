@@ -120,25 +120,29 @@ export default function LandingPage() {
   const handleConfirmShopSelection = () => {
     if (shopSelectAction === "dashboard") {
       if (selectedShopId === "new_shop") {
-        document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+        // 🌟 แก้ไข: ถ้ามาจากปุ่มหน้าจัดการร้าน แล้วกดสร้างร้านใหม่ ให้ยิงไปหน้า Onboarding เลย
+        // เพื่อให้เขากรอกชื่อร้านและได้ shopId ออกมาก่อน (ยังไม่ต้องส่ง plan ไปก็ได้)
+        router.push(`/onboarding`)
       } else {
         const selectedShop = userShops.find(s => String(s.id) === String(selectedShopId))
         if (selectedShop) {
-          updateShop(selectedShop) // อัปเดตไว้เป็น Cache พื้นฐาน
-          // 🌟 ยิงผ่าน URL ไปเลย ชัวร์สุด 100% (URL is the Source of Truth)
+          updateShop(selectedShop)
           router.push(`/dashboard?shopId=${selectedShop.id}`)
         }
       }
     } else {
+      // กรณี shopSelectAction === "checkout" (กดมาจากหน้า Pricing)
       if (selectedShopId === "new_shop") {
+        // 🌟 ถูกต้องแล้ว: ถ้าเขาเลือกแพ็กเกจมาแล้ว และกดสร้างร้านใหม่ ต้องไป Onboarding ก่อนเช่นกัน
         router.push(`/onboarding?plan=${selectedPlan}`)
       } else {
+        // ถ้าเลือกร้านที่มีอยู่แล้ว ก็ไปหน้า Checkout เพื่อจ่ายเงินต่ออายุได้เลย
         router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
       }
     }
     setShowShopSelectPopup(false)
   }
-
+  
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
 

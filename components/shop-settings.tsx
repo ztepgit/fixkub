@@ -18,7 +18,8 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-import { updateShopSettings, getUserShops, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
+// 🌟 นำ getUserShops ออก เพราะเราจะใช้ข้อมูลจาก Zustand แทน
+import { updateShopSettings, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
 import { supabase } from "@/lib/supabase"
 
@@ -28,7 +29,10 @@ const QRCodeCanvas = dynamic(
 )
 
 export function ShopSettings() {
+  // 🌟 1. ดึง shop ปัจจุบันจาก Zustand มาเป็น Source of Truth
+  const currentZustandShop = useShopStore((s) => s.shop)
   const updateShop = useShopStore((s) => s.updateShop)
+  
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -36,27 +40,24 @@ export function ShopSettings() {
   const qrWrapperRef = useRef<HTMLDivElement>(null) 
 
   const { data: shop, isLoading, isError } = useQuery({
-    queryKey: ["shop-settings"],
+    // 🌟 2. ผูก QueryKey กับ ID ของร้าน จะได้ไม่โหลดข้อมูลร้านอื่นมาปนกัน
+    queryKey: ["shop-settings", currentZustandShop?.id],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.email) throw new Error("Unauthorized")
+      if (!currentZustandShop?.id) throw new Error("No active shop")
 
-      const res = await getUserShops(user.email)
-      if (!res.success || !res.shops || res.shops.length === 0) {
-        throw new Error("Shop not found")
-      }
-
-      const baseShop = res.shops[0]
-      const settingsRes = await getShopSettings(baseShop.id)
+      // 🌟 3. เรียกแค่ getShopSettings ของร้านที่เลือกมา ไม่ต้องไปดึงร้านแรก (index 0) อีกแล้ว
+      const settingsRes = await getShopSettings(currentZustandShop.id)
       
       const fullShopData = {
-        ...baseShop,
+        ...currentZustandShop,
         logoUrl: settingsRes.success && settingsRes.data ? settingsRes.data.logoUrl : null
       }
 
       updateShop(fullShopData)
       return fullShopData
-    }
+    },
+    // 🌟 4. ป้องกันไม่ให้ Query ทำงานถ้าระบบยังโหลด Zustand ไม่เสร็จ
+    enabled: !!currentZustandShop?.id
   })
 
   const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
@@ -78,7 +79,7 @@ export function ShopSettings() {
     onSuccess: () => {
       toast({ title: "เพิ่มพนักงานสำเร็จ", description: "พนักงานสามารถล็อกอินด้วยอีเมลนี้ได้ทันที" })
       setNewStaffEmail("")
-      queryClient.invalidateQueries({ queryKey: ["shop-staff"] })
+      queryClient.invalidateQueries({ queryKey: ["shop-staff", shop?.id] })
     },
     onError: (err: any) => {
       toast({ title: "ไม่สามารถเพิ่มพนักงานได้", description: err.message, variant: "destructive" })
@@ -93,7 +94,7 @@ export function ShopSettings() {
     },
     onSuccess: () => {
       toast({ title: "ลบพนักงานสำเร็จ", description: "พนักงานถูกถอดออกจากร้านเรียบร้อยแล้ว" })
-      queryClient.invalidateQueries({ queryKey: ["shop-staff"] })
+      queryClient.invalidateQueries({ queryKey: ["shop-staff", shop?.id] })
     },
     onError: (err: any) => {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" })
@@ -166,7 +167,7 @@ export function ShopSettings() {
 
     setIsSaving(true)
     
-    updateShop({ name: shopName, logoUrl: logoPreview })
+    updateShop({ ...shop, name: shopName, logoUrl: logoPreview })
     
     const formData = new FormData()
     formData.append("shopId", shop.id) 
@@ -181,7 +182,7 @@ export function ShopSettings() {
     const res = await updateShopSettings(formData)
 
     if (res.success && res.data) {
-      updateShop({ name: res.data.name, logoUrl: res.data.logoUrl }) 
+      updateShop({ ...shop, name: res.data.name, logoUrl: res.data.logoUrl }) 
       toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตข้อมูลร้านค้าเรียบร้อยแล้ว" })
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
