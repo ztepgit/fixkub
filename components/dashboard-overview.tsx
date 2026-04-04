@@ -166,7 +166,7 @@ export function DashboardOverview() {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url; 
-      link.download = `QR-Code-${currentSlug || 'ESYQ'}.png`; 
+      link.download = `QR-Code-${currentSlug || 'esyq'}.png`; 
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }
