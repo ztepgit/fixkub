@@ -248,7 +248,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
               <Wrench className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">Esyq <span className="text-emerald-600">Repair</span></span>
+            <span className="text-xl font-bold tracking-tight text-slate-900">esyq <span className="text-emerald-600">Repair</span></span>
           </div>
           <nav className="hidden md:flex gap-6">
             <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ฟีเจอร์เด่น</Link>
@@ -485,9 +485,9 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 md:px-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Wrench className="h-6 w-6 text-emerald-500" />
-            <span className="text-2xl font-bold text-white">Esyq <span className="text-emerald-500">Repair</span></span>
+            <span className="text-2xl font-bold text-white">esyq <span className="text-emerald-500">Repair</span></span>
           </div>
-          <p className="text-sm">© 2026 Esyq Systems. All rights reserved.</p>
+          <p className="text-sm">© 2026 esyq Systems. All rights reserved.</p>
         </div>
       </footer>
 
