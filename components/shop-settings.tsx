@@ -40,12 +40,10 @@ export function ShopSettings() {
   const qrWrapperRef = useRef<HTMLDivElement>(null) 
 
   const { data: shop, isLoading, isError } = useQuery({
-    // 🌟 2. ผูก QueryKey กับ ID ของร้าน จะได้ไม่โหลดข้อมูลร้านอื่นมาปนกัน
     queryKey: ["shop-settings", currentZustandShop?.id],
     queryFn: async () => {
       if (!currentZustandShop?.id) throw new Error("No active shop")
 
-      // 🌟 3. เรียกแค่ getShopSettings ของร้านที่เลือกมา ไม่ต้องไปดึงร้านแรก (index 0) อีกแล้ว
       const settingsRes = await getShopSettings(currentZustandShop.id)
       
       const fullShopData = {
@@ -56,29 +54,39 @@ export function ShopSettings() {
       updateShop(fullShopData)
       return fullShopData
     },
-    // 🌟 4. ป้องกันไม่ให้ Query ทำงานถ้าระบบยังโหลด Zustand ไม่เสร็จ
     enabled: !!currentZustandShop?.id
   })
 
+  // 🌟 2. ดึงข้อมูลพนักงาน และใช้ .filter() กรองเอาเฉพาะ STAFF มาแสดง!
   const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
     queryKey: ["shop-staff", shop?.id],
     queryFn: async () => {
       if (!shop?.id) return [];
       const res = await getShopStaff(shop.id);
-      return res.success ? res.data : [];
+      
+      // 💡 เปลี่ยนจาก res.data.filter เป็น res.data?.filter 
+      // (เติมเครื่องหมาย ? ป้องกัน Error ตอน data เป็น undefined)
+      return res.success ? (res.data?.filter((s: any) => s.role === "STAFF") || []) : [];
     },
     enabled: !!shop?.id
   })
 
+  // 🌟 3. เพิ่ม State สำหรับช่องกรอก "ชื่อพนักงาน"
+  const [newStaffEmail, setNewStaffEmail] = useState("")
+  const [newStaffName, setNewStaffName] = useState("")
+
   const addStaffMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const res = await addShopStaff(shop!.id, email);
+    // 💡 ส่ง Name ไปที่ Action ด้วย
+    mutationFn: async (data: { email: string, name: string }) => {
+      // 🌟 เติม "STAFF" เข้าไปเป็น Parameter ตัวที่ 4 ตามที่ฟังก์ชันต้องการ!
+      const res = await addShopStaff(shop!.id, data.email, data.name, "STAFF");
       if (!res.success) throw new Error(res.error);
       return res;
     },
     onSuccess: () => {
       toast({ title: "เพิ่มพนักงานสำเร็จ", description: "พนักงานสามารถล็อกอินด้วยอีเมลนี้ได้ทันที" })
       setNewStaffEmail("")
+      setNewStaffName("") // รีเซ็ตช่องชื่อด้วย
       queryClient.invalidateQueries({ queryKey: ["shop-staff", shop?.id] })
     },
     onError: (err: any) => {
@@ -108,7 +116,6 @@ export function ShopSettings() {
   
   const [isSaving, setIsSaving] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
-  const [newStaffEmail, setNewStaffEmail] = useState("")
 
   useEffect(() => {
     if (shop) {
@@ -392,6 +399,7 @@ export function ShopSettings() {
             </CardContent>
           </Card>
 
+          {/* 🌟 ปรับปรุงการแสดง Card จัดการพนักงาน */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:bg-slate-900">
             <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800 pb-4">
               <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-100">
@@ -399,7 +407,7 @@ export function ShopSettings() {
                 จัดการพนักงาน (Staff)
               </CardTitle>
               <CardDescription className="dark:text-slate-400">
-                สร้างพนักงาน เพื่อเพิ่มหน้าจอใช้งาน ({staffList.length}/2)
+                สร้างพนักงาน เพื่อเข้าใช้งานระบบพร้อมกัน ({staffList.length}/2)
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
@@ -413,11 +421,16 @@ export function ShopSettings() {
                         <div key={staff.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-sm">
-                              {staff.email.charAt(0).toUpperCase()}
+                              {/* ถ้ามี Name ให้แสดงตัวอักษรตัวแรกของ Name ถ้าไม่มีใช้อีเมล */}
+                              {(staff.name || staff.email).charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{staff.email}</p>
-                              <Badge variant="secondary" className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">STAFF</Badge>
+                              {/* แสดงชื่อและอีเมล (ถ้ามี) */}
+                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                {staff.name ? staff.name : staff.email}
+                              </p>
+                              {staff.name && <p className="text-[10px] text-slate-500 dark:text-slate-400">{staff.email}</p>}
+                              <Badge variant="secondary" className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 mt-1">STAFF</Badge>
                             </div>
                           </div>
                           <Button 
@@ -438,20 +451,38 @@ export function ShopSettings() {
                     </div>
                   )}
 
+                  {/* 🌟 ฟอร์มเพิ่มพนักงาน ที่บังคับกรอกทั้ง 2 ช่อง */}
                   {staffList.length < 2 && (
-                    <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <Input 
-                        placeholder="กรอกอีเมลพนักงาน..." 
-                        value={newStaffEmail}
-                        onChange={(e) => setNewStaffEmail(e.target.value)}
-                        className="flex-1 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
-                      />
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-slate-500">ชื่อพนักงาน <span className="text-red-500">*</span></Label>
+                          <Input 
+                            placeholder="เช่น สมชาย ช่างซ่อม" 
+                            value={newStaffName}
+                            onChange={(e) => setNewStaffName(e.target.value)}
+                            className="dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-slate-500">อีเมลเพื่อเข้าสู่ระบบ <span className="text-red-500">*</span></Label>
+                          <Input 
+                            type="email"
+                            placeholder="staff@email.com" 
+                            value={newStaffEmail}
+                            onChange={(e) => setNewStaffEmail(e.target.value)}
+                            className="dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
+                          />
+                        </div>
+                      </div>
                       <Button 
-                        onClick={() => addStaffMutation.mutate(newStaffEmail)}
-                        disabled={!newStaffEmail.includes("@") || addStaffMutation.isPending}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => addStaffMutation.mutate({ email: newStaffEmail, name: newStaffName })}
+                        // 💡 เช็คว่าต้องกรอกทั้ง 2 ช่องถึงจะกดปุ่มได้
+                        disabled={!newStaffEmail.includes("@") || newStaffName.trim().length === 0 || addStaffMutation.isPending}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2"
                       >
-                        <Plus className="h-4 w-4 mr-1" /> เชิญ
+                        {addStaffMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                        เพิ่มพนักงานใหม่
                       </Button>
                     </div>
                   )}

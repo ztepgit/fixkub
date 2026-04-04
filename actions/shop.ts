@@ -4,9 +4,8 @@ import { z } from "zod"
 import { db } from "@/lib/prisma"
 import { supabase } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
-import { addDays } from "date-fns"
-import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 1. เพิ่ม import ด่านตรวจ
-import { isAfter } from "date-fns"
+import { addDays, isAfter } from "date-fns"
+import { verifyShopAccess } from "@/lib/auth-guard" 
 
 // ==========================================
 // 🌟 Schemas สำหรับ Validate และ Trim ข้อมูล
@@ -285,7 +284,7 @@ export async function updateShopSettings(formData: FormData) {
 }
 
 // ==========================================
-// 6. ดึงรายชื่อร้านค้าทั้งหมดของ User (สำหรับให้เลือกตอนเติมเงิน)
+// 6. ดึงรายชื่อร้านค้าทั้งหมดของ User (สำหรับให้เลือกตอนเติมเงิน/เข้า Dashboard)
 // ==========================================
 export async function getUserShops(email: string) {
   try {
@@ -306,7 +305,7 @@ export async function getUserShops(email: string) {
       }
     })
 
-    // 🌟 อัปเดต: แนบ role (OWNER / STAFF) ของ User ในร้านนั้นๆ กลับไปให้ Frontend ด้วย
+    // 🌟 แมปข้อมูลร้านค้า พร้อมระบุ Role ของ User ในร้านนั้นๆ กลับไป
     const shops = owners.map(owner => ({
       ...owner.shop,
       role: owner.role
@@ -322,32 +321,51 @@ export async function getUserShops(email: string) {
 // ==========================================
 // 🌟 7. ระบบจัดการพนักงาน (Staff Management)
 // ==========================================
+
 export async function getShopStaff(shopId: string) {
   try {
     await verifyShopAccess(shopId);
-    // ดึงเฉพาะคนที่มี Role เป็น STAFF ของร้านนี้
+    
+    // ดึงข้อมูลมาทั้งหมดในร้าน (ทั้ง OWNER และ STAFF)
     const staff = await db.shopOwner.findMany({
-      where: { shopId, role: "STAFF" },
-      select: { id: true, email: true }
+      where: { shopId },
+      select: { 
+        id: true, 
+        email: true, 
+        name: true, 
+        role: true 
+      },
+      orderBy: { role: 'asc' } // เรียงให้ OWNER ขึ้นก่อน
     });
+    
     return { success: true, data: staff };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-export async function addShopStaff(shopId: string, staffEmail: string) {
+export async function addShopStaff(shopId: string, email: string, name: string, role: string) {
   try {
     const access = await verifyShopAccess(shopId);
 
-    // ป้องกันไม่ให้ Staff มาเชิญ Staff เอง (ต้องเป็น OWNER เท่านั้น)
+    // ป้องกันไม่ให้ Staff มาเชิญคนอื่น (ต้องเป็น OWNER เท่านั้น)
     if (access.role !== "OWNER") {
       throw new Error("เฉพาะเจ้าของร้านเท่านั้นที่สามารถเพิ่มพนักงานได้");
     }
 
-    // เช็คจำนวน Staff ว่าเกินโควต้า 2 คนสำหรับแพ็กเกจปัจจุบันหรือไม่
+    // 🌟 ด่านตรวจ 1: ห้ามสร้าง OWNER เพิ่มเด็ดขาด!
+    if (role === "OWNER") {
+      throw new Error("ระบบอนุญาตให้มีเจ้าของร้าน (OWNER) ได้เพียง 1 คนเท่านั้น");
+    }
+
+    // 🌟 ด่านตรวจ 2: บังคับกรอกชื่อพนักงาน
+    if (!name || name.trim() === "") {
+      throw new Error("กรุณากรอกชื่อพนักงาน");
+    }
+
+    // เช็คจำนวน STAFF ว่าเกินโควต้า 2 คนหรือไม่
     const currentStaffCount = await db.shopOwner.count({
-      where: { shopId, role: "STAFF" }
+      where: { shopId, role: "STAFF" } 
     });
 
     if (currentStaffCount >= 2) {
@@ -356,16 +374,21 @@ export async function addShopStaff(shopId: string, staffEmail: string) {
 
     // เช็คว่าอีเมลนี้ถูกเชิญมาในร้านนี้แล้วหรือยัง
     const existing = await db.shopOwner.findFirst({
-      where: { shopId, email: staffEmail }
+      where: { shopId, email }
     });
 
     if (existing) {
       throw new Error("อีเมลนี้อยู่ในร้านค้านี้แล้ว");
     }
 
-    // เพิ่มพนักงาน
+    // บันทึกลง Database
     await db.shopOwner.create({
-      data: { shopId, email: staffEmail, role: "STAFF" }
+      data: { 
+        shopId, 
+        email, 
+        name: name.trim(), 
+        role: "STAFF" // 🌟 บังคับเซ็ตเป็น STAFF เสมอเพื่อความปลอดภัย
+      }
     });
 
     return { success: true };
@@ -374,13 +397,31 @@ export async function addShopStaff(shopId: string, staffEmail: string) {
   }
 }
 
-export async function removeShopStaff(shopId: string, staffEmail: string) {
+export async function removeShopStaff(shopId: string, email: string) {
   try {
     const access = await verifyShopAccess(shopId);
-    if (access.role !== "OWNER") throw new Error("ไม่มีสิทธิ์ลบพนักงาน");
+    
+    if (access.role !== "OWNER") {
+      throw new Error("ไม่มีสิทธิ์ลบพนักงาน");
+    }
 
+    // 🌟 ด่านตรวจก่อนลบ: หาข้อมูลคนที่จะโดนลบก่อน
+    const targetUser = await db.shopOwner.findFirst({
+      where: { shopId, email }
+    });
+
+    if (!targetUser) {
+      throw new Error("ไม่พบข้อมูลพนักงานที่ต้องการลบ");
+    }
+
+    // 🌟 ป้องกันการลบ OWNER (ห้ามลบเจ้าของร้านเด็ดขาด)
+    if (targetUser.role === "OWNER") {
+      throw new Error("ไม่สามารถลบบัญชีเจ้าของร้าน (OWNER) ได้");
+    }
+
+    // ลบได้อย่างปลอดภัย (มั่นใจแล้วว่าเป็นแค่ STAFF)
     await db.shopOwner.deleteMany({
-      where: { shopId, email: staffEmail, role: "STAFF" }
+      where: { shopId, email, role: "STAFF" }
     });
 
     return { success: true };
