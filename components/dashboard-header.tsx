@@ -84,7 +84,7 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       const link = document.createElement("a");
       link.href = url;
       
-      const currentSlug = shop?.slug || "ESYQ";
+      const currentSlug = shop?.slug || "Esyq";
       link.download = `QR-Code-${currentSlug}.png`;
       
       document.body.appendChild(link);
