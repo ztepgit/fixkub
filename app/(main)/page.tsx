@@ -23,6 +23,9 @@ import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn
 import { checkUserHasShop, getUserShops } from "@/actions/shop"
 import { createDemoShopAction } from "@/actions/demo"
 import { useShopStore } from "@/store/useShopStore"
+import Autoplay from "embla-carousel-autoplay" // 🌟 เพิ่มบรรทัดนี้เพื่อทำ Auto Slide
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import { getCarouselItems } from "@/actions/carousel"
 
 export default function LandingPage() {
   const router = useRouter()
@@ -43,6 +46,7 @@ export default function LandingPage() {
   
   // 🌟 เพิ่ม flag กันยิงซ้ำ (Context Selection Problem Guard)
   const [hasRouted, setHasRouted] = useState(false)
+  const [banners, setBanners] = useState<any[]>([])
 
   useEffect(() => {
     const checkUser = async () => {
@@ -224,6 +228,17 @@ export default function LandingPage() {
     }
   }
 
+  useEffect(() => {
+    const fetchBanners = async () => {
+      // 🌟 ดึงมาเฉพาะที่ isActive = true
+      const res = await getCarouselItems(true)
+      if (res.success && res.data) {
+        setBanners(res.data)
+      }
+    }
+    fetchBanners()
+  }, [])
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
 
@@ -317,7 +332,47 @@ export default function LandingPage() {
             </div>
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
             <p className="mt-4 text-sm text-slate-500">🧧 โปรโมชั่น: สมัครวันนี้ (ไม่ทดลองใช้ฟรี 14วัน) แถมฟรี 30วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูเลย!</Link></p>
+            {banners.length > 0 && (
+      <div className="w-full max-w-5xl mx-auto mt-16 px-4">
+        <Carousel
+          plugins={[
+            Autoplay({
+              delay: 4000, // 🌟 เลื่อนอัตโนมัติทุกๆ 4 วินาที
+            }),
+          ]}
+          opts={{
+            loop: true, // 🌟 วนลูปกลับไปรูปแรก
+          }}
+        >
+          <CarouselContent>
+            {banners.map((banner) => (
+              <CarouselItem key={banner.id}>
+                <div className="p-1">
+                  <Card className="border-none shadow-lg overflow-hidden rounded-2xl">
+                    <CardContent className="p-0 aspect-[21/9] relative group">
+                      {/* ถ้ามีลิงก์ ให้ครอบด้วย Tag a */}
+                      {banner.link ? (
+                        <a href={banner.link}>
+                          <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        </a>
+                      ) : (
+                        <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover" />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="hidden md:flex -left-4 bg-white/80 hover:bg-white border-none shadow-md" />
+          <CarouselNext className="hidden md:flex -right-4 bg-white/80 hover:bg-white border-none shadow-md" />
+        </Carousel>
+      </div>
+    )}
+  
+
           </div>
+          
         </section>
 
         <section id="features" className="py-20 bg-slate-50">
@@ -375,7 +430,7 @@ export default function LandingPage() {
                   <h3 className="text-2xl font-bold text-slate-900">รายเดือน</h3>
                   <p className="text-slate-500 mt-2">เหมาะสำหรับร้านเปิดใหม่</p>
                   <div className="my-6 flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900">฿299</span>
+                    <span className="text-4xl font-extrabold text-slate-900">฿199</span>
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
                   <ul className="space-y-3 mb-8">
@@ -404,7 +459,7 @@ export default function LandingPage() {
                   </div>
                   <p className="text-slate-500 mt-2">ประหยัดกว่า จ่ายครั้งเดียวใช้ยาวๆ</p>
                   <div className="my-6 flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900">฿2,490</span>
+                    <span className="text-4xl font-extrabold text-slate-900">฿1,690</span>
                     <span className="text-slate-500">/ ปี</span>
                   </div>
                   <ul className="space-y-3 mb-8">

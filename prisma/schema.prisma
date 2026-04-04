@@ -72,7 +72,7 @@ model SubscriptionHistory {
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   planType   PlanType // แพ็กเกจที่ซื้อ (BASIC_MONTHLY / BASIC_YEARLY)
-  amountPaid Float // จำนวนเงินที่จ่าย (เช่น 299.00, 2490.00)
+  amountPaid Float // จำนวนเงินที่จ่าย (เช่น 199.00, 1690.00)
 
   purchasedAt       DateTime  @default(now()) // วันที่จ่ายเงิน
   previousExpiresAt DateTime? // วันหมดอายุเดิมก่อนจ่าย
