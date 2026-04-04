@@ -449,7 +449,7 @@ export default function LandingPage() {
               <Card className="border-emerald-500 shadow-xl shadow-emerald-100 relative">
                 <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-4">
                   <Badge className="bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 text-white border-none px-3 py-1.5 text-sm uppercase font-black shadow-md">
-                    คุ้มที่สุด ประหยัด 1,098.-
+                    คุ้มที่สุด ประหยัด 698.-
                   </Badge>
                 </div>
                 <CardContent className="p-8">
