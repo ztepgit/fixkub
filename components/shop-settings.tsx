@@ -407,7 +407,7 @@ export function ShopSettings() {
                 จัดการพนักงาน (Staff)
               </CardTitle>
               <CardDescription className="dark:text-slate-400">
-                สร้างพนักงาน เพื่อเข้าใช้งานระบบพร้อมกัน ({staffList.length}/2)
+                สร้างพนักงาน เพื่อเพิ่มหน้าจอใช้งาน ({staffList.length}/2)
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
