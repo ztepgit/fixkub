@@ -445,7 +445,7 @@ export function ReportDashboard() {
                                 <TableRow className="dark:border-slate-800 hover:dark:bg-slate-900">
                                     <TableHead className="w-[60px] text-center dark:text-slate-400">ลำดับ</TableHead>
                                     <TableHead className="dark:text-slate-400">วันที่ยกเลิก</TableHead>
-                                    <TableHead className="dark:text-slate-400">รหัสบิล / ลูกค้า</TableHead>
+                                    <TableHead className="dark:text-slate-400">รหัสคิว / ลูกค้า</TableHead>
                                     <TableHead className="dark:text-slate-400">รุ่นเครื่อง</TableHead>
                                     <TableHead className="dark:text-slate-400">บริการ</TableHead>
                                     <TableHead className="dark:text-slate-400">สาเหตุการยกเลิก</TableHead>

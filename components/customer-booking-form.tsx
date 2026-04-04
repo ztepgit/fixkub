@@ -94,12 +94,12 @@ export function CustomerBookingForm({
         <div 
           onClick={() => {
             navigator.clipboard.writeText(queueRef)
-            toast({ title: "✅ คัดลอกรหัสบิลสำเร็จ", description: "สามารถนำไปวางหน้าเช็คสถานะได้เลยครับ" })
+            toast({ title: "✅ คัดลอกรหัสคิวสำเร็จ", description: "สามารถนำไปวางหน้าเช็คสถานะได้เลยครับ" })
           }}
           className="bg-slate-50 border-2 border-dashed border-emerald-300 rounded-xl p-6 w-full mb-6 relative overflow-hidden cursor-pointer hover:bg-emerald-50 transition-all active:scale-95 group"
         >
           <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
-          <p className="text-sm text-slate-500 mb-1 group-hover:text-emerald-600 transition-colors">รหัสบิลของคุณคือ</p>
+          <p className="text-sm text-slate-500 mb-1 group-hover:text-emerald-600 transition-colors">รหัสคิวของคุณคือ</p>
           <div className="flex items-center justify-center gap-3">
             <p className="text-4xl font-black text-emerald-700 tracking-wider">{queueRef}</p>
             <Copy className="h-6 w-6 text-emerald-500 opacity-60 group-hover:opacity-100 transition-opacity" />
