@@ -170,6 +170,7 @@ model PaymentTransaction {
 
   plan    PlanType
   slipUrl String?
+  transRef  String?  @unique
 
   status PaymentStatus @default(PENDING)
 

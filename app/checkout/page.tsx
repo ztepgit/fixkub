@@ -170,7 +170,8 @@ function CheckoutForm() {
 
         const planEnum = plan === "monthly" ? "BASIC_MONTHLY" : "BASIC_YEARLY" 
         
-        const updateRes = await processPaymentSuccess(shopId, planEnum, paidAmount)
+        // 🌟 แก้ไขบรรทัดนี้: เพิ่ม result.data.transRef เข้าไปเป็นตัวแปรที่ 4
+        const updateRes = await processPaymentSuccess(shopId, planEnum, paidAmount, result.data.transRef)
         
         if (updateRes.success) {
            setIsSuccess(true) 
