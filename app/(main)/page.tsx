@@ -484,7 +484,7 @@ export default function LandingPage() {
                     <span className="text-slate-500">/ ปี</span>
                   </div>
                   <ul className="space-y-3 mb-8">
-                    {["ทุกอย่างในแพ็กเกจรายเดือน", "ประหยัดกว่าถึง 30%", "ซัพพอร์ตด่วน (Priority)", "ทดลองฟีเจอร์ใหม่ก่อนใคร"].map((item, i) => (
+                    {["ทุกอย่างในแพ็กเกจรายเดือน", "ประหยัดกว่าถึง 30%", "ซัพพอร์ตด่วน (Priority)", "เพิ่มสิทธิ์ Lucky Draw"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-slate-700">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" /> {item}
                       </li>
