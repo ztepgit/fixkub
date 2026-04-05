@@ -43,7 +43,7 @@ export default function LandingPage() {
 
   const [shopSelectAction, setShopSelectAction] = useState<"checkout" | "dashboard">("checkout")
   const [isDemoLoading, setIsDemoLoading] = useState(false)
-  
+
   // 🌟 เพิ่ม flag กันยิงซ้ำ (Context Selection Problem Guard)
   const [hasRouted, setHasRouted] = useState(false)
   const [banners, setBanners] = useState<any[]>([])
@@ -164,7 +164,7 @@ export default function LandingPage() {
     }
     setShowShopSelectPopup(false)
   }
-  
+
   const handleGoToDashboard = async () => {
     if (!userEmail) return;
 
@@ -173,10 +173,10 @@ export default function LandingPage() {
     if (res.success && res.shops && res.shops.length > 0) {
       if (res.shops.length > 1) {
         setShopSelectAction("dashboard");
-        setUserShops(res.shops); 
+        setUserShops(res.shops);
         setSelectedShopId(res.shops[0].id);
         setShowShopSelectPopup(true);
-      } 
+      }
       else {
         updateShop(res.shops[0]);
         router.push(`/dashboard?shopId=${res.shops[0].id}`);
@@ -287,7 +287,7 @@ export default function LandingPage() {
         <section className="relative overflow-hidden bg-white pt-20 pb-24 lg:pt-32 lg:pb-40">
           <div className="container mx-auto px-4 md:px-6 text-center">
             <Badge className="mb-4 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none px-3 py-1 text-sm">
-             ยินดีต้อนรับ
+              ยินดีต้อนรับ
             </Badge>
             <h1 className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-7xl">
               บอกลาคิวกระดาษ <br className="hidden sm:block" />
@@ -333,46 +333,65 @@ export default function LandingPage() {
             <p className="mt-4 text-sm text-slate-500">ไม่ต้องใช้บัตรเครดิต • ยกเลิกได้ตลอดเวลา</p>
             <p className="mt-4 text-sm text-slate-500">🧧 โปรโมชั่น: สมัครวันนี้ (ไม่ทดลองใช้ฟรี 14วัน) แถมฟรี 30วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูเลย!</Link></p>
             {banners.length > 0 && (
-      <div className="w-full max-w-5xl mx-auto mt-16 px-4">
-        <Carousel
-          plugins={[
-            Autoplay({
-              delay: 4000, // 🌟 เลื่อนอัตโนมัติทุกๆ 4 วินาที
-            }),
-          ]}
-          opts={{
-            loop: true, // 🌟 วนลูปกลับไปรูปแรก
-          }}
-        >
-          <CarouselContent>
-            {banners.map((banner) => (
-              <CarouselItem key={banner.id}>
-                <div className="p-1">
-                  <Card className="border-none shadow-lg overflow-hidden rounded-2xl">
-                    <CardContent className="p-0 aspect-[21/9] relative group">
-                      {/* ถ้ามีลิงก์ ให้ครอบด้วย Tag a */}
-                      {banner.link ? (
-                        <a href={banner.link}>
-                          <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                        </a>
-                      ) : (
-                        <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover" />
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="hidden md:flex -left-4 bg-white/80 hover:bg-white border-none shadow-md" />
-          <CarouselNext className="hidden md:flex -right-4 bg-white/80 hover:bg-white border-none shadow-md" />
-        </Carousel>
-      </div>
-    )}
-  
+              <div className="w-full max-w-5xl mx-auto mt-16 px-4 relative z-10">
+                <Carousel
+                  plugins={[
+                    Autoplay({
+                      delay: 4000,
+                    }),
+                  ]}
+                  opts={{
+                    loop: true,
+                  }}
+                >
+                  <CarouselContent>
+                    {banners.map((banner) => {
 
+                      // 🌟 ฟังก์ชันเช็คว่าเป็นลิงก์ภายนอกหรือไม่ (ขึ้นต้นด้วย http/https)
+                      const isExternalLink = banner.link?.startsWith('http');
+
+                      return (
+                        <CarouselItem key={banner.id}>
+                          <div className="p-1">
+                            <Card className="border-none shadow-lg overflow-hidden rounded-2xl">
+                              <CardContent className="p-0 aspect-[21/9] relative group bg-slate-100 flex items-center justify-center">
+
+                                {/* กรณีมีลิงก์ */}
+                                {banner.link ? (
+                                  isExternalLink ? (
+                                    // 🔗 ใช้ <a> สำหรับลิงก์ภายนอก
+                                    <a href={banner.link} target="_blank" rel="noopener noreferrer" className="w-full h-full block relative">
+                                      <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500"></div>
+                                    </a>
+                                  ) : (
+                                    // 🔗 ใช้ <Link> สำหรับลิงก์ภายในแอป
+                                    <Link href={banner.link} className="w-full h-full block relative">
+                                      <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500"></div>
+                                    </Link>
+                                  )
+                                ) : (
+                                  // 🖼️ กรณีไม่มีลิงก์ ให้แสดงรูปเฉยๆ
+                                  <div className="w-full h-full relative">
+                                    <img src={banner.imageUrl} alt={banner.title || "Banner"} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/10"></div>
+                                  </div>
+                                )}
+
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </CarouselItem>
+                      );
+                    })}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden md:flex -left-4 bg-white/80 hover:bg-white border-none shadow-md" />
+                  <CarouselNext className="hidden md:flex -right-4 bg-white/80 hover:bg-white border-none shadow-md" />
+                </Carousel>
+              </div>
+            )}
           </div>
-          
         </section>
 
         <section id="features" className="py-20 bg-slate-50">
