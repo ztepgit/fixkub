@@ -231,6 +231,78 @@ function CarouselNext({
   )
 }
 
+// 🌟 ส่วนนี้คือจุดไข่ปลา (Dots) ที่เพิ่มเข้ามาใหม่ครับ
+const CarouselDots = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
+  const { api } = useCarousel()
+  const [selectedIndex, setSelectedIndex] = React.useState(0)
+  const [scrollSnaps, setScrollSnaps] = React.useState<number[]>([])
+
+  const onDotButtonClick = React.useCallback(
+    (index: number) => {
+      if (!api) return
+      api.scrollTo(index)
+    },
+    [api]
+  )
+
+  const onInit = React.useCallback((api: CarouselApi) => {
+    if (!api) return
+    setScrollSnaps(api.scrollSnapList())
+  }, [])
+
+  const onSelect = React.useCallback((api: CarouselApi) => {
+    if (!api) return
+    setSelectedIndex(api.selectedScrollSnap())
+  }, [])
+
+  React.useEffect(() => {
+    if (!api) return
+
+    onInit(api)
+    onSelect(api)
+
+    api.on("reInit", onInit)
+    api.on("reInit", onSelect)
+    api.on("select", onSelect)
+
+    return () => {
+      api.off("reInit", onInit)
+      api.off("reInit", onSelect)
+      api.off("select", onSelect)
+    }
+  }, [api, onInit, onSelect])
+
+  if (scrollSnaps.length <= 1) return null
+
+  return (
+    <div
+      ref={ref}
+      className={cn("flex justify-center gap-2 mt-4", className)}
+      {...props}
+    >
+      {scrollSnaps.map((_, index) => (
+        <button
+          key={index}
+          type="button"
+          aria-label={`Go to slide ${index + 1}`}
+          onClick={() => onDotButtonClick(index)}
+          className={cn(
+            "h-2 w-2 rounded-full transition-all duration-300",
+            index === selectedIndex
+              ? "w-6 bg-emerald-600" // แคปซูลสีเขียวสำหรับสไลด์ที่กำลังแสดง
+              : "bg-slate-300 hover:bg-slate-400"
+          )}
+        />
+      ))}
+    </div>
+  )
+})
+CarouselDots.displayName = "CarouselDots"
+
+// 🌟 และอย่าลืมเอา CarouselDots มา Export ตรงนี้ด้วยครับ
 export {
   type CarouselApi,
   Carousel,
@@ -238,4 +310,5 @@ export {
   CarouselItem,
   CarouselPrevious,
   CarouselNext,
+  CarouselDots, // <--- เพิ่มตรงนี้
 }

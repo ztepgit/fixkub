@@ -24,8 +24,9 @@ import { checkUserHasShop, getUserShops } from "@/actions/shop"
 import { createDemoShopAction } from "@/actions/demo"
 import { useShopStore } from "@/store/useShopStore"
 import Autoplay from "embla-carousel-autoplay" // 🌟 เพิ่มบรรทัดนี้เพื่อทำ Auto Slide
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,CarouselDots } from "@/components/ui/carousel"
 import { getCarouselItems } from "@/actions/carousel"
+
 
 export default function LandingPage() {
   const router = useRouter()
@@ -388,6 +389,7 @@ export default function LandingPage() {
                   </CarouselContent>
                   <CarouselPrevious className="hidden md:flex -left-4 bg-white/80 hover:bg-white border-none shadow-md" />
                   <CarouselNext className="hidden md:flex -right-4 bg-white/80 hover:bg-white border-none shadow-md" />
+                  <CarouselDots className="mt-4 mx-auto" />
                 </Carousel>
               </div>
             )}
