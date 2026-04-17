@@ -2,42 +2,74 @@
 
 import { useState, useRef, useEffect } from "react"
 import dynamic from "next/dynamic"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query" 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  UploadCloud, Save, Store, Loader2, Info, 
+import {
+  UploadCloud, Save, Store, Loader2, Info,
   QrCode, Copy, Download, Link as LinkIcon,
-  Eye, EyeOff, AlertCircle, Users, UserMinus, Plus
+  Eye, EyeOff, AlertCircle, Users, UserMinus, Plus,
+  ShieldCheck, AlertTriangle, Zap, CreditCard, CalendarDays
 } from "lucide-react"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// 🌟 นำ getUserShops ออก เพราะเราจะใช้ข้อมูลจาก Zustand แทน
+// 🌟 Date-fns สำหรับคำนวณวันที่
+import { format, differenceInDays, isAfter } from "date-fns"
+import { th } from "date-fns/locale"
+
 import { updateShopSettings, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
-import { supabase } from "@/lib/supabase"
 
 const QRCodeCanvas = dynamic(
   () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
   { ssr: false }
 )
 
+// 🌟 ตัวช่วยคำนวณสถานะแพ็กเกจ
+const getPlanDisplay = (shop: any) => {
+  if (!shop) return null;
+
+  const isFreeTrial = shop.planType === "FREE_TRIAL";
+  const expiryDate = shop.expiresAt ? new Date(shop.expiresAt) : (shop.trialEndsAt ? new Date(shop.trialEndsAt) : null);
+  const now = new Date();
+
+  const isExpired = expiryDate ? !isAfter(expiryDate, now) : false;
+
+  // คำนวณจำนวนวันที่เหลือ
+  const daysLeft = expiryDate && !isExpired ? differenceInDays(expiryDate, now) : 0;
+
+  let badgeColor = "bg-emerald-100 text-emerald-700 border-emerald-200";
+  let icon = <ShieldCheck className="h-5 w-5 text-emerald-600" />;
+  let planName = shop.planType;
+
+  if (isExpired) {
+    badgeColor = "bg-rose-100 text-rose-700 border-rose-200";
+    icon = <AlertTriangle className="h-5 w-5 text-rose-600" />;
+  } else if (isFreeTrial) {
+    badgeColor = "bg-blue-100 text-blue-700 border-blue-200";
+    icon = <Zap className="h-5 w-5 text-blue-600" />;
+    planName = "ทดลองใช้งานฟรี";
+  }
+
+  return { isFreeTrial, expiryDate, isExpired, daysLeft, badgeColor, icon, planName };
+};
+
+
 export function ShopSettings() {
-  // 🌟 1. ดึง shop ปัจจุบันจาก Zustand มาเป็น Source of Truth
   const currentZustandShop = useShopStore((s) => s.shop)
   const updateShop = useShopStore((s) => s.updateShop)
-  
+
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const qrWrapperRef = useRef<HTMLDivElement>(null) 
+  const qrWrapperRef = useRef<HTMLDivElement>(null)
 
   const { data: shop, isLoading, isError } = useQuery({
     queryKey: ["shop-settings", currentZustandShop?.id],
@@ -45,7 +77,7 @@ export function ShopSettings() {
       if (!currentZustandShop?.id) throw new Error("No active shop")
 
       const settingsRes = await getShopSettings(currentZustandShop.id)
-      
+
       const fullShopData = {
         ...currentZustandShop,
         logoUrl: settingsRes.success && settingsRes.data ? settingsRes.data.logoUrl : null
@@ -57,28 +89,21 @@ export function ShopSettings() {
     enabled: !!currentZustandShop?.id
   })
 
-  // 🌟 2. ดึงข้อมูลพนักงาน และใช้ .filter() กรองเอาเฉพาะ STAFF มาแสดง!
   const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
     queryKey: ["shop-staff", shop?.id],
     queryFn: async () => {
       if (!shop?.id) return [];
       const res = await getShopStaff(shop.id);
-      
-      // 💡 เปลี่ยนจาก res.data.filter เป็น res.data?.filter 
-      // (เติมเครื่องหมาย ? ป้องกัน Error ตอน data เป็น undefined)
       return res.success ? (res.data?.filter((s: any) => s.role === "STAFF") || []) : [];
     },
     enabled: !!shop?.id
   })
 
-  // 🌟 3. เพิ่ม State สำหรับช่องกรอก "ชื่อพนักงาน"
   const [newStaffEmail, setNewStaffEmail] = useState("")
   const [newStaffName, setNewStaffName] = useState("")
 
   const addStaffMutation = useMutation({
-    // 💡 ส่ง Name ไปที่ Action ด้วย
     mutationFn: async (data: { email: string, name: string }) => {
-      // 🌟 เติม "STAFF" เข้าไปเป็น Parameter ตัวที่ 4 ตามที่ฟังก์ชันต้องการ!
       const res = await addShopStaff(shop!.id, data.email, data.name, "STAFF");
       if (!res.success) throw new Error(res.error);
       return res;
@@ -86,7 +111,7 @@ export function ShopSettings() {
     onSuccess: () => {
       toast({ title: "เพิ่มพนักงานสำเร็จ", description: "พนักงานสามารถล็อกอินด้วยอีเมลนี้ได้ทันที" })
       setNewStaffEmail("")
-      setNewStaffName("") // รีเซ็ตช่องชื่อด้วย
+      setNewStaffName("")
       queryClient.invalidateQueries({ queryKey: ["shop-staff", shop?.id] })
     },
     onError: (err: any) => {
@@ -111,9 +136,9 @@ export function ShopSettings() {
 
   const [shopName, setShopName] = useState("")
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [logoFile, setLogoFile] = useState<Blob | null>(null) 
+  const [logoFile, setLogoFile] = useState<Blob | null>(null)
   const [shopUrl, setShopUrl] = useState("")
-  
+
   const [isSaving, setIsSaving] = useState(false)
   const [isQrHidden, setIsQrHidden] = useState(false)
 
@@ -139,12 +164,12 @@ export function ShopSettings() {
         canvas.width = MAX_SIZE
         canvas.height = MAX_SIZE
         const ctx = canvas.getContext("2d")
-        
+
         if (ctx) {
           ctx.fillStyle = "rgba(255, 255, 255, 0)"
           ctx.fillRect(0, 0, MAX_SIZE, MAX_SIZE)
           ctx.drawImage(img, startX, startY, size, size, 0, 0, MAX_SIZE, MAX_SIZE)
-          
+
           canvas.toBlob((blob) => {
             if (blob) {
               setLogoFile(blob)
@@ -173,28 +198,28 @@ export function ShopSettings() {
     if (!shop?.id) return
 
     setIsSaving(true)
-    
+
     updateShop({ ...shop, name: shopName, logoUrl: logoPreview })
-    
+
     const formData = new FormData()
-    formData.append("shopId", shop.id) 
+    formData.append("shopId", shop.id)
     formData.append("name", shopName)
-    
+
     if (logoFile) {
       formData.append("logo", logoFile, "logo.webp")
     } else if (logoPreview) {
       formData.append("existingLogoUrl", logoPreview)
     }
-    
+
     const res = await updateShopSettings(formData)
 
     if (res.success && res.data) {
-      updateShop({ ...shop, name: res.data.name, logoUrl: res.data.logoUrl }) 
+      updateShop({ ...shop, name: res.data.name, logoUrl: res.data.logoUrl })
       toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตข้อมูลร้านค้าเรียบร้อยแล้ว" })
     } else {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: res.error, variant: "destructive" })
     }
-    
+
     setIsSaving(false)
   }
 
@@ -211,7 +236,7 @@ export function ShopSettings() {
   const downloadQR = () => {
     if (!qrWrapperRef.current) return;
     const canvas = qrWrapperRef.current.querySelector('canvas');
-    
+
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
@@ -236,42 +261,102 @@ export function ShopSettings() {
 
   if (isError || !shop) {
     return (
-        <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 dark:text-rose-400 gap-3">
-            <AlertCircle className="h-8 w-8" />
-            <p className="text-lg">ไม่พบข้อมูลร้านค้า หรือการเชื่อมต่อมีปัญหา กรุณารีเฟรชหน้าจอ</p>
-        </div>
+      <div className="flex h-[60vh] w-full items-center justify-center text-rose-500 dark:text-rose-400 gap-3">
+        <AlertCircle className="h-8 w-8" />
+        <p className="text-lg">ไม่พบข้อมูลร้านค้า หรือการเชื่อมต่อมีปัญหา กรุณารีเฟรชหน้าจอ</p>
+      </div>
     )
   }
 
   if (shop.role === "STAFF") {
     return (
       <div className="flex flex-col h-[60vh] w-full items-center justify-center text-slate-500 dark:text-slate-400 gap-3">
-          <Users className="h-12 w-12 text-slate-300 dark:text-slate-600" />
-          <p className="text-lg font-medium text-slate-700 dark:text-slate-300">สิทธิ์การใช้งานจำกัด</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">เฉพาะเจ้าของร้านเท่านั้นที่สามารถแก้ไขการตั้งค่า หรือจัดการพนักงานได้</p>
+        <Users className="h-12 w-12 text-slate-300 dark:text-slate-600" />
+        <p className="text-lg font-medium text-slate-700 dark:text-slate-300">สิทธิ์การใช้งานจำกัด</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">เฉพาะเจ้าของร้านเท่านั้นที่สามารถแก้ไขการตั้งค่า หรือจัดการพนักงานได้</p>
       </div>
     )
   }
 
+  // เตรียมข้อมูลสถานะแพ็กเกจ
+  const planInfo = getPlanDisplay(shop);
+
   return (
     <TooltipProvider>
       <div className="grid gap-8 lg:grid-cols-12 max-w-6xl mx-auto py-6">
-        
+
         <div className="space-y-6 lg:col-span-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">ตั้งค่าร้านค้า (Shop Settings)</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">ปรับแต่งชื่อ โลโก้ และจัดการพนักงาน</p>
           </div>
 
+          {/* 🌟 1. ส่วนแสดงสถานะแพ็กเกจ (โชว์เฉพาะ OWNER) */}
+          {shop?.role === "OWNER" && planInfo && (
+            <Card className={`border shadow-sm relative overflow-hidden ${planInfo.isExpired ? 'border-rose-200 bg-rose-50/50 dark:bg-rose-950/20' : 'border-slate-200 dark:border-slate-800 dark:bg-slate-900'}`}>
+              {/* แถบสีด้านซ้าย */}
+              <div className={`absolute top-0 left-0 w-1.5 h-full ${planInfo.isExpired ? 'bg-rose-500' : (planInfo.isFreeTrial ? 'bg-blue-500' : 'bg-emerald-500')}`}></div>
+
+              <CardContent className="p-5 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-700">
+                      {planInfo.icon}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">แพ็กเกจปัจจุบัน</span>
+                        <Badge variant="outline" className={`uppercase ${planInfo.badgeColor}`}>
+                          {planInfo.planName.replace('_', ' ')}
+                        </Badge>
+                        {planInfo.isExpired && <Badge variant="destructive" className="text-xs">หมดอายุแล้ว</Badge>}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+                        <CalendarDays className="h-4 w-4 text-slate-400" />
+                        {planInfo.expiryDate ? (
+                          <>
+                            {planInfo.isExpired ? 'หมดอายุเมื่อ:' : 'เหลือเวลา:'}
+                            <span className={`ml-1 ${planInfo.isExpired ? 'text-rose-600' : (planInfo.daysLeft <= 3 ? 'text-amber-600' : 'text-emerald-600')}`}>
+                              {planInfo.isExpired
+                                ? format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })
+                                : `${planInfo.daysLeft} วัน (ถึง ${format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })})`}
+                            </span>
+                          </>
+                        ) : (
+                          "ไม่มีข้อมูลวันหมดอายุ"
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 pt-2 sm:pt-0 w-full sm:w-auto">
+                    <Button
+                      onClick={() => window.location.href = `/checkout?shopId=${shop.id}&plan=yearly`}
+                      className={`w-full sm:w-auto shadow-md transition-all ${planInfo.isExpired
+                          ? 'bg-rose-600 hover:bg-rose-700 animate-pulse ring-2 ring-rose-200 ring-offset-2'
+                          : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105'
+                        }`}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      {planInfo.isExpired ? 'ชำระเงินเพื่อใช้งานต่อ' : 'อัปเกรด / ต่ออายุแพ็กเกจ'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 🌟 2. การตั้งค่าข้อมูลร้านค้า */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden dark:bg-slate-900">
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="shopName" className="font-semibold text-slate-700 dark:text-slate-300">ชื่อร้านค้า (Display Name)</Label>
-                <Input 
-                  id="shopName" 
-                  value={shopName} 
-                  onChange={(e) => setShopName(e.target.value)} 
-                  placeholder="เช่น ร้าน A Mobile Repair" 
+                <Input
+                  id="shopName"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                  placeholder="เช่น ร้าน A Mobile Repair"
                   className="text-lg h-12 focus-visible:ring-emerald-500 dark:focus-visible:ring-emerald-600 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-100"
                 />
               </div>
@@ -283,7 +368,7 @@ export function ShopSettings() {
                     <Info className="h-3 w-3 mr-1" /> เพิ่มความน่าเชื่อถือ
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-6">
                   <Avatar className="h-20 w-20 border-2 border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950">
                     {logoPreview ? (
@@ -294,11 +379,11 @@ export function ShopSettings() {
                       </AvatarFallback>
                     )}
                   </Avatar>
-                  
+
                   <div className="space-y-2 flex-1">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => fileInputRef.current?.click()}
                       className="w-full flex items-center gap-2 border-slate-300 dark:border-slate-700 border-dashed hover:border-emerald-500 dark:hover:border-emerald-600 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors dark:text-slate-300 dark:bg-slate-900"
                     >
@@ -318,6 +403,7 @@ export function ShopSettings() {
             </CardFooter>
           </Card>
 
+          {/* 🌟 3. ช่องทางแจ้งซ่อม */}
           <Card className={`shadow-sm transition-all duration-500 overflow-hidden animate-in fade-in slide-in-from-bottom-4 dark:bg-slate-900 ${isQrHidden ? 'border-slate-200 dark:border-slate-800 border-t-4 border-t-slate-300 dark:border-t-slate-700 bg-slate-50/30 dark:bg-slate-900/50' : 'border-slate-200 dark:border-slate-800 border-t-4 border-t-blue-500 dark:border-t-blue-600'}`}>
             <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800 pb-4 flex flex-row items-center justify-between space-y-0 gap-3">
               <div className="space-y-1">
@@ -332,10 +418,10 @@ export function ShopSettings() {
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`h-8 w-8 rounded-full shrink-0 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800'}`} 
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-8 w-8 rounded-full shrink-0 ${isQrHidden ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800'}`}
                     onClick={() => setIsQrHidden(!isQrHidden)}
                   >
                     {isQrHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -347,7 +433,7 @@ export function ShopSettings() {
 
             <CardContent className="pt-6 relative">
               <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-                
+
                 {isQrHidden ? (
                   <div className="flex flex-col items-center justify-center h-[156px] w-[156px] bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 animate-in fade-in duration-300 shrink-0">
                     <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border-4 border-white dark:border-slate-900 shadow-sm mb-2">
@@ -363,28 +449,28 @@ export function ShopSettings() {
                       </div>
                     ) : (
                       <div className="w-[130px] h-[130px] bg-slate-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 text-center p-2">
-                         <p className="text-xs text-slate-400 dark:text-slate-500">ยังไม่มี URL ร้าน<br/>(กรุณาตั้งชื่อ URL)</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">ยังไม่มี URL ร้าน<br />(กรุณาตั้งชื่อ URL)</p>
                       </div>
                     )}
                   </div>
                 )}
-                
+
                 <div className="flex-1 w-full space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">ลิงก์ร้านค้าของคุณ (URL)</Label>
                     <div className="flex gap-2">
-                      <Input 
-                        readOnly 
-                        value={shopUrl || "ยังไม่มี URL ร้านค้า"} 
-                        className={`bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 focus-visible:ring-0 cursor-copy ${!shopUrl ? 'text-rose-400 italic' : ''}`} 
-                        onClick={(e) => (e.target as HTMLInputElement).select()} 
+                      <Input
+                        readOnly
+                        value={shopUrl || "ยังไม่มี URL ร้านค้า"}
+                        className={`bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 focus-visible:ring-0 cursor-copy ${!shopUrl ? 'text-rose-400 italic' : ''}`}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
                       />
                       <Button variant="outline" size="icon" onClick={copyLink} disabled={!shopUrl} className="shrink-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 border-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-blue-400">
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2 w-full pt-1">
                     <Button variant="outline" className="flex-1 text-slate-700 border-slate-300 hover:bg-slate-50 h-10 dark:text-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:hover:text-white" onClick={copyLink} disabled={!shopUrl}>
                       <LinkIcon className="h-4 w-4 mr-2 text-slate-500 dark:text-slate-400" /> คัดลอกลิงก์
@@ -399,7 +485,7 @@ export function ShopSettings() {
             </CardContent>
           </Card>
 
-          {/* 🌟 ปรับปรุงการแสดง Card จัดการพนักงาน */}
+          {/* 🌟 4. จัดการพนักงาน */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm dark:bg-slate-900">
             <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b dark:border-slate-800 pb-4">
               <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-100">
@@ -421,11 +507,9 @@ export function ShopSettings() {
                         <div key={staff.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-sm">
-                              {/* ถ้ามี Name ให้แสดงตัวอักษรตัวแรกของ Name ถ้าไม่มีใช้อีเมล */}
                               {(staff.name || staff.email).charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              {/* แสดงชื่อและอีเมล (ถ้ามี) */}
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                                 {staff.name ? staff.name : staff.email}
                               </p>
@@ -433,9 +517,9 @@ export function ShopSettings() {
                               <Badge variant="secondary" className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 mt-1">STAFF</Badge>
                             </div>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => removeStaffMutation.mutate(staff.email)}
                             disabled={removeStaffMutation.isPending}
                             className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:text-rose-400 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
@@ -451,14 +535,13 @@ export function ShopSettings() {
                     </div>
                   )}
 
-                  {/* 🌟 ฟอร์มเพิ่มพนักงาน ที่บังคับกรอกทั้ง 2 ช่อง */}
                   {staffList.length < 2 && (
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs text-slate-500">ชื่อพนักงาน <span className="text-red-500">*</span></Label>
-                          <Input 
-                            placeholder="เช่น สมชาย ช่างซ่อม" 
+                          <Input
+                            placeholder="เช่น สมชาย ช่างซ่อม"
                             value={newStaffName}
                             onChange={(e) => setNewStaffName(e.target.value)}
                             className="dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
@@ -466,18 +549,17 @@ export function ShopSettings() {
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs text-slate-500">อีเมลเพื่อเข้าสู่ระบบ <span className="text-red-500">*</span></Label>
-                          <Input 
+                          <Input
                             type="email"
-                            placeholder="staff@email.com" 
+                            placeholder="staff@email.com"
                             value={newStaffEmail}
                             onChange={(e) => setNewStaffEmail(e.target.value)}
                             className="dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
                           />
                         </div>
                       </div>
-                      <Button 
+                      <Button
                         onClick={() => addStaffMutation.mutate({ email: newStaffEmail, name: newStaffName })}
-                        // 💡 เช็คว่าต้องกรอกทั้ง 2 ช่องถึงจะกดปุ่มได้
                         disabled={!newStaffEmail.includes("@") || newStaffName.trim().length === 0 || addStaffMutation.isPending}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2"
                       >
@@ -486,7 +568,7 @@ export function ShopSettings() {
                       </Button>
                     </div>
                   )}
-                  
+
                   {staffList.length >= 2 && (
                     <p className="text-xs text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border dark:border-amber-900/50 p-2 rounded flex items-center gap-1.5">
                       <Info className="h-3 w-3 shrink-0" /> คุณใช้สิทธิ์พนักงานครบแล้ว อัปเกรดเพื่อเพิ่มทีมงานได้สูงสุด 5 คน
@@ -506,12 +588,11 @@ export function ShopSettings() {
                 ตัวอย่างหน้าจอฝั่งลูกค้า
               </Label>
             </div>
-            
+
             <div className="mx-auto w-full max-w-[320px] bg-slate-100 dark:bg-slate-900 border-[8px] border-slate-800 dark:border-slate-950 rounded-[2.5rem] shadow-xl overflow-hidden relative min-h-[550px] flex flex-col pointer-events-none select-none">
               <div className="absolute top-0 inset-x-0 h-5 bg-slate-800 dark:bg-slate-950 w-28 mx-auto rounded-b-xl z-20"></div>
-              
+
               <div className="flex-1 overflow-y-auto no-scrollbar pb-6 bg-slate-100/50 dark:bg-slate-900/50">
-                {/* 🌟 บังคับให้ Mockup ดูเหมือน Light Mode ของฝั่งลูกค้า (เพื่อให้ตรงกับความเป็นจริงที่หน้าลูกค้าเป็น Light Mode เสมอ) */}
                 <div className="bg-white px-5 pt-10 pb-4 rounded-t-[2rem] border-b border-slate-100 shadow-sm flex flex-col items-center text-center relative z-10">
                   <Avatar className="h-14 w-14 border-2 border-white shadow-md mb-2 bg-white">
                     {logoPreview ? (
@@ -525,7 +606,7 @@ export function ShopSettings() {
                   <h3 className="font-bold text-slate-800 text-base truncate w-full px-2">{shopName && shopName !== "กำลังโหลด..." ? shopName : "ชื่อร้านของคุณ"}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">ฟอร์มแจ้งซ่อมออนไลน์</p>
                 </div>
-                
+
                 <div className="p-4 space-y-4 bg-white mx-3 mt-3 rounded-xl shadow-sm border border-slate-50">
                   <div className="space-y-2">
                     <div className="h-3 w-20 bg-slate-200 rounded"></div>
@@ -552,7 +633,7 @@ export function ShopSettings() {
             </div>
           </div>
         </div>
-        
+
       </div>
     </TooltipProvider>
   )
