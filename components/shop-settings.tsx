@@ -146,7 +146,7 @@ export function ShopSettings() {
     if (shop) {
       setShopName(shop.name || "")
       setLogoPreview(shop.logoUrl || null)
-      setShopUrl(shop.slug ? `https://${shop.slug}.esyq.net` : "")
+      setShopUrl(shop.slug ? `https://${shop.slug}.getfixx.net` : "")
     }
   }, [shop])
 

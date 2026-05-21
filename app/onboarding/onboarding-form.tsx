@@ -171,7 +171,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
                       {...field} 
                     />
                     <span className="bg-slate-50 border border-l-0 border-r-0 border-slate-200 text-slate-500 px-3 h-11 text-sm flex items-center whitespace-nowrap select-none">
-                      .esyq.net
+                      .getfixx.net
                     </span>
                     <Button 
                       type="button" 

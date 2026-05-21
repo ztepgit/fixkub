@@ -94,7 +94,7 @@ export function DashboardOverview() {
   })
 
   const currentSlug = slug || fetchedShop?.slug
-  const shopUrl = currentSlug ? `https://${currentSlug}.esyq.net` : ""
+  const shopUrl = currentSlug ? `https://${currentSlug}.getfixx.net` : ""
 
   useEffect(() => {
     if (jobToView) {
@@ -166,7 +166,7 @@ export function DashboardOverview() {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url; 
-      link.download = `QR-Code-${currentSlug || 'esyq'}.png`; 
+      link.download = `QR-Code-${currentSlug || 'getfixx'}.png`; 
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }

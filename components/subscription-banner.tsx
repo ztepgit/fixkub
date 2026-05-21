@@ -24,7 +24,7 @@ export function SubscriptionBanner({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // ✅ FIX: ประกาศ storageKey ที่ TOP LEVEL ใช้ได้ทั้งไฟล์
-  const storageKey = `esyq_dismissed_threshold_${isDemo ? "demo" : "real"}`
+  const storageKey = `getfixx_dismissed_threshold_${isDemo ? "demo" : "real"}`
 
   useEffect(() => {
     setIsMounted(true)

@@ -64,7 +64,7 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
     staleTime: 1000 * 60 * 5,
   })
 
-  const shopUrl = shop?.slug ? `https://${shop.slug}.esyq.net` : ""
+  const shopUrl = shop?.slug ? `https://${shop.slug}.getfixx.net` : ""
 
   const copyLink = () => {
     if (!shopUrl) return
@@ -84,7 +84,7 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
       const link = document.createElement("a");
       link.href = url;
       
-      const currentSlug = shop?.slug || "esyq";
+      const currentSlug = shop?.slug || "getfixx";
       link.download = `QR-Code-${currentSlug}.png`;
       
       document.body.appendChild(link);
