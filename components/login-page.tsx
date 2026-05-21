@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Mail, Loader2 } from "lucide-react" 
+import { Mail, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 export function LoginPage() {
@@ -20,18 +20,18 @@ export function LoginPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const error = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
-      
+
       if (error) {
         setTimeout(() => {
-          toast({ 
-            title: "❌ เข้าสู่ระบบไม่สำเร็จ", 
-            description: errorDescription 
-              ? decodeURIComponent(errorDescription.replace(/\+/g, ' ')) 
-              : "ลิงก์อาจหมดอายุ หรือเกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", 
-            variant: "destructive" 
+          toast({
+            title: "❌ เข้าสู่ระบบไม่สำเร็จ",
+            description: errorDescription
+              ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
+              : "ลิงก์อาจหมดอายุ หรือเกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+            variant: "destructive"
           });
         }, 100);
-        
+
         window.history.replaceState(null, '', window.location.pathname);
       }
     }
@@ -41,6 +41,15 @@ export function LoginPage() {
     e.preventDefault()
     if (!email) {
       toast({ title: "กรุณากรอกอีเมล", variant: "destructive" })
+      return
+    }
+    // 🌟 เพิ่มการดักจับเครื่องหมาย + ตรงนี้
+    if (email.includes('+')) {
+      toast({
+        title: "ไม่อนุญาตให้ใช้อีเมลที่มีเครื่องหมาย + เข้าสู่ระบบครับ",
+        description: "ระบบไม่อนุญาตให้ใช้อีเมลที่มีเครื่องหมาย + (Alias) ในการเข้าสู่ระบบครับ",
+        variant: "destructive"
+      })
       return
     }
 
@@ -56,7 +65,7 @@ export function LoginPage() {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: error.message, variant: "destructive" })
     } else {
       toast({ title: "✅ ส่งอีเมลสำเร็จ", description: "กรุณาตรวจสอบกล่องจดหมายของคุณเพื่อเข้าสู่ระบบ" })
-      setEmail("") 
+      setEmail("")
     }
     setIsMagicLinkLoading(false)
   }
@@ -81,7 +90,7 @@ export function LoginPage() {
       <Card className="w-full max-w-md shadow-xl border-slate-200/60 overflow-hidden">
         {/* แถบสีด้านบนเพื่อความสวยงาม (Optional) */}
         <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-emerald-500 to-amber-500"></div>
-        
+
         <CardHeader className="space-y-2 text-center pb-6 pt-8">
           <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-800">ยินดีต้อนรับ</CardTitle>
           <CardDescription className="text-slate-500 text-sm">
@@ -91,7 +100,7 @@ export function LoginPage() {
         <CardContent className="space-y-6 px-6 sm:px-8 pb-8">
 
           {/* 🌟 ส่วนที่ 1: ปุ่ม Google Login (เน้นให้เด่นที่สุด) */}
-          <Button 
+          <Button
             type="button"
             className="w-full h-12 text-white text-base font-medium shadow-md transition-transform hover:-translate-y-0.5"
             style={{ backgroundColor: '#4285F4' }} // สีน้ำเงิน Google
@@ -130,18 +139,18 @@ export function LoginPage() {
           <form onSubmit={handleMagicLink} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-600 font-medium">ระบุอีเมลของคุณ</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="name@example.com" 
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-slate-300"
                 disabled={isMagicLinkLoading || isGoogleLoading}
               />
             </div>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               variant="outline"
               className="w-full h-12 border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-sm font-medium"
               disabled={isMagicLinkLoading || isGoogleLoading}

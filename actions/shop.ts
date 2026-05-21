@@ -1,3 +1,4 @@
+//actions/shop.ts
 "use server"
 
 import { z } from "zod"
@@ -5,7 +6,7 @@ import { db } from "@/lib/prisma"
 import { supabase } from "@/lib/supabase"
 import { revalidatePath } from "next/cache"
 import { addDays, isAfter } from "date-fns"
-import { verifyShopAccess } from "@/lib/auth-guard" 
+import { verifyShopAccess } from "@/lib/auth-guard"
 
 // ==========================================
 // 🌟 Schemas สำหรับ Validate และ Trim ข้อมูล
@@ -16,7 +17,9 @@ const shopNameSchema = z.string().trim().min(1, "กรุณากรอกช�
 const publicRegisterSchema = z.object({
   name: z.string().trim().min(1, "กรุณากรอกชื่อร้าน"),
   slug: z.string().trim().min(3, "URL ต้องมีอย่างน้อย 3 ตัวอักษร"),
-  ownerEmail: z.string().trim().email("อีเมลไม่ถูกต้อง"),
+  ownerEmail: z.string().trim().email("อีเมลไม่ถูกต้อง").refine((email) => !email.includes('+'), {
+    message: "ไม่อนุญาตให้ใช้อีเมลที่มีเครื่องหมาย + (Alias) เพื่อรับสิทธิ์ทดลองใช้ฟรี"
+  }),
 })
 
 // ==========================================
@@ -325,19 +328,19 @@ export async function getUserShops(email: string) {
 export async function getShopStaff(shopId: string) {
   try {
     await verifyShopAccess(shopId);
-    
+
     // ดึงข้อมูลมาทั้งหมดในร้าน (ทั้ง OWNER และ STAFF)
     const staff = await db.shopOwner.findMany({
       where: { shopId },
-      select: { 
-        id: true, 
-        email: true, 
-        name: true, 
-        role: true 
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true
       },
       orderBy: { role: 'asc' } // เรียงให้ OWNER ขึ้นก่อน
     });
-    
+
     return { success: true, data: staff };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -365,7 +368,7 @@ export async function addShopStaff(shopId: string, email: string, name: string, 
 
     // เช็คจำนวน STAFF ว่าเกินโควต้า 2 คนหรือไม่
     const currentStaffCount = await db.shopOwner.count({
-      where: { shopId, role: "STAFF" } 
+      where: { shopId, role: "STAFF" }
     });
 
     if (currentStaffCount >= 2) {
@@ -383,10 +386,10 @@ export async function addShopStaff(shopId: string, email: string, name: string, 
 
     // บันทึกลง Database
     await db.shopOwner.create({
-      data: { 
-        shopId, 
-        email, 
-        name: name.trim(), 
+      data: {
+        shopId,
+        email,
+        name: name.trim(),
         role: "STAFF" // 🌟 บังคับเซ็ตเป็น STAFF เสมอเพื่อความปลอดภัย
       }
     });
@@ -400,7 +403,7 @@ export async function addShopStaff(shopId: string, email: string, name: string, 
 export async function removeShopStaff(shopId: string, email: string) {
   try {
     const access = await verifyShopAccess(shopId);
-    
+
     if (access.role !== "OWNER") {
       throw new Error("ไม่มีสิทธิ์ลบพนักงาน");
     }
