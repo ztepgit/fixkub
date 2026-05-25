@@ -1,11 +1,12 @@
+//app/actions/report.ts
 "use server"
 
 import { db } from "@/lib/prisma"
 import { verifyShopAccess } from "@/lib/auth-guard" // 🌟 เพิ่ม Import ตัวด่านตรวจ
 import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear,
-  eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval, 
-  isSameDay, isSameMonth, isSameHour, 
+  eachDayOfInterval, eachMonthOfInterval, eachHourOfInterval,
+  isSameDay, isSameMonth, isSameHour,
   startOfDay, endOfDay
 } from "date-fns"
 
@@ -23,7 +24,7 @@ function getDateFilter(period?: string, customFrom?: Date, customTo?: Date, date
   } else if (period === 'custom' && customFrom && customTo) {
     return { [dateField]: { gte: startOfDay(new Date(customFrom)), lte: endOfDay(new Date(customTo)) } };
   }
-  return {}; 
+  return {};
 }
 
 // ==========================================
@@ -151,7 +152,7 @@ export async function getTrendData(shopId: string, period: 'today' | 'week' | 'm
 
     const diffDays = Math.ceil(Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const isMonthlyView = period === 'year' || (period === 'custom' && diffDays > 60);
-    const isHourlyView = period === 'today'; 
+    const isHourlyView = period === 'today';
 
     const chartData = intervals.map(date => {
       let revenue = 0;
@@ -175,7 +176,7 @@ export async function getTrendData(shopId: string, period: 'today' | 'week' | 'm
       });
 
       let label = "";
-      if (period === 'today') label = `${date.getHours().toString().padStart(2, '0')}:00`; 
+      if (period === 'today') label = `${date.getHours().toString().padStart(2, '0')}:00`;
       else if (period === 'week') label = dayNames[date.getDay()];
       else if (isMonthlyView) label = monthNames[date.getMonth()];
       else label = `${date.getDate()} ${monthNames[date.getMonth()]}`;

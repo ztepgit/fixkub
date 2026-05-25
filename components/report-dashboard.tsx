@@ -4,13 +4,13 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button" 
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { 
-    Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2, 
-    Search, Filter, ClipboardX, Eye, EyeOff, CalendarRange 
+import {
+    Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2,
+    Search, Filter, ClipboardX, Eye, EyeOff, CalendarRange
 } from "lucide-react"
 
 import { Calendar } from "@/components/ui/calendar"
@@ -49,10 +49,10 @@ const translateCancelReason = (reason: string) => {
 export function ReportDashboard() {
     const storeShopId = useShopStore((state) => state.shop?.id)
     const { resolvedTheme } = useTheme() // 🌟 2. ดึง Theme จริงๆ ที่กำลังแสดงผล
-    
+
     const [shopId, setShopId] = useState<string | null>(null)
     const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today')
-    
+
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: new Date(new Date().setDate(new Date().getDate() - 30)),
         to: new Date()
@@ -72,7 +72,7 @@ export function ReportDashboard() {
                 setShopId(storeShopId)
                 return
             }
-            
+
             try {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (user?.email) {
@@ -85,10 +85,10 @@ export function ReportDashboard() {
             } catch (error) {
                 console.error("Failed to resolve shopId:", error)
             }
-            
+
             setIsLoading(false)
         }
-        
+
         resolveShopId()
     }, [storeShopId])
 
@@ -101,7 +101,7 @@ export function ReportDashboard() {
                 const [summaryRes, trendRes, cancelRes] = await Promise.all([
                     getAnalyticsSummary(shopId, timeframe, dateRange?.from, dateRange?.to),
                     getTrendData(shopId, timeframe, dateRange?.from, dateRange?.to),
-                    getCancelledJobsDetails(shopId, timeframe, dateRange?.from, dateRange?.to) 
+                    getCancelledJobsDetails(shopId, timeframe, dateRange?.from, dateRange?.to)
                 ])
 
                 if (summaryRes.success) setSummary(summaryRes.data)
@@ -168,9 +168,9 @@ export function ReportDashboard() {
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">รายงานและสถิติ (Analytics)</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400">วิเคราะห์ภาพรวม รายได้ และประสิทธิภาพของร้าน</p>
                 </div>
-                <Button 
-                    variant="outline" 
-                    onClick={() => setIsHidden(!isHidden)} 
+                <Button
+                    variant="outline"
+                    onClick={() => setIsHidden(!isHidden)}
                     className="text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                     {isHidden ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
@@ -238,7 +238,7 @@ export function ReportDashboard() {
 
             <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)} className="space-y-4">
                 <div className="flex flex-col xl:flex-row justify-end items-end xl:items-center gap-3">
-                    
+
                     {timeframe === 'custom' && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                             <Popover>
@@ -354,7 +354,7 @@ export function ReportDashboard() {
                                                 contentStyle={{ backgroundColor: tooltipBgColor, color: tooltipTextColor, borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                                 formatter={(value: number, name: string) => [value, name === 'processing' ? 'เริ่มแกะซ่อม' : 'ซ่อมเสร็จ']}
                                             />
-                                            <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px', color: tooltipTextColor }} formatter={(value) => <span style={{color: tooltipTextColor}}>{value === 'processing' ? 'เริ่มแกะซ่อม' : 'ซ่อมเสร็จ'}</span>} />
+                                            <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px', color: tooltipTextColor }} formatter={(value) => <span style={{ color: tooltipTextColor }}>{value === 'processing' ? 'เริ่มแกะซ่อม' : 'ซ่อมเสร็จ'}</span>} />
                                             <Bar dataKey="processing" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={30} />
                                             <Bar dataKey="repaired" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30} />
                                         </BarChart>
@@ -419,7 +419,7 @@ export function ReportDashboard() {
                             </CardTitle>
                             <CardDescription className="mt-1 dark:text-slate-400">ค้นหาและกรองประวัติการยกเลิกงาน (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
                         </div>
-                      
+
                         <div className="flex items-center gap-3">
                             <Select value={filterReason} onValueChange={setFilterReason}>
                                 <SelectTrigger className="w-[180px] h-9 text-sm dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200">
@@ -454,7 +454,7 @@ export function ReportDashboard() {
                             <TableBody>
                                 {filteredCancelledJobs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-10 text-slate-500 dark:text-slate-400"> 
+                                        <TableCell colSpan={6} className="text-center py-10 text-slate-500 dark:text-slate-400">
                                             ไม่พบข้อมูลที่ค้นหา
                                         </TableCell>
                                     </TableRow>
@@ -470,7 +470,7 @@ export function ReportDashboard() {
                                                 <div className="text-xs text-slate-500 dark:text-slate-400">{job.customerName}</div>
                                             </TableCell>
                                             <TableCell className="text-sm text-slate-700 dark:text-slate-300">{job.deviceModel}</TableCell>
-                                            
+
                                             <TableCell className="text-sm text-slate-600 dark:text-slate-300 max-w-[200px]">
                                                 <p className="truncate" title={`${job.serviceName || "ไม่ได้ระบุบริการ"} ${job.issue ? `- ${job.issue}` : ""}`}>
                                                     <span className="font-semibold text-emerald-700 dark:text-emerald-400">[{job.serviceName || "ทั่วไป"}]</span> {job.issue || ""}

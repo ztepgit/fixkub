@@ -13,67 +13,84 @@ export function useJobSync(shopId: string) {
   const setConnectionState = useJobStore(state => state.setConnectionState)
 
   const isInitialized = useRef(false)
+  const channelRef = useRef<any>(null)
 
-  // 🌟 1. Initial Load Flow
+  // 1. Initial load (cache → server)
   useEffect(() => {
     if (isInitialized.current) return
     isInitialized.current = true
 
     const init = async () => {
-      await loadFromCache() // ให้ UI ขึ้นทันทีจาก IndexedDB
-      
+      await loadFromCache()
+
       const res = await getTop50Jobs(shopId)
       if (res.success && res.data) {
-        replaceAll(res.data) // อัปเดตข้อมูลสดทับไป
+        replaceAll(res.data)
       }
     }
+
     init()
   }, [shopId, loadFromCache, replaceAll])
 
-  // 🌟 2. Supabase Realtime Flow
+  // 2. Realtime sync
   useEffect(() => {
-    const channel = supabase.channel('dashboard_sync')
+    const channelName = `dashboard_sync:${shopId}`
+
+    const channel = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'Queue', filter: `shopId=eq.${shopId}` },
-        (payload) => upsertJob(payload.new)
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'Queue', filter: `shopId=eq.${shopId}` },
-        (payload) => upsertJob(payload.new)
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'Queue', filter: `shopId=eq.${shopId}` },
-        (payload) => removeJob(payload.old.id)
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Queue',
+          filter: `shopId=eq.${shopId}`,
+        },
+        (payload) => {
+          const event = payload.eventType
+
+          if (event === 'DELETE') {
+            removeJob(payload.old.id)
+            return
+          }
+
+          upsertJob(payload.new)
+        }
       )
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           setConnectionState(true)
-          // กัน Event หลุดตอนเน็ตตัดแล้วต่อใหม่
+
+          // full resync กันข้อมูลหลุด
           const res = await getTop50Jobs(shopId)
-          if (res.success && res.data) replaceAll(res.data)
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          if (res.success && res.data) {
+            replaceAll(res.data)
+          }
+        }
+
+        if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setConnectionState(false)
         }
       })
+
+    channelRef.current = channel
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [shopId, setConnectionState, upsertJob, removeJob, replaceAll])
 
-  // 🌟 3. Polling System (Fallback)
+  // 3. Polling fallback (optimized)
   useEffect(() => {
-    // ถ้า Realtime ปกติ: Sync ทุก 30 วิ / ถ้าเน็ตหลุด/Realtime พัง: Sync ถี่ขึ้นเป็น 10 วิ
-    const intervalTime = isConnectedRealtime ? 30000 : 10000
-    
+    const intervalTime = isConnectedRealtime ? 60000 : 15000
+
     const interval = setInterval(async () => {
+      if (document.hidden) return
+
       const res = await getTop50Jobs(shopId)
-      if (res.success && res.data) {
-        mergeJobs(res.data) // ใช้ merge แทน replace เพื่อป้องกัน UI กระตุก
-      }
+      if (!res.success || !res.data) return
+
+      mergeJobs(res.data)
     }, intervalTime)
 
     return () => clearInterval(interval)
