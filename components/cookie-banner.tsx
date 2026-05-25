@@ -53,7 +53,7 @@ export function CookieBanner() {
               <Button
                 variant="outline"
                 onClick={rejectAll}
-                className="flex-1 md:flex-none border-border/50 text-foreground hover:bg-secondary/80"
+                className="flex-1 md:flex-none border-border/50 text-foreground hover:bg-yellow-200 font-semibold shadow-sm"
               >
                 ปฏิเสธทั้งหมด
               </Button>

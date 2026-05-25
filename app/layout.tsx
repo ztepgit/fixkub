@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import { Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { Toaster } from "@/components/ui/toaster" 
-import { Providers } from "@/components/providers" 
+import { Toaster } from "@/components/ui/toaster"
+import { Providers } from "@/components/providers"
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider" // 🌟 1. นำเข้า ThemeProvider ของเรา
 import { Inter, Noto_Sans_Thai } from "next/font/google"
+import { CookieBanner } from '@/components/cookie-banner'
 
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
@@ -51,17 +52,18 @@ export default function RootLayout({
 }>) {
   return (
     // 🌟 2. สำคัญมาก: ต้องใส่ suppressHydrationWarning ที่ <html> เพื่อป้องกัน Next-Themes ฟ้อง Error ตอนโหลดหน้าเว็บครั้งแรก
-    <html lang="th" suppressHydrationWarning> 
+    <html lang="th" suppressHydrationWarning>
       <body className={`${inter.variable} ${notoThai.variable} font-sans antialiased`} suppressHydrationWarning>
-        
+
         {/* 🌟 3. เอา ThemeProvider ครอบ Component ทั้งหมดไว้ข้างนอกสุด */}
         <ThemeProvider>
           <Providers>
             {children}
-            <Toaster /> 
+            <Toaster />
+            <CookieBanner />
           </Providers>
         </ThemeProvider>
-        
+
         <Analytics />
       </body>
     </html>

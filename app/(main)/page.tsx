@@ -26,6 +26,7 @@ import { useShopStore } from "@/store/useShopStore"
 import Autoplay from "embla-carousel-autoplay" // 🌟 เพิ่มบรรทัดนี้เพื่อทำ Auto Slide
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,CarouselDots } from "@/components/ui/carousel"
 import { getCarouselItems } from "@/actions/carousel"
+import { Footer } from "@/components/footer"
 
 
 export default function LandingPage() {
@@ -502,15 +503,7 @@ export default function LandingPage() {
 
       </main>
 
-      <footer className="bg-slate-900 py-12 text-slate-400">
-        <div className="container mx-auto px-4 md:px-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Wrench className="h-6 w-6 text-emerald-500" />
-            <span className="text-2xl font-bold text-white">getfixx <span className="text-emerald-500">Repair</span></span>
-          </div>
-          <p className="text-sm">© 2026 getfixx Systems. All rights reserved.</p>
-        </div>
-      </footer>
+     <Footer />
 
       <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
         <DialogContent className="sm:max-w-md">
