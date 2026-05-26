@@ -9,10 +9,10 @@ import { verifyShopAccess } from "@/lib/auth-guard"
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง)
 const PRICE_TABLE: Record<PlanType, number> = {
   FREE_TRIAL: 0,
-  BASIC_MONTHLY: 199,
-  BASIC_YEARLY: 1690,
-  PRO_MONTHLY: 299, // สมมติราคา Pro
-  PRO_YEARLY: 2590, // สมมติราคา Pro
+  BASIC_MONTHLY: 299,
+  BASIC_YEARLY: 2290,
+  PRO_MONTHLY: 399, // สมมติราคา Pro
+  PRO_YEARLY: 3290, // สมมติราคา Pro
   LIFETIME: 9900,   // สมมติราคา
 }
 

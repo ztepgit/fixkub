@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
     Loader2, TrendingUp, AlertCircle, Wrench, Wallet, Target, CheckCircle2,
-    Search, Filter, ClipboardX, Eye, EyeOff, CalendarRange
+    Filter, ClipboardX, Eye, EyeOff, CalendarRange
 } from "lucide-react"
 
 import { Calendar } from "@/components/ui/calendar"
@@ -19,9 +19,10 @@ import { format } from "date-fns"
 import { th } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
-import { getAnalyticsSummary, getTrendData, getCancelledJobsDetails } from "@/actions/report"
+// 🌟 เรียกใช้ API เดียวที่เพิ่งทำขึ้นมาใหม่
+import { getReportDashboardData } from "@/actions/report" 
 import { useShopStore } from "@/store/useShopStore"
-import { useTheme } from "next-themes" // 🌟 1. เอาไว้เช็ค Theme ปัจจุบันสำหรับกราฟ Recharts
+import { useTheme } from "next-themes" 
 
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
@@ -48,7 +49,7 @@ const translateCancelReason = (reason: string) => {
 
 export function ReportDashboard() {
     const storeShopId = useShopStore((state) => state.shop?.id)
-    const { resolvedTheme } = useTheme() // 🌟 2. ดึง Theme จริงๆ ที่กำลังแสดงผล
+    const { resolvedTheme } = useTheme() 
 
     const [shopId, setShopId] = useState<string | null>(null)
     const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today')
@@ -58,18 +59,17 @@ export function ReportDashboard() {
         to: new Date()
     })
 
-    const [summary, setSummary] = useState<any>(null)
-    const [trend, setTrend] = useState<any[]>([])
     const [isHidden, setIsHidden] = useState(false)
-    const [cancelledList, setCancelledList] = useState<any[]>([])
     const [searchQuery, setSearchQuery] = useState("")
     const [filterReason, setFilterReason] = useState("ALL")
-    const [isLoading, setIsLoading] = useState(true)
+    const [isResolvingShop, setIsResolvingShop] = useState(true)
 
+    // 1. ตรวจสอบ ShopID 
     useEffect(() => {
         const resolveShopId = async () => {
             if (storeShopId) {
                 setShopId(storeShopId)
+                setIsResolvingShop(false)
                 return
             }
 
@@ -79,6 +79,7 @@ export function ReportDashboard() {
                     const res = await getUserShops(user.email)
                     if (res.success && res.shops.length > 0) {
                         setShopId(res.shops[0].id)
+                        setIsResolvingShop(false)
                         return
                     }
                 }
@@ -86,41 +87,44 @@ export function ReportDashboard() {
                 console.error("Failed to resolve shopId:", error)
             }
 
-            setIsLoading(false)
+            setIsResolvingShop(false)
         }
 
         resolveShopId()
     }, [storeShopId])
 
-    useEffect(() => {
-        if (!shopId) return;
+    // 🌟 2. ใช้ TanStack Query ดึงข้อมูล "ครั้งเดียวจบ" ครอบคลุมทั้ง Summary, Trend, Cancelled
+    const { data: reportData, isLoading: isQueryLoading } = useQuery({
+        queryKey: ['report-dashboard', shopId, timeframe, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+        queryFn: async () => {
+            if (!shopId) return null
+            
+            // ส่ง parameter ให้ตรงกับที่ API คาดหวัง
+            const res = await getReportDashboardData(
+                shopId, 
+                timeframe, 
+                timeframe === 'custom' ? dateRange?.from : undefined, 
+                timeframe === 'custom' ? dateRange?.to : undefined
+            )
+            
+            if (!res.success) throw new Error(res.error)
+            return res.data
+        },
+        enabled: !!shopId && (!dateRange || (!!dateRange.from && !!dateRange.to)),
+        staleTime: 60 * 1000, // 🌟 ป้องกันการยิง DB ซ้ำภายใน 1 นาที
+        refetchOnWindowFocus: false, // 🌟 ไม่ต้องยิงใหม่ตอนสลับแท็บ
+    })
 
-        const loadData = async () => {
-            setIsLoading(true)
-            try {
-                const [summaryRes, trendRes, cancelRes] = await Promise.all([
-                    getAnalyticsSummary(shopId, timeframe, dateRange?.from, dateRange?.to),
-                    getTrendData(shopId, timeframe, dateRange?.from, dateRange?.to),
-                    getCancelledJobsDetails(shopId, timeframe, dateRange?.from, dateRange?.to)
-                ])
+    // รวมสถานะ Loading
+    const isLoading = isResolvingShop || isQueryLoading
 
-                if (summaryRes.success) setSummary(summaryRes.data)
-                if (trendRes.success) setTrend(trendRes.data || [])
-                if (cancelRes.success) setCancelledList(cancelRes.data || [])
-            } catch (error) {
-                console.error("Failed to load reports:", error)
-            }
-            setIsLoading(false)
-        }
+    // แยกข้อมูลออกมาใช้งานให้เหมือนเดิม
+    const summary = reportData?.summary
+    const trend = reportData?.trend || []
+    const cancelledList = reportData?.cancelledDetails || []
 
-        if (timeframe !== 'custom') {
-            loadData()
-        } else if (timeframe === 'custom' && dateRange?.from && dateRange?.to) {
-            loadData()
-        }
-    }, [timeframe, dateRange?.from, dateRange?.to, shopId])
-
-    const successRate = summary?.totalJobs > 0
+    // 🌟 แก้ไข: เพิ่มการเช็ค Type ให้ปลอดภัย 100% ป้องกัน TypeScript Error (Object is possibly undefined)
+    const successRate = summary && summary.totalJobs > 0
         ? Math.round((summary.completedJobs / summary.totalJobs) * 100) : 0
 
     const pieData = summary?.cancelReasons?.map((item: any) => ({
@@ -155,11 +159,10 @@ export function ReportDashboard() {
         )
     }
 
-    // 🌟 3. ปรับสีแกนและตัวอักษรของกราฟ Recharts ให้เข้ากับโหมด
-    const chartAxisColor = resolvedTheme === "dark" ? "#94a3b8" : "#64748b" // slate-400 / slate-500
-    const chartGridColor = resolvedTheme === "dark" ? "#334155" : "#e2e8f0" // slate-700 / slate-200
-    const tooltipBgColor = resolvedTheme === "dark" ? "#1e293b" : "#ffffff" // slate-800 / white
-    const tooltipTextColor = resolvedTheme === "dark" ? "#f8fafc" : "#0f172a" // slate-50 / slate-900
+    const chartAxisColor = resolvedTheme === "dark" ? "#94a3b8" : "#64748b" 
+    const chartGridColor = resolvedTheme === "dark" ? "#334155" : "#e2e8f0" 
+    const tooltipBgColor = resolvedTheme === "dark" ? "#1e293b" : "#ffffff" 
+    const tooltipTextColor = resolvedTheme === "dark" ? "#f8fafc" : "#0f172a" 
 
     return (
         <div className="space-y-6 pb-8">
@@ -372,11 +375,13 @@ export function ReportDashboard() {
                             <CardDescription className="dark:text-slate-400">สัดส่วนการยกเลิกในช่วงเวลานี้</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {pieData.length === 0 ? (
+                            {pieData.length === 0 && !isLoading ? (
                                 <div className="h-[280px] flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 space-y-2">
                                     <CheckCircle2 className="h-10 w-10 text-emerald-400 dark:text-emerald-600 opacity-50" />
                                     <p>ยังไม่มีงานที่ถูกยกเลิกในช่วงนี้ 🎉</p>
                                 </div>
+                            ) : isLoading ? (
+                                 <div className="h-[280px] flex flex-col items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-300 dark:text-slate-600" /></div>
                             ) : (
                                 <div className="flex flex-col md:flex-row items-center h-[280px]">
                                     <div className="h-[200px] w-full md:w-1/2">
@@ -452,14 +457,20 @@ export function ReportDashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredCancelledJobs.length === 0 ? (
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-10">
+                                            <Loader2 className="h-6 w-6 animate-spin text-slate-400 mx-auto" />
+                                        </TableCell>
+                                    </TableRow>
+                                ) : filteredCancelledJobs.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-10 text-slate-500 dark:text-slate-400">
                                             ไม่พบข้อมูลที่ค้นหา
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredCancelledJobs.map((job, index) => (
+                                    filteredCancelledJobs.map((job: any, index: number) => (
                                         <TableRow key={job.id} className="dark:border-slate-800 dark:hover:bg-slate-800/50">
                                             <TableCell className="text-center font-medium text-slate-500 dark:text-slate-400">{index + 1}</TableCell>
                                             <TableCell className="text-sm text-slate-600 dark:text-slate-300">
