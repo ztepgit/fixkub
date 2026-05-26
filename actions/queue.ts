@@ -140,21 +140,33 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
       ...additionalData
     };
 
+    const now = new Date();
+
     // บันทึกเวลาตามสถานะ
     if (status === "WAITING" && !existingQueue.acceptedAt) {
-      updateData.acceptedAt = new Date();
+      updateData.acceptedAt = now;
     }
     else if (status === "PROCESSING" && !existingQueue.startedAt) {
-      updateData.startedAt = new Date();
+      updateData.startedAt = now;
     }
     else if (status === "REPAIRED" && !existingQueue.repairedAt) {
-      updateData.repairedAt = new Date();
+      updateData.repairedAt = now;
     }
-    else if (status === "COMPLETED" && !existingQueue.completedAt) {
-      updateData.completedAt = new Date();
+    else if (status === "COMPLETED") {
+      if (!existingQueue.completedAt) {
+        updateData.completedAt = now;
+      }
+      
+      // 🛡️ ย้ายเข้าคลังประกัน 30 วันทันทีที่ส่งเครื่องลูกค้า
+      const warrantyUntil = new Date(now);
+      warrantyUntil.setDate(warrantyUntil.getDate() + 30); // + 30 วัน
+      
+      updateData.isInWarranty = true;
+      updateData.warrantyArchivedAt = now;
+      updateData.warrantyUntil = warrantyUntil;
     }
     else if (status === "CANCELLED" && !existingQueue.cancelledAt) {
-      updateData.cancelledAt = new Date();
+      updateData.cancelledAt = now;
     }
 
     const updatedQueue = await db.queue.update({

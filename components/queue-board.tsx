@@ -1,4 +1,3 @@
-//app/components/queue-board.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -37,7 +36,7 @@ import { useToast } from "@/hooks/use-toast"
 import {
   Smartphone, Wrench, Clock, Plus, PackageCheck, MoreHorizontal, ClipboardList,
   XCircle, Trash2, RotateCcw, AlertCircle, Archive, Banknote, Barcode, Hash,
-  Loader2, CheckCircle2, UserX, Phone, Search
+  Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { updateQueueStatus } from "@/actions/queue"
@@ -64,6 +63,10 @@ type RepairJob = {
   imei?: string
   phoneNumber?: string
   createdAt?: Date | string
+  completedAt?: Date | string
+  isInWarranty?: boolean
+  warrantyArchivedAt?: Date | string
+  warrantyUntil?: Date | string
 }
 
 // 🌟 ปรับสีคอลัมน์ให้อ่านง่ายใน Dark Mode
@@ -98,14 +101,14 @@ const formatFullDateTime = (date?: Date | string) => {
 export function QueueBoard() {
   const { toast } = useToast()
 
-  const allJobs = useJobStore((state) => state.jobs)
+  const allJobs = useJobStore((state) => state.jobs) as RepairJob[] // 🌟 เพิ่ม Type Assertion ให้ allJobs
   const upsertJob = useJobStore((state) => state.upsertJob)
   const removeJob = useJobStore((state) => state.removeJob)
   const lastSyncAt = useJobStore((state) => state.lastSyncAt)
 
-  const activeJobs = allJobs.filter(j => !["CANCELLED", "COMPLETED", "ARCHIVED"].includes(j.status)) as RepairJob[]
-  const trashedJobs = allJobs.filter(j => j.status === "CANCELLED") as RepairJob[]
-  const archivedJobs = allJobs.filter(j => j.status === "ARCHIVED") as RepairJob[]
+  const activeJobs = allJobs.filter((j: RepairJob) => !["CANCELLED", "COMPLETED", "ARCHIVED"].includes(j.status))
+  const trashedJobs = allJobs.filter((j: RepairJob) => j.status === "CANCELLED")
+  const archivedJobs = allJobs.filter((j: RepairJob) => j.status === "ARCHIVED")
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [jobToCancel, setJobToCancel] = useState<RepairJob | null>(null)
@@ -113,13 +116,17 @@ export function QueueBoard() {
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
   const [jobToView, setJobToView] = useState<RepairJob | null>(null)
-  
+
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  
+
   const [archiveSearchQuery, setArchiveSearchQuery] = useState("")
   const [trashSearchQuery, setTrashSearchQuery] = useState("")
+
+  // 🛡️ Warranty Archive States
+  const [isWarrantyOpen, setIsWarrantyOpen] = useState(false)
+  const [warrantySearch, setWarrantySearch] = useState("")
 
   useEffect(() => {
     if (jobToView) {
@@ -137,10 +144,10 @@ export function QueueBoard() {
     },
     onError: (err, variables, context) => {
       console.error("Mutation Error:", err)
-      toast({ 
-        title: "❌ เกิดข้อผิดพลาด", 
-        description: "บันทึกข้อมูลไม่สำเร็จ ระบบจะพยายามซิงค์ใหม่", 
-        variant: "destructive" 
+      toast({
+        title: "❌ เกิดข้อผิดพลาด",
+        description: "บันทึกข้อมูลไม่สำเร็จ ระบบจะพยายามซิงค์ใหม่",
+        variant: "destructive"
       })
     }
   })
@@ -153,14 +160,22 @@ export function QueueBoard() {
       "REPAIRED": "COMPLETED"
     }
     const nextStatus = statusFlow[currentStatus]
-    const job = allJobs.find(j => j.id === jobId)
+    const job = allJobs.find((j: RepairJob) => j.id === jobId)
     if (!job || !nextStatus) return
 
     const optimisticJob = { ...job, status: nextStatus as any, updatedAt: new Date().toISOString() }
     const updateData = nextStatus === "COMPLETED" ? { completedAt: new Date() } : undefined
-    
+
     if (nextStatus === "COMPLETED") {
       optimisticJob.completedAt = new Date().toISOString()
+      
+      // Optimistically move to warranty
+      optimisticJob.isInWarranty = true
+      optimisticJob.warrantyArchivedAt = new Date().toISOString()
+      const warrantyUntil = new Date()
+      warrantyUntil.setDate(warrantyUntil.getDate() + 30)
+      optimisticJob.warrantyUntil = warrantyUntil.toISOString()
+
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องเรียบร้อยแล้ว" })
     }
 
@@ -170,14 +185,14 @@ export function QueueBoard() {
 
   const handleSaveDetails = () => {
     if (!jobToView) return
-    
+
     const updatedData = {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
     }
 
-    upsertJob({ ...jobToView, ...updatedData, updatedAt: new Date().toISOString() })
+    upsertJob({ ...jobToView, ...updatedData, updatedAt: new Date().toISOString() } as any)
     toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิวเรียบร้อยแล้ว` })
     setJobToView(null)
 
@@ -192,20 +207,20 @@ export function QueueBoard() {
       cancelledAt: new Date().toISOString()
     }
 
-    upsertJob({ ...jobToCancel, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() })
+    upsertJob({ ...jobToCancel, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() } as any)
     setJobToCancel(null)
     setCancelReason("")
     toast({ title: "🗑️ ยกเลิกงานเรียบร้อย", description: `ย้ายคิวไปที่ถังขยะแล้ว`, duration: 3000 })
 
-    updateJobMutation.mutate({ 
-      id: jobToCancel.id, 
-      status: "CANCELLED", 
-      data: { cancelReason, cancelledAt: new Date() } 
+    updateJobMutation.mutate({
+      id: jobToCancel.id,
+      status: "CANCELLED",
+      data: { cancelReason, cancelledAt: new Date() }
     })
   }
 
   const restoreJob = (jobId: string) => {
-    const jobToRestore = trashedJobs.find(j => j.id === jobId)
+    const jobToRestore = trashedJobs.find((j: RepairJob) => j.id === jobId)
     if (!jobToRestore) return
 
     const isUncontactable = jobToRestore.cancelReason === "UNCONTACTABLE"
@@ -217,7 +232,7 @@ export function QueueBoard() {
       cancelReason: undefined,
       cancelledAt: undefined,
       updatedAt: new Date().toISOString()
-    })
+    } as any)
 
     toast({
       title: "🔄 คืนค่างานสำเร็จ",
@@ -236,43 +251,55 @@ export function QueueBoard() {
   }
 
   const confirmEmptyTrash = () => {
-    trashedJobs.forEach(job => removeJob(job.id))
+    trashedJobs.forEach((job: RepairJob) => removeJob(job.id))
     toast({ variant: "destructive", title: "💥 เทถังขยะเรียบร้อยแล้ว", description: "งานที่ถูกยกเลิกทั้งหมดถูกลบถาวรแล้ว" })
     setIsConfirmEmptyOpen(false)
   }
 
   const handleMoveToArchive = (jobId: string, jobRef: string) => {
-    const job = allJobs.find(j => j.id === jobId)
+    const job = allJobs.find((j: RepairJob) => j.id === jobId)
     if (job) {
-      upsertJob({ ...job, status: "ARCHIVED", updatedAt: new Date().toISOString() })
+      upsertJob({ ...job, status: "ARCHIVED", updatedAt: new Date().toISOString() } as any)
       toast({ title: "📦 ย้ายเครื่องเข้าคลัง", description: `รายการถูกย้ายไปยังคลังเครื่องค้างแล้ว`, duration: 3000 })
       updateJobMutation.mutate({ id: jobId, status: "ARCHIVED" })
     }
   }
 
   const unarchiveJob = (jobId: string) => {
-    const jobToUnarchive = archivedJobs.find(j => j.id === jobId)
+    const jobToUnarchive = archivedJobs.find((j: RepairJob) => j.id === jobId)
     if (jobToUnarchive) {
-      upsertJob({ ...jobToUnarchive, status: "REPAIRED", updatedAt: new Date().toISOString() })
+      upsertJob({ ...jobToUnarchive, status: "REPAIRED", updatedAt: new Date().toISOString() } as any)
       toast({ title: "🔄 ดึงกลับหน้ากระดาน", description: `รายการถูกดึงกลับมาที่ช่องรอรับแล้ว` })
       updateJobMutation.mutate({ id: jobId, status: "REPAIRED" })
     }
   }
 
   const completeArchivedJob = (jobId: string) => {
-    const job = archivedJobs.find(j => j.id === jobId)
+    const job = archivedJobs.find((j: RepairJob) => j.id === jobId)
     if (job) {
-      upsertJob({ ...job, status: "COMPLETED", completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+      const now = new Date()
+      const warrantyUntil = new Date(now)
+      warrantyUntil.setDate(warrantyUntil.getDate() + 30)
+
+      upsertJob({ 
+        ...job, 
+        status: "COMPLETED", 
+        completedAt: now.toISOString(), 
+        updatedAt: now.toISOString(),
+        isInWarranty: true,
+        warrantyArchivedAt: now.toISOString(),
+        warrantyUntil: warrantyUntil.toISOString()
+      } as any)
       toast({ title: "✅ ปิดจ๊อบสำเร็จ", description: "ลูกค้ามารับเครื่องจากคลังเรียบร้อยแล้ว" })
       updateJobMutation.mutate({ id: jobId, status: "COMPLETED", data: { completedAt: new Date() } })
     }
   }
 
   const markAsUncontactable = (jobId: string, jobRef: string) => {
-    const job = archivedJobs.find(j => j.id === jobId)
+    const job = archivedJobs.find((j: RepairJob) => j.id === jobId)
     if (job) {
       const updateData = { cancelReason: "UNCONTACTABLE" as CancelReason, cancelledAt: new Date().toISOString() }
-      upsertJob({ ...job, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() })
+      upsertJob({ ...job, status: "CANCELLED", ...updateData, updatedAt: new Date().toISOString() } as any)
       toast({ title: "❌ ส่งไปถังขยะ", description: `รายการถูกบันทึกว่าติดต่อไม่ได้` })
       updateJobMutation.mutate({ id: jobId, status: "CANCELLED", data: { cancelReason: "UNCONTACTABLE", cancelledAt: new Date() } })
     }
@@ -288,23 +315,37 @@ export function QueueBoard() {
     }
   }
 
-  const filteredArchivedJobs = archivedJobs.filter(job => {
+  const filteredArchivedJobs = archivedJobs.filter((job: RepairJob) => {
     if (!archiveSearchQuery) return true;
     const searchLower = archiveSearchQuery.toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(searchLower) ||
-           (job.customerName || "").toLowerCase().includes(searchLower) ||
-           (job.deviceModel || "").toLowerCase().includes(searchLower) || 
-           (job.jobRef || "").toLowerCase().includes(searchLower);
+      (job.customerName || "").toLowerCase().includes(searchLower) ||
+      (job.deviceModel || "").toLowerCase().includes(searchLower) ||
+      (job.jobRef || "").toLowerCase().includes(searchLower);
   });
 
-  const filteredTrashedJobs = trashedJobs.filter(job => {
+  const filteredTrashedJobs = trashedJobs.filter((job: RepairJob) => {
     if (!trashSearchQuery) return true;
     const searchLower = trashSearchQuery.toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(searchLower) ||
-           (job.customerName || "").toLowerCase().includes(searchLower) ||
-           (job.deviceModel || "").toLowerCase().includes(searchLower) || 
-           (job.jobRef || "").toLowerCase().includes(searchLower);
+      (job.customerName || "").toLowerCase().includes(searchLower) ||
+      (job.deviceModel || "").toLowerCase().includes(searchLower) ||
+      (job.jobRef || "").toLowerCase().includes(searchLower);
   });
+
+  // 🛡️ Filter หางานที่ส่งมอบแล้วและยังอยู่ในประกัน
+  const warrantyJobs = allJobs.filter((job: RepairJob) => job.status === "COMPLETED" && job.isInWarranty)
+
+  const filteredWarrantyJobs = warrantyJobs.filter((job: RepairJob) => {
+    if (!warrantySearch) return true
+    const term = warrantySearch.toLowerCase()
+    return (
+      (job.customerName || "").toLowerCase().includes(term) ||
+      (job.phone || job.phoneNumber || "").toLowerCase().includes(term) ||
+      (job.deviceModel || "").toLowerCase().includes(term) ||
+      (job.jobRef || "").toLowerCase().includes(term)
+    )
+  }).sort((a: RepairJob, b: RepairJob) => new Date(b.warrantyArchivedAt || 0).getTime() - new Date(a.warrantyArchivedAt || 0).getTime())
 
   return (
     <TooltipProvider>
@@ -317,6 +358,21 @@ export function QueueBoard() {
             <p className="text-sm text-slate-500 dark:text-slate-400">อัปเดตสถานะได้ง่ายๆ</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+
+            {/* 🛡️ ปุ่มเปิดคลังประกัน */}
+            <Button 
+              variant="outline" 
+              onClick={() => setIsWarrantyOpen(true)}
+              className="flex-1 sm:flex-none text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" /> 
+              คลังประกัน
+              {warrantyJobs.length > 0 && (
+                <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400">
+                  {warrantyJobs.length}
+                </Badge>
+              )}
+            </Button>
 
             <Sheet>
               <SheetTrigger asChild>
@@ -368,7 +424,7 @@ export function QueueBoard() {
                                 {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">(สี{job.deviceColor})</span>}
                               </CardTitle>
                             </div>
-                            
+
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="text-[10px] text-slate-400 dark:text-slate-500 cursor-help whitespace-nowrap mt-1">
@@ -384,11 +440,11 @@ export function QueueBoard() {
                         <CardContent className="p-3 pt-0 text-xs text-slate-600 dark:text-slate-300 space-y-1">
                           <p><span className="font-semibold dark:text-slate-400">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                           <p><span className="font-semibold dark:text-slate-400">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
-                          
+
                           {job.estimatedPrice && (
                             <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice}</span></p>
                           )}
-                          
+
                           {(job.serialNumber || job.imei) && (
                             <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5">
                               {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
@@ -433,6 +489,111 @@ export function QueueBoard() {
               </SheetContent>
             </Sheet>
 
+        
+
+            {/* 🛡️ Warranty Sheet (คลังประกัน) */}
+            <Sheet open={isWarrantyOpen} onOpenChange={setIsWarrantyOpen}>
+              <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg lg:max-w-xl overflow-y-auto dark:bg-slate-900 flex flex-col p-0">
+                <div className="p-6 pb-4 border-b dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-950/20 sticky top-0 z-10 backdrop-blur-md">
+                  <SheetHeader className="text-left space-y-1">
+                    <SheetTitle className="flex items-center gap-2 text-xl font-bold text-emerald-800 dark:text-emerald-400">
+                      <ShieldCheck className="h-6 w-6" />
+                      คลังประกัน (Warranty Archive)
+                    </SheetTitle>
+                    <SheetDescription className="text-slate-600 dark:text-slate-400">
+                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม (ระบบจะลบอัตโนมัติเมื่อหมดอายุ)
+                    </SheetDescription>
+                  </SheetHeader>
+
+                  <div className="relative mt-5">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="ค้นหาชื่อ, เบอร์, รุ่น, รหัสคิว..."
+                      value={warrantySearch}
+                      onChange={(e) => setWarrantySearch(e.target.value)}
+                      className="pl-9 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500 rounded-xl h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-6 flex-1 bg-slate-50/50 dark:bg-slate-900/50">
+                  {filteredWarrantyJobs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-slate-400 h-64 gap-3">
+                      <ShieldCheck className="h-12 w-12 opacity-20" />
+                      <p>ไม่มีงานในคลังประกัน</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredWarrantyJobs.map((job: RepairJob) => {
+                        // คำนวณวันหมดอายุประกัน
+                        const daysLeft = job.warrantyUntil
+                          ? Math.ceil((new Date(job.warrantyUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                          : 0;
+
+                        const isExpiringSoon = daysLeft > 0 && daysLeft <= 7;
+                        const isExpired = daysLeft <= 0;
+
+                        return (
+                          <Card key={job.id} className="border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow dark:bg-slate-950">
+                            {/* แถบสีบ่งบอกสถานะประกัน */}
+                            <div className={`absolute top-0 left-0 w-1.5 h-full ${isExpired ? "bg-rose-500" : isExpiringSoon ? "bg-amber-500" : "bg-emerald-500"
+                              }`} />
+
+                            <CardContent className="p-4 pl-5">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline" className="w-fit text-slate-500 bg-slate-50 font-mono text-[10px]">
+                                    {job.jobRef}
+                                  </Badge>
+                                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base">{job.customerName}</h4>
+                                </div>
+
+                                {/* Badge ประกันเหลือ X วัน */}
+                                <Badge variant={isExpired ? "destructive" : "secondary"} className={`
+                      ${isExpired ? "bg-rose-100 text-rose-700 hover:bg-rose-200 border-rose-200 dark:bg-rose-950/50 dark:text-rose-400" :
+                                    isExpiringSoon ? "bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" :
+                                      "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400"}
+                    `}>
+                                  {isExpired ? "หมดประกันแล้ว" : `ประกันเหลือ ${daysLeft} วัน`}
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-y-2 mt-3 text-sm text-slate-600 dark:text-slate-400">
+                                <div className="flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" /> {job.deviceModel}</div>
+                                <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {job.phone || job.phoneNumber}</div>
+                                <div className="flex items-center gap-1.5 col-span-2 text-indigo-600 dark:text-indigo-400 font-medium">
+                                  <Wrench className="h-3.5 w-3.5" /> {job.serviceName || "ซ่อมทั่วไป"} - {job.issue}
+                                </div>
+                                <div className="flex items-center gap-1.5 col-span-2"><CreditCard className="h-3.5 w-3.5" /> ประเมินราคา: ฿{job.estimatedPrice || 0}</div>
+                              </div>
+
+                              {(job.serialNumber || job.imei) && (
+                                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 text-xs text-slate-500 font-mono">
+                                  {job.serialNumber && <div>S/N: {job.serialNumber}</div>}
+                                  {job.imei && <div>IMEI: {job.imei}</div>}
+                                </div>
+                              )}
+
+                              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500">
+                                <div className="flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                  ปิดงานเมื่อ: {job.warrantyArchivedAt ? new Date(job.warrantyArchivedAt).toLocaleDateString("th-TH") : "-"}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <CalendarClock className="h-3.5 w-3.5" />
+                                  หมดประกัน: {job.warrantyUntil ? new Date(job.warrantyUntil).toLocaleDateString("th-TH") : "-"}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" className="flex-1 sm:flex-none text-slate-600 border-slate-300 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800">
@@ -471,7 +632,7 @@ export function QueueBoard() {
                       <p className="text-sm">{trashSearchQuery ? "ไม่พบข้อมูลที่ค้นหา" : "ไม่มีงานในถังขยะ"}</p>
                     </div>
                   ) : (
-                    filteredTrashedJobs.map(job => (
+                    filteredTrashedJobs.map((job: RepairJob) => (
                       <Card key={job.id} className="shadow-sm border-rose-100 bg-white dark:bg-slate-900 dark:border-rose-900/30">
                         <CardHeader className="p-3 pb-2">
                           <div className="flex justify-between items-start">
@@ -483,7 +644,7 @@ export function QueueBoard() {
                                 {job.deviceModel} {job.deviceColor && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">(สี{job.deviceColor})</span>}
                               </CardTitle>
                             </div>
-                            
+
                             <div className="flex flex-col items-end gap-1.5">
                               <span className="text-xs font-medium text-rose-500 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 px-2 py-1 rounded">
                                 {job.cancelReason === "NO_SHOW" && "ลูกค้าไม่มา"}
@@ -493,7 +654,7 @@ export function QueueBoard() {
                                 {job.cancelReason === "UNCONTACTABLE" && "ติดต่อไม่ได้/ทิ้งเครื่อง"}
                                 {!job.cancelReason && "ยกเลิกงาน"}
                               </span>
-                              
+
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="text-[10px] text-slate-400 dark:text-slate-500 cursor-help whitespace-nowrap">
@@ -510,11 +671,11 @@ export function QueueBoard() {
                         <CardContent className="p-3 pt-0 text-xs text-slate-600 dark:text-slate-300 space-y-1">
                           <p><span className="font-semibold dark:text-slate-400">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                           <p><span className="font-semibold dark:text-slate-400">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
-                          
+
                           {job.estimatedPrice && (
                             <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice}</span></p>
                           )}
-                          
+
                           {(job.serialNumber || job.imei) && (
                             <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5">
                               {job.serialNumber && <p className="flex items-center gap-1"><span className="font-semibold">S/N:</span> {job.serialNumber}</p>}
@@ -534,7 +695,7 @@ export function QueueBoard() {
                     ))
                   )}
                 </div>
-                
+
                 {trashedJobs.length > 0 && (
                   <div className="pt-4 border-t dark:border-slate-800 shrink-0 px-2 pb-4">
                     <Button variant="destructive" className="w-full dark:bg-rose-800 dark:hover:bg-rose-700" onClick={() => setIsConfirmEmptyOpen(true)}>
@@ -573,7 +734,7 @@ export function QueueBoard() {
           ) : (
             <div className="flex flex-col md:flex-row gap-4 h-full md:items-start md:justify-center">
               {COLUMNS.map((col) => {
-                const columnJobs = activeJobs.filter(j => j.status === col.id)
+                const columnJobs = activeJobs.filter((j: RepairJob) => j.status === col.id)
                 const Icon = col.icon
                 return (
                   <div key={col.id} className={`w-full md:w-[320px] md:shrink-0 rounded-xl border-2 flex flex-col h-[450px] md:h-full overflow-hidden ${col.color}`}>
@@ -594,7 +755,7 @@ export function QueueBoard() {
                             ไม่มีงานในสถานะนี้
                           </div>
                         ) : (
-                          columnJobs.map((job) => (
+                          columnJobs.map((job: RepairJob) => (
                             <Card key={job.id} className="shadow-sm border-slate-200 dark:border-slate-700 dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700/50 transition-colors cursor-default relative group">
                               <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between space-y-0">
                                 <div>
@@ -641,7 +802,7 @@ export function QueueBoard() {
                                   <span className="font-medium truncate mr-2">
                                     {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}
                                   </span>
-                                  
+
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0 cursor-help">
@@ -658,7 +819,7 @@ export function QueueBoard() {
                                   {job.estimatedPrice && (
                                     <div className="text-blue-600 dark:text-blue-400 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
                                   )}
-                                  
+
                                   {(job.serialNumber || job.imei) && (
                                     <div className="flex flex-col gap-0.5 mt-1 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-500 dark:text-slate-400">
                                       {job.serialNumber && <div className="flex items-center gap-1.5">S/N: {job.serialNumber}</div>}
