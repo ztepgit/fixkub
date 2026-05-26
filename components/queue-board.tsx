@@ -1,3 +1,4 @@
+//app/components/queue-board.tsx
 "use client"
 
 import { useState, useEffect } from "react"
