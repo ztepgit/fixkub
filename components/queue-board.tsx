@@ -671,7 +671,7 @@ const deleteMutation = useMutation({
                                 {job.cancelReason === "CUSTOMER_CANCEL" && "ลูกค้าไม่ซ่อมแล้ว"}
                                 {job.cancelReason === "UNREPAIRABLE" && "ซ่อมไม่ได้"}
                                 {job.cancelReason === "NO_PARTS" && "ไม่มีอะไหล่"}
-                                {job.cancelReason === "UNCONTACTABLE" && "ติดต่อไม่ได้/ทิ้งเครื่อง"}
+                                {job.cancelReason === "UNCONTACTABLE" && "ติดต่อไม่ได้ / ทิ้งเครื่อง"}
                                 {!job.cancelReason && "ยกเลิกงาน"}
                               </span>
 

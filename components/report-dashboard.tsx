@@ -434,10 +434,10 @@ export function ReportDashboard() {
                                 <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                                     <SelectItem value="ALL">ทุกสาเหตุ</SelectItem>
                                     <SelectItem value="NO_SHOW">ลูกค้าไม่มาส่งเครื่อง</SelectItem>
-                                    <SelectItem value="CUSTOMER_CANCEL">ลูกค้าเปลี่ยนใจ/ไม่ซ่อม</SelectItem>
+                                    <SelectItem value="CUSTOMER_CANCEL">ลูกค้าเปลี่ยนใจ / ไม่ซ่อม</SelectItem>
                                     <SelectItem value="UNREPAIRABLE">เครื่องซ่อมไม่ได้</SelectItem>
                                     <SelectItem value="NO_PARTS">ไม่มีอะไหล่</SelectItem>
-                                    <SelectItem value="UNCONTACTABLE">ติดต่อไม่ได้/ทิ้งเครื่อง</SelectItem>
+                                    <SelectItem value="UNCONTACTABLE">ติดต่อไม่ได้ / ทิ้งเครื่อง</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
