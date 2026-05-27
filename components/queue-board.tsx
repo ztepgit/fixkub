@@ -39,7 +39,7 @@ import {
   Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
-import { updateQueueStatus,deleteQueuePermanently } from "@/actions/queue"
+import { updateQueueStatus, deleteQueuePermanently } from "@/actions/queue"
 import { useJobStore } from "@/store/useJobStore"
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
@@ -114,6 +114,7 @@ export function QueueBoard() {
   const [jobToCancel, setJobToCancel] = useState<RepairJob | null>(null)
   const [cancelReason, setCancelReason] = useState<CancelReason | "">("")
   const [jobToDelete, setJobToDelete] = useState<RepairJob | null>(null)
+  const [jobToWarranty, setJobToWarranty] = useState<RepairJob | null>(null)
   const [isConfirmEmptyOpen, setIsConfirmEmptyOpen] = useState(false)
   const [jobToView, setJobToView] = useState<RepairJob | null>(null)
 
@@ -243,11 +244,11 @@ export function QueueBoard() {
     updateJobMutation.mutate({ id: jobId, status: targetStatus, data: { cancelReason: null, cancelledAt: null } })
   }
 
- const confirmDeletePermanently = () => {
-  if (!jobToDelete) return
-  // เรียกใช้ mutation ที่เราสร้างไว้ข้างบน
-  deleteMutation.mutate(jobToDelete.id)
-}
+  const confirmDeletePermanently = () => {
+    if (!jobToDelete) return
+    // เรียกใช้ mutation ที่เราสร้างไว้ข้างบน
+    deleteMutation.mutate(jobToDelete.id)
+  }
 
   const confirmEmptyTrash = () => {
     trashedJobs.forEach((job: RepairJob) => removeJob(job.id))
@@ -347,25 +348,25 @@ export function QueueBoard() {
   }).sort((a: RepairJob, b: RepairJob) => new Date(b.warrantyArchivedAt || 0).getTime() - new Date(a.warrantyArchivedAt || 0).getTime())
 
   // 🛡️ เพิ่ม mutation นี้เข้าไปในตัวคอมโพเนนต์ (ก่อน return)
-const deleteMutation = useMutation({
-  mutationFn: async (id: string) => {
-    // ดึง shopId ออกมาจาก shop ที่อยู่ใน store หรือที่ดึงมา
-    // ถ้าไม่มีข้อมูลร้าน ให้ยิงไปที่ shopId จาก job ที่กำลังจะลบ
-    const shopId = allJobs.find(j => j.id === id)?.shopId || "" 
-    const res = await deleteQueuePermanently(shopId, id)
-    if (!res.success) throw new Error(res.error || "ลบข้อมูลไม่สำเร็จ")
-    return id
-  },
-  onSuccess: (id) => {
-    removeJob(id) // ลบออกจาก Zustand store หลังลบจาก DB สำเร็จ
-    toast({ title: "🗑️ ลบถาวรแล้ว", description: "ข้อมูลถูกลบออกจากระบบอย่างถาวร" })
-    setJobToDelete(null) // ปิด Modal
-  },
-  onError: (err: any) => {
-    toast({ title: "❌ ลบข้อมูลล้มเหลว", description: err.message, variant: "destructive" })
-    setJobToDelete(null)
-  }
-})
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // ดึง shopId ออกมาจาก shop ที่อยู่ใน store หรือที่ดึงมา
+      // ถ้าไม่มีข้อมูลร้าน ให้ยิงไปที่ shopId จาก job ที่กำลังจะลบ
+      const shopId = allJobs.find(j => j.id === id)?.shopId || ""
+      const res = await deleteQueuePermanently(shopId, id)
+      if (!res.success) throw new Error(res.error || "ลบข้อมูลไม่สำเร็จ")
+      return id
+    },
+    onSuccess: (id) => {
+      removeJob(id) // ลบออกจาก Zustand store หลังลบจาก DB สำเร็จ
+      toast({ title: "🗑️ ลบถาวรแล้ว", description: "ข้อมูลถูกลบออกจากระบบอย่างถาวร" })
+      setJobToDelete(null) // ปิด Modal
+    },
+    onError: (err: any) => {
+      toast({ title: "❌ ลบข้อมูลล้มเหลว", description: err.message, variant: "destructive" })
+      setJobToDelete(null)
+    }
+  })
 
   return (
     <TooltipProvider>
@@ -858,10 +859,16 @@ const deleteMutation = useMutation({
                                   )}
                                 </div>
                               </CardContent>
-
                               <CardFooter className="p-3 pt-0 flex gap-2">
                                 <Button
-                                  onClick={() => moveJob(job.id, job.status)}
+                                  onClick={() => {
+                                    // 🌟 ดักถ้าเป็นปุ่ม "ซ่อมเสร็จแล้ว -> จบงาน" ให้เปิด Popup แทน
+                                    if (job.status === "REPAIRED") {
+                                      setJobToWarranty(job) // 🌟 เปลี่ยนชื่อตรงนี้
+                                    } else {
+                                      moveJob(job.id, job.status)
+                                    }
+                                  }}
                                   disabled={updateJobMutation.isPending}
                                   className="w-full text-xs h-8 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-700/50"
                                 >
@@ -994,6 +1001,37 @@ const deleteMutation = useMutation({
               <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveDetails} disabled={updateJobMutation.isPending}>
                 {updateJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 บันทึกข้อมูลช่าง
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* 🌟 Modal ยืนยันจบงานเข้าคลังประกัน */}
+        <Dialog open={!!jobToWarranty} onOpenChange={(open) => !open && setJobToWarranty(null)}>
+          <DialogContent className="dark:bg-slate-900 dark:border-slate-800 sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="text-emerald-600 dark:text-emerald-500 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                ยืนยันจบงาน?
+              </DialogTitle>
+              <DialogDescription className="text-base text-slate-700 dark:text-slate-300 pt-3 space-y-2">
+                <p>งานที่จบแล้วจะถูกย้ายไปอยู่ใน <strong>คลังประกัน</strong></p>
+                <p className="text-sm text-slate-500">หมายถึงลูกค้ารับเครื่อง และคุณได้รับเงินเรียบร้อยแล้ว</p>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4 gap-2">
+              <Button variant="outline" onClick={() => setJobToWarranty(null)}>ยกเลิก</Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => {
+                  if (jobToWarranty) {
+                    moveJob(jobToWarranty.id, jobToWarranty.status)
+                    setJobToWarranty(null) // 🌟 ปิด modal หลังกดยืนยัน
+                  }
+                }}
+                disabled={updateJobMutation.isPending}
+              >
+                {updateJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                ยืนยันจบงาน
               </Button>
             </DialogFooter>
           </DialogContent>
