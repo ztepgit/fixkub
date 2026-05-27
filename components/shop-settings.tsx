@@ -35,8 +35,19 @@ const QRCodeCanvas = dynamic(
 const getPlanDisplay = (shop: any) => {
   if (!shop) return null;
 
+  // DEMO MODE SUPPORT
+  const isDemo = shop.isDemo === true;
   const isFreeTrial = shop.planType === "FREE_TRIAL";
-  const expiryDate = shop.expiresAt ? new Date(shop.expiresAt) : (shop.trialEndsAt ? new Date(shop.trialEndsAt) : null);
+
+  // DEMO MODE SUPPORT
+  const expiryDate = shop.demoEndsAt
+    ? new Date(shop.demoEndsAt)
+    : shop.expiresAt
+      ? new Date(shop.expiresAt)
+      : shop.trialEndsAt
+        ? new Date(shop.trialEndsAt)
+        : null;
+
   const now = new Date();
 
   const isExpired = expiryDate ? !isAfter(expiryDate, now) : false;
@@ -51,13 +62,19 @@ const getPlanDisplay = (shop: any) => {
   if (isExpired) {
     badgeColor = "bg-rose-100 text-rose-700 border-rose-200";
     icon = <AlertTriangle className="h-5 w-5 text-rose-600" />;
+  } else if (isDemo) {
+    // DEMO MODE SUPPORT
+    badgeColor = "bg-violet-100 text-violet-700 border-violet-200";
+    icon = <Zap className="h-5 w-5 text-violet-600" />;
+    planName = "DEMO";
   } else if (isFreeTrial) {
     badgeColor = "bg-blue-100 text-blue-700 border-blue-200";
     icon = <Zap className="h-5 w-5 text-blue-600" />;
     planName = "ทดลองใช้งานฟรี";
   }
 
-  return { isFreeTrial, expiryDate, isExpired, daysLeft, badgeColor, icon, planName };
+  // 🌟 เพิ่ม isDemo ออกไปให้ Component เช็คได้ด้วย
+  return { isDemo, isFreeTrial, expiryDate, isExpired, daysLeft, badgeColor, icon, planName };
 };
 
 
@@ -330,18 +347,21 @@ export function ShopSettings() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 pt-2 sm:pt-0 w-full sm:w-auto">
-                    <Button
-                      onClick={() => window.location.href = `/checkout?shopId=${shop.id}&plan=yearly`}
-                      className={`w-full sm:w-auto shadow-md transition-all ${planInfo.isExpired
+                  {/* 🌟 ซ่อนปุ่มจ่ายเงินถ้าร้านนั้นเป็น DEMO */}
+                  {!planInfo.isDemo && (
+                    <div className="shrink-0 pt-2 sm:pt-0 w-full sm:w-auto">
+                      <Button
+                        onClick={() => window.location.href = `/checkout?shopId=${shop.id}&plan=yearly`}
+                        className={`w-full sm:w-auto shadow-md transition-all ${planInfo.isExpired
                           ? 'bg-rose-600 hover:bg-rose-700 animate-pulse ring-2 ring-rose-200 ring-offset-2'
                           : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105'
-                        }`}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      {planInfo.isExpired ? 'ชำระเงินเพื่อใช้งานต่อ' : 'อัปเกรด / ต่ออายุแพ็กเกจ'}
-                    </Button>
-                  </div>
+                          }`}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        {planInfo.isExpired ? 'ชำระเงินเพื่อใช้งานต่อ' : 'อัปเกรด / ต่ออายุแพ็กเกจ'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
