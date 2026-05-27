@@ -329,3 +329,16 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
     return { success: false, error: error.message || "ค้นหาข้อมูลล้มเหลว" };
   }
 }
+
+export async function deleteQueuePermanently(shopId: string, id: string) {
+  try {
+    await verifyShopAccess(shopId);
+    await db.queue.delete({
+      where: { id, shopId }
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error deleting permanently:", error);
+    return { success: false, error: "ลบข้อมูลล้มเหลว" };
+  }
+}

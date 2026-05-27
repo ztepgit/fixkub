@@ -39,14 +39,14 @@ import {
   Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
-import { updateQueueStatus } from "@/actions/queue"
-
+import { updateQueueStatus,deleteQueuePermanently } from "@/actions/queue"
 import { useJobStore } from "@/store/useJobStore"
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
 
 type RepairJob = {
   id: string
+  shopId: string
   jobRef: string
   customerName: string
   phone?: string
@@ -243,12 +243,11 @@ export function QueueBoard() {
     updateJobMutation.mutate({ id: jobId, status: targetStatus, data: { cancelReason: null, cancelledAt: null } })
   }
 
-  const confirmDeletePermanently = () => {
-    if (!jobToDelete) return
-    removeJob(jobToDelete.id)
-    toast({ variant: "destructive", title: "🗑️ ลบข้อมูลถาวรแล้ว", description: `คิวถูกลบออกจากระบบอย่างถาวร` })
-    setJobToDelete(null)
-  }
+ const confirmDeletePermanently = () => {
+  if (!jobToDelete) return
+  // เรียกใช้ mutation ที่เราสร้างไว้ข้างบน
+  deleteMutation.mutate(jobToDelete.id)
+}
 
   const confirmEmptyTrash = () => {
     trashedJobs.forEach((job: RepairJob) => removeJob(job.id))
@@ -346,6 +345,27 @@ export function QueueBoard() {
       (job.jobRef || "").toLowerCase().includes(term)
     )
   }).sort((a: RepairJob, b: RepairJob) => new Date(b.warrantyArchivedAt || 0).getTime() - new Date(a.warrantyArchivedAt || 0).getTime())
+
+  // 🛡️ เพิ่ม mutation นี้เข้าไปในตัวคอมโพเนนต์ (ก่อน return)
+const deleteMutation = useMutation({
+  mutationFn: async (id: string) => {
+    // ดึง shopId ออกมาจาก shop ที่อยู่ใน store หรือที่ดึงมา
+    // ถ้าไม่มีข้อมูลร้าน ให้ยิงไปที่ shopId จาก job ที่กำลังจะลบ
+    const shopId = allJobs.find(j => j.id === id)?.shopId || "" 
+    const res = await deleteQueuePermanently(shopId, id)
+    if (!res.success) throw new Error(res.error || "ลบข้อมูลไม่สำเร็จ")
+    return id
+  },
+  onSuccess: (id) => {
+    removeJob(id) // ลบออกจาก Zustand store หลังลบจาก DB สำเร็จ
+    toast({ title: "🗑️ ลบถาวรแล้ว", description: "ข้อมูลถูกลบออกจากระบบอย่างถาวร" })
+    setJobToDelete(null) // ปิด Modal
+  },
+  onError: (err: any) => {
+    toast({ title: "❌ ลบข้อมูลล้มเหลว", description: err.message, variant: "destructive" })
+    setJobToDelete(null)
+  }
+})
 
   return (
     <TooltipProvider>
@@ -1041,6 +1061,24 @@ export function QueueBoard() {
             <DialogFooter>
               <Button variant="outline" className="dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300" onClick={() => setIsConfirmEmptyOpen(false)}>ยกเลิก</Button>
               <Button variant="destructive" className="dark:bg-rose-700 dark:hover:bg-rose-600" onClick={confirmEmptyTrash}>ยืนยันลบถาวร</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 🌟 วาง Dialog ลบถาวรตรงนี้ได้เลยครับ */}
+        <Dialog open={!!jobToDelete} onOpenChange={(open) => !open && setJobToDelete(null)}>
+          <DialogContent className="dark:bg-slate-900 dark:border-slate-800">
+            <DialogHeader>
+              <DialogTitle className="text-rose-600 dark:text-rose-500">ยืนยันการลบถาวร?</DialogTitle>
+              <DialogDescription>
+                รายการ <span className="font-bold">{jobToDelete?.jobRef}</span> จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setJobToDelete(null)} disabled={deleteMutation.isPending}>ยกเลิก</Button>
+              <Button variant="destructive" onClick={confirmDeletePermanently} disabled={deleteMutation.isPending}>
+                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "ยืนยันลบถาวร"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
