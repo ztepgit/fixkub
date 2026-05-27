@@ -39,10 +39,10 @@ const COLORS = ['#f43f5e', '#f97316', '#eab308', '#8b5cf6', '#64748b'];
 const translateCancelReason = (reason: string) => {
     switch (reason) {
         case "NO_SHOW": return "ลูกค้าไม่มาส่งเครื่อง"
-        case "CUSTOMER_CANCEL": return "ลูกค้าเปลี่ยนใจ/ไม่ซ่อม"
-        case "UNREPAIRABLE": return "เครื่องซ่อมไม่ได้/บอร์ดพัง"
+        case "CUSTOMER_CANCEL": return "ลูกค้าเปลี่ยนใจ / ไม่ซ่อม"
+        case "UNREPAIRABLE": return "เครื่องซ่อมไม่ได้ / ไม่คุ้ม"
         case "NO_PARTS": return "ไม่มีอะไหล่"
-        case "UNCONTACTABLE": return "ติดต่อไม่ได้/ทิ้งเครื่อง"
+        case "UNCONTACTABLE": return "ติดต่อไม่ได้ / ทิ้งเครื่อง"
         default: return reason || "ไม่ระบุสาเหตุ"
     }
 }

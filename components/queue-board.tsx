@@ -168,7 +168,7 @@ export function QueueBoard() {
 
     if (nextStatus === "COMPLETED") {
       optimisticJob.completedAt = new Date().toISOString()
-      
+
       // Optimistically move to warranty
       optimisticJob.isInWarranty = true
       optimisticJob.warrantyArchivedAt = new Date().toISOString()
@@ -281,10 +281,10 @@ export function QueueBoard() {
       const warrantyUntil = new Date(now)
       warrantyUntil.setDate(warrantyUntil.getDate() + 30)
 
-      upsertJob({ 
-        ...job, 
-        status: "COMPLETED", 
-        completedAt: now.toISOString(), 
+      upsertJob({
+        ...job,
+        status: "COMPLETED",
+        completedAt: now.toISOString(),
         updatedAt: now.toISOString(),
         isInWarranty: true,
         warrantyArchivedAt: now.toISOString(),
@@ -360,12 +360,12 @@ export function QueueBoard() {
           <div className="flex gap-2 w-full sm:w-auto">
 
             {/* 🛡️ ปุ่มเปิดคลังประกัน */}
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setIsWarrantyOpen(true)}
               className="flex-1 sm:flex-none text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
             >
-              <ShieldCheck className="mr-2 h-4 w-4" /> 
+              <ShieldCheck className="mr-2 h-4 w-4" />
               คลังประกัน
               {warrantyJobs.length > 0 && (
                 <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400">
@@ -489,7 +489,7 @@ export function QueueBoard() {
               </SheetContent>
             </Sheet>
 
-        
+
 
             {/* 🛡️ Warranty Sheet (คลังประกัน) */}
             <Sheet open={isWarrantyOpen} onOpenChange={setIsWarrantyOpen}>
@@ -501,7 +501,7 @@ export function QueueBoard() {
                       คลังประกัน (Warranty Archive)
                     </SheetTitle>
                     <SheetDescription className="text-slate-600 dark:text-slate-400">
-                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม (ระบบจะลบอัตโนมัติเมื่อหมดอายุ)
+                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม หากต้องการซ่อมใหม่ โปรดสร้างงานใหม่ (ระบบจะลบอัตโนมัติเมื่อหมดอายุ)
                     </SheetDescription>
                   </SheetHeader>
 
@@ -771,11 +771,21 @@ export function QueueBoard() {
                                 </div>
 
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      {/* ใช้ div ครอบกันปัญหา Ref/Event ชนกันระหว่าง Tooltip และ DropdownMenu */}
+                                      <div>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p>เมนูช่วยเหลือ</p>
+                                    </TooltipContent>
+                                  </Tooltip>
                                   <DropdownMenuContent align="end" className="w-52 dark:bg-slate-900 dark:border-slate-800">
                                     <DropdownMenuItem className="cursor-pointer dark:text-slate-300 dark:focus:bg-slate-800" onClick={() => setJobToView(job)}>
                                       <ClipboardList className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -790,7 +800,7 @@ export function QueueBoard() {
                                     ) : (
                                       <DropdownMenuItem className="text-amber-600 dark:text-amber-500 focus:bg-amber-50 dark:focus:bg-amber-950/50 focus:text-amber-700 dark:focus:text-amber-400 cursor-pointer" onClick={() => handleMoveToArchive(job.id, job.jobRef)}>
                                         <Archive className="mr-2 h-4 w-4" />
-                                        ย้ายเครื่องเข้าคลัง
+                                        เก็บเข้าคลังดอง
                                       </DropdownMenuItem>
                                     )}
                                   </DropdownMenuContent>
@@ -1000,11 +1010,11 @@ export function QueueBoard() {
                 </div>
                 <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => setCancelReason("UNREPAIRABLE")}>
                   <RadioGroupItem value="UNREPAIRABLE" id="r3" disabled={updateJobMutation.isPending} />
-                  <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">เครื่องซ่อมไม่ได้ / บอร์ดพังหนัก</Label>
+                  <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">เครื่องซ่อมไม่ได้ / ไม่คุ้ม</Label>
                 </div>
                 <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => setCancelReason("NO_PARTS")}>
                   <RadioGroupItem value="NO_PARTS" id="r4" disabled={updateJobMutation.isPending} />
-                  <Label htmlFor="r4" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">ไม่มีอะไหล่ / อะไหล่เลิกผลิต</Label>
+                  <Label htmlFor="r4" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">ไม่มีอะไหล่</Label>
                 </div>
               </RadioGroup>
             </div>

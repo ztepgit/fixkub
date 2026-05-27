@@ -262,7 +262,7 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                   <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm inline-block">
                     สาเหตุ: {
                       job.cancelReason === "NO_SHOW" ? "ไม่นำเครื่องมาส่งตามนัด" :
-                      job.cancelReason === "UNREPAIRABLE" ? "ซ่อมไม่ได้/บอร์ดเสีย" :
+                      job.cancelReason === "UNREPAIRABLE" ? "ซ่อมไม่ได้/ไม่คุ้ม" :
                       job.cancelReason === "NO_PARTS" ? "ไม่มีอะไหล่" :
                       job.cancelReason === "CUSTOMER_CANCEL" ? "ลูกค้ายกเลิก" :
                       job.cancelReason === "UNCONTACTABLE" ? "ติดต่อไม่ได้" :
