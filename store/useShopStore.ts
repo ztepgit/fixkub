@@ -8,6 +8,7 @@ interface ShopData {
   logoUrl: string | null
   slug: string | null // 🌟 1. เพิ่มฟิลด์ slug เข้ามาตรงนี้ เพื่อนำไปสร้าง Subdomain
   isDemo?: boolean // 👈 เพิ่มตรงนี้
+  demoEndsAt?: Date | string | null // 🌟 เพิ่มตรงนี้ เพื่อรองรับวันหมดอายุของ Demo
   role?: "OWNER" | "STAFF" | string // 🌟 เพิ่มบรรทัดนี้ เพื่อให้ TypeScript รู้จัก
 }
 

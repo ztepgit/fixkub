@@ -132,7 +132,7 @@ export function DashboardHeader({ currentTabName = "ภาพรวม" }: Dashb
                     </a>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs">
-                    กลับหน้าเว็บไซต์หลัก
+                    กลับหน้าหลัก
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
