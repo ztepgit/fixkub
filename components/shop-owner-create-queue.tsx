@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
+import { useJobStore } from "@/store/useJobStore"
 
 // 🌟 1. Import Store เพื่อดึง shopId ปัจจุบัน
 import { useShopStore } from "@/store/useShopStore"
@@ -24,6 +25,7 @@ const COMMON_SERVICES = [
 ]
 
 export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) {
+  const upsertJob = useJobStore((state) => state.upsertJob)
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -58,16 +60,26 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         phoneNumber: phone,
         deviceModel,
         deviceColor,
-        serialNumber, 
-        imei,         
+        serialNumber,
+        imei,
         issue,
         serviceName,
         isManualEntry: true,
       })
 
       if (response.success) {
-        toast({ title: "✅ สร้างคิวสำเร็จ", description: "เพิ่มรายการซ่อมเข้าสู่ระบบแล้ว" })
-        onSuccess() 
+        // 🌟 Optimistic Update เข้า Queue Board ทันที
+        upsertJob({
+          ...response.data,
+          updatedAt: new Date().toISOString(),
+        })
+
+        toast({
+          title: "✅ สร้างคิวสำเร็จ",
+          description: "เพิ่มรายการซ่อมเข้าสู่ระบบแล้ว"
+        })
+
+        onSuccess()
       } else {
         toast({ title: "❌ เกิดข้อผิดพลาด", description: response.error, variant: "destructive" })
       }
@@ -89,24 +101,24 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
       </div>
 
       <div className="p-6 flex flex-col gap-8 overflow-y-auto max-h-[75vh]">
-        
+
         {/* แถวที่ 1: ลูกค้า & เบอร์โทร */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="customerName" className="font-semibold text-slate-700">ชื่อลูกค้า <span className="text-red-500">*</span></Label>
-            <Input 
-              id="customerName" 
-              placeholder="ชื่อ หรือ ชื่อเล่น" 
+            <Input
+              id="customerName"
+              placeholder="ชื่อ หรือ ชื่อเล่น"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
             />
           </div>
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="phone" className="font-semibold text-slate-700">เบอร์โทรศัพท์ <span className="text-red-500">*</span></Label>
-            <Input 
-              id="phone" 
-              type="tel" 
-              placeholder="08x-xxx-xxxx" 
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="08x-xxx-xxxx"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -117,18 +129,18 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="deviceModel" className="font-semibold text-slate-700">รุ่นมือถือ/อุปกรณ์<span className="text-red-500">*</span></Label>
-            <Input 
-              id="deviceModel" 
-              placeholder="เช่น iPhone 14" 
+            <Input
+              id="deviceModel"
+              placeholder="เช่น iPhone 14"
               value={deviceModel}
               onChange={(e) => setDeviceModel(e.target.value)}
             />
           </div>
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="deviceColor" className="font-semibold text-slate-700">สีเครื่อง</Label>
-            <Input 
-              id="deviceColor" 
-              placeholder="เช่น ดำ" 
+            <Input
+              id="deviceColor"
+              placeholder="เช่น ดำ"
               value={deviceColor}
               onChange={(e) => setDeviceColor(e.target.value)}
             />
@@ -139,18 +151,18 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="serialNumber" className="font-semibold text-slate-700">Serial Number <span className="text-xs text-slate-400 font-normal">(ไม่บังคับ)</span></Label>
-            <Input 
-              id="serialNumber" 
-              placeholder="กรอก S/N ตัวเครื่อง" 
+            <Input
+              id="serialNumber"
+              placeholder="กรอก S/N ตัวเครื่อง"
               value={serialNumber}
               onChange={(e) => setSerialNumber(e.target.value)}
             />
           </div>
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="imei" className="font-semibold text-slate-700">IMEI <span className="text-xs text-slate-400 font-normal">(ไม่บังคับ)</span></Label>
-            <Input 
-              id="imei" 
-              placeholder="กรอกเลข IMEI 15 หลัก" 
+            <Input
+              id="imei"
+              placeholder="กรอกเลข IMEI 15 หลัก"
               value={imei}
               onChange={(e) => setImei(e.target.value)}
             />
@@ -160,9 +172,9 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         {/* แถวที่ 4: บริการที่ต้องการ */}
         <div className="flex flex-col gap-3">
           <Label htmlFor="serviceName" className="font-semibold text-slate-700">บริการที่ต้องการ</Label>
-          <Input 
-            id="serviceName" 
-            placeholder="เช่น เปลี่ยนจอ, เปลี่ยนแบต" 
+          <Input
+            id="serviceName"
+            placeholder="เช่น เปลี่ยนจอ, เปลี่ยนแบต"
             value={serviceName}
             onChange={(e) => setServiceName(e.target.value)}
             className="focus-visible:ring-emerald-500"
@@ -173,11 +185,10 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
                 key={service}
                 type="button"
                 onClick={() => handleChipClick(service)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                  serviceName === service 
-                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm" 
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${serviceName === service
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
                     : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"
-                }`}
+                  }`}
               >
                 {service}
               </button>
@@ -188,8 +199,8 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         {/* แถวที่ 5: อาการเสีย */}
         <div className="flex flex-col gap-2.5">
           <Label htmlFor="issue" className="font-semibold text-slate-700">อาการเสีย / หมายเหตุ</Label>
-          <Textarea 
-            id="issue" 
+          <Textarea
+            id="issue"
             placeholder="อธิบายอาการเพิ่มเติม..."
             className="resize-none"
             rows={3}
@@ -204,9 +215,9 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         <Button variant="outline" onClick={onCancel} disabled={isSubmitting} className="min-w-[100px]">
           ยกเลิก
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          className="bg-emerald-600 hover:bg-emerald-700 min-w-[120px]" 
+        <Button
+          onClick={handleSubmit}
+          className="bg-emerald-600 hover:bg-emerald-700 min-w-[120px]"
           disabled={!customerName || !deviceModel || !phone || isSubmitting}
         >
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

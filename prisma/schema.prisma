@@ -156,6 +156,9 @@ model Queue {
   warrantyArchivedAt DateTime?
   warrantyUntil      DateTime?
 
+  // 🌟 UNIQUE กัน jobRef ซ้ำในร้านเดียวกัน
+  @@unique([shopId, jobRef])
+
   // 🌟 Index สำหรับดึงข้อมูล Top 50 แบบ Priority ได้เร็วที่สุด
   @@index([shopId, status, updatedAt(sort: Desc)])
   // 🌟 เพิ่ม Index เพื่อให้การดึงข้อมูลและรัน Cron Job ทำได้เร็วขึ้นสุดๆ (O(log n))

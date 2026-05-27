@@ -56,8 +56,29 @@ export async function createQueue(input: CreateQueueInput) {
     }
 
     // 🌟 สร้างรหัสคิวซ่อมแบบสุ่ม 4 หลัก (เช่น Q-8F2A)
-    const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const generatedJobRef = `Q-${randomCode}`;
+    let generatedJobRef = ""
+    let isUnique = false
+
+    while (!isUnique) {
+      const randomCode = Math.random()
+        .toString(36)
+        .substring(2, 6)
+        .toUpperCase()
+
+      generatedJobRef = `Q-${randomCode}`
+
+      const existing = await db.queue.findFirst({
+        where: {
+          shopId: safeData.shopId,
+          jobRef: generatedJobRef,
+        },
+        select: { id: true }
+      })
+
+      if (!existing) {
+        isUnique = true
+      }
+    }
 
     // 💾 สั่ง Prisma บันทึกข้อมูลลง Database
     const newQueue = await db.queue.create({
@@ -156,11 +177,11 @@ export async function updateQueueStatus(id: string, status: string, additionalDa
       if (!existingQueue.completedAt) {
         updateData.completedAt = now;
       }
-      
+
       // 🛡️ ย้ายเข้าคลังประกัน 30 วันทันทีที่ส่งเครื่องลูกค้า
       const warrantyUntil = new Date(now);
       warrantyUntil.setDate(warrantyUntil.getDate() + 30); // + 30 วัน
-      
+
       updateData.isInWarranty = true;
       updateData.warrantyArchivedAt = now;
       updateData.warrantyUntil = warrantyUntil;
