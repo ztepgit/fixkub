@@ -39,8 +39,9 @@ import {
   Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
-import { updateQueueStatus, deleteQueuePermanently } from "@/actions/queue"
+import { updateQueueStatus, deleteQueuePermanently, emptyTrash } from "@/actions/queue"
 import { useJobStore } from "@/store/useJobStore"
+
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
 
@@ -251,9 +252,7 @@ export function QueueBoard() {
   }
 
   const confirmEmptyTrash = () => {
-    trashedJobs.forEach((job: RepairJob) => removeJob(job.id))
-    toast({ variant: "destructive", title: "💥 เทถังขยะเรียบร้อยแล้ว", description: "งานที่ถูกยกเลิกทั้งหมดถูกลบถาวรแล้ว" })
-    setIsConfirmEmptyOpen(false)
+    emptyTrashMutation.mutate()
   }
 
   const handleMoveToArchive = (jobId: string, jobRef: string) => {
@@ -358,13 +357,32 @@ export function QueueBoard() {
       return id
     },
     onSuccess: (id) => {
-      removeJob(id) // ลบออกจาก Zustand store หลังลบจาก DB สำเร็จ
-      toast({ title: "🗑️ ลบถาวรแล้ว", description: "ข้อมูลถูกลบออกจากระบบอย่างถาวร" })
+      removeJob(id) // ลบออกจาก Zustand store หลัง Soft Delete จาก DB
+      toast({ title: "🗑️ ลบงานแล้ว", description: "" })
       setJobToDelete(null) // ปิด Modal
     },
     onError: (err: any) => {
       toast({ title: "❌ ลบข้อมูลล้มเหลว", description: err.message, variant: "destructive" })
       setJobToDelete(null)
+    }
+  })
+
+  const emptyTrashMutation = useMutation({
+    mutationFn: async () => {
+      // ใช้ shopId จากคิวงานแรกในระบบ (หรือดึงจาก Zustand ถ้าคุณมี)
+      const shopId = allJobs[0]?.shopId || ""
+      const res = await emptyTrash(shopId)
+      if (!res.success) throw new Error(res.error)
+      return res
+    },
+    onSuccess: () => {
+      // ลบงานสถานะ CANCELLED ออกจากหน้าจอ Zustand
+      trashedJobs.forEach((job: RepairJob) => removeJob(job.id))
+      toast({ title: "💥 ล้างถังขยะแล้ว", description: "" })
+      setIsConfirmEmptyOpen(false)
+    },
+    onError: (err: any) => {
+      toast({ title: "❌ เกิดข้อผิดพลาด", description: err.message, variant: "destructive" })
     }
   })
 
@@ -709,7 +727,7 @@ export function QueueBoard() {
                             <RotateCcw className="h-3 w-3 mr-1" /> คืนค่า
                           </Button>
                           <Button variant="outline" size="sm" className="flex-1 h-8 text-rose-600 border-rose-300 hover:bg-rose-50 hover:border-rose-400 dark:text-rose-400 dark:border-rose-900/60 dark:hover:bg-slate-800 dark:hover:text-rose-300" onClick={() => setJobToDelete(job)}>
-                            ลบถาวร
+                            ลบ
                           </Button>
                         </CardFooter>
                       </Card>
@@ -1093,12 +1111,19 @@ export function QueueBoard() {
         <Dialog open={isConfirmEmptyOpen} onOpenChange={setIsConfirmEmptyOpen}>
           <DialogContent className="dark:bg-slate-900 dark:border-slate-800">
             <DialogHeader>
-              <DialogTitle className="dark:text-slate-100">ยืนยันการล้างถังขยะ?</DialogTitle>
-              <DialogDescription className="dark:text-slate-400">การกระทำนี้ไม่สามารถย้อนกลับได้ ข้อมูลที่ลบจะหายไปอย่างถาวร</DialogDescription>
+              <DialogTitle className="dark:text-slate-100">ล้างถังขยะใช่ไหม?</DialogTitle>
+              <DialogDescription className="dark:text-slate-400">
+                ล้างงานในถังขยะทั้งหมด...
+              </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" className="dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300" onClick={() => setIsConfirmEmptyOpen(false)}>ยกเลิก</Button>
-              <Button variant="destructive" className="dark:bg-rose-700 dark:hover:bg-rose-600" onClick={confirmEmptyTrash}>ยืนยันลบถาวร</Button>
+              <Button variant="outline" className="dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300" onClick={() => setIsConfirmEmptyOpen(false)} disabled={emptyTrashMutation.isPending}>
+                ยกเลิก
+              </Button>
+              <Button variant="destructive" className="dark:bg-rose-700 dark:hover:bg-rose-600" onClick={confirmEmptyTrash} disabled={emptyTrashMutation.isPending}>
+                {emptyTrashMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                ล้าง
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1107,15 +1132,15 @@ export function QueueBoard() {
         <Dialog open={!!jobToDelete} onOpenChange={(open) => !open && setJobToDelete(null)}>
           <DialogContent className="dark:bg-slate-900 dark:border-slate-800">
             <DialogHeader>
-              <DialogTitle className="text-rose-600 dark:text-rose-500">ยืนยันการลบถาวร?</DialogTitle>
+              <DialogTitle className="text-rose-600 dark:text-rose-500">ลบงานใช่ไหม?</DialogTitle>
               <DialogDescription>
-                รายการ <span className="font-bold">{jobToDelete?.jobRef}</span> จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้
+                งาน <span className="font-bold">{jobToDelete?.jobRef}</span> กำลังจะถูกลบ
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setJobToDelete(null)} disabled={deleteMutation.isPending}>ยกเลิก</Button>
               <Button variant="destructive" onClick={confirmDeletePermanently} disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "ยืนยันลบถาวร"}
+                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "ลบ"}
               </Button>
             </DialogFooter>
           </DialogContent>

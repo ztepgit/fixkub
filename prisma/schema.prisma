@@ -159,6 +159,13 @@ model Queue {
   // 🌟 UNIQUE กัน jobRef ซ้ำในร้านเดียวกัน
   @@unique([shopId, jobRef])
 
+  // ANALYTICS SAFE SOFT DELETE
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // แนะนำให้ทำ Index เพื่อให้ Query หน้าบอร์ด (ที่ isDeleted = false) ทำงานได้เร็วเสมอ
+  @@index([shopId, isDeleted])
+
   // 🌟 Index สำหรับดึงข้อมูล Top 50 แบบ Priority ได้เร็วที่สุด
   @@index([shopId, status, updatedAt(sort: Desc)])
   // 🌟 เพิ่ม Index เพื่อให้การดึงข้อมูลและรัน Cron Job ทำได้เร็วขึ้นสุดๆ (O(log n))

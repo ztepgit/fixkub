@@ -1,3 +1,4 @@
+// actions/dashboard.ts
 "use server"
 
 import { verifyShopAccess } from "@/lib/auth-guard"
@@ -13,20 +14,33 @@ export async function getDashboardStats(shopId: string) {
 
     // 1. งานเข้าวันนี้
     const todayCount = await db.queue.count({
-      where: { shopId, createdAt: { gte: todayStart } }
+      where: { 
+        shopId, 
+        createdAt: { gte: todayStart },
+        isDeleted: false // ANALYTICS SAFE SOFT DELETE: นับเฉพาะงานปกติที่ไม่ได้ถูกลบ
+      }
     });
 
     // 2. กำลังดำเนินการ (รอซ่อม + กำลังซ่อม)
     const activeCount = await db.queue.count({
-      where: { shopId, status: { in: ["WAITING", "PROCESSING"] } }
+      where: { 
+        shopId, 
+        status: { in: ["WAITING", "PROCESSING"] },
+        isDeleted: false // ANALYTICS SAFE SOFT DELETE: ป้องกันข้อมูลขยะ
+      }
     });
 
     // 3. รอรับเครื่อง (ซ่อมเสร็จแล้ว)
     const readyCount = await db.queue.count({
-      where: { shopId, status: "REPAIRED" }
+      where: { 
+        shopId, 
+        status: "REPAIRED",
+        isDeleted: false // ANALYTICS SAFE SOFT DELETE
+      }
     });
 
     // 4. รายได้วันนี้
+    // คิดจากงานที่สำเร็จในวันนี้ทั้งหมด (รวมถึงเคสพิเศษที่อาจมีการจัดการข้อมูลหลังบ้าน)
     const revenueTodayAgg = await db.queue.aggregate({
       where: { shopId, status: "COMPLETED", completedAt: { gte: todayStart } },
       _sum: { estimatedPrice: true }
@@ -35,7 +49,10 @@ export async function getDashboardStats(shopId: string) {
 
     // 5. รายการอัปเดตล่าสุด
     const recentJobs = await db.queue.findMany({
-      where: { shopId },
+      where: { 
+        shopId,
+        isDeleted: false // ANALYTICS SAFE SOFT DELETE: ไม่แสดงงานที่ถูกลบถาวรไปแล้วในกิจกรรมล่าสุด
+      },
       orderBy: { updatedAt: "desc" },
       take: 50,
     });
@@ -43,6 +60,7 @@ export async function getDashboardStats(shopId: string) {
     // 🌟🌟 [ส่วนที่เพิ่มใหม่] สำหรับหน้า Overview 🌟🌟
 
     // 6. รายได้รวมทั้งหมด (ตั้งแต่เปิดร้าน)
+    // 🚨 KEEP ANALYTICS: ห้ามใส่ isDeleted: false เด็ดขาด เพื่อคงยอดรายได้ของงานเก่าๆ ที่ถูกซอฟต์ดีลีทไปแล้วเอาไว้
     const allCompleted = await db.queue.aggregate({
       where: { shopId, status: "COMPLETED" },
       _sum: { estimatedPrice: true }
@@ -50,15 +68,15 @@ export async function getDashboardStats(shopId: string) {
     const allTimeRevenue = allCompleted._sum.estimatedPrice || 0;
 
     // 7. คำนวณเวลาซ่อมเฉลี่ยต่องาน 
+    // 🚨 KEEP ANALYTICS: ห้ามใส่ isDeleted: false เพื่อให้นำข้อมูลเวลาซ่อมในอดีตทั้งหมดมาคำนวณได้อย่างแม่นยำ
     const jobsWithTime = await db.queue.findMany({
       where: {
         shopId,
-        // 🌟 ดึงงานที่ซ่อมเสร็จแล้ว (รวมที่รับกลับไปแล้ว และอยู่ในคลังดอง)
         status: { in: ["REPAIRED", "COMPLETED", "ARCHIVED"] },
         startedAt: { not: null },
         repairedAt: { not: null }
       },
-      select: { startedAt: true, repairedAt: true } // ดึงมาแค่ 2 เวลานี้เท่านั้น
+      select: { startedAt: true, repairedAt: true }
     });
 
     let totalMinutes = 0;

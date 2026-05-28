@@ -1,3 +1,4 @@
+//actions/queue.ts
 "use server";
 
 import { verifyShopAccess } from "@/lib/auth-guard"
@@ -128,7 +129,10 @@ export async function getQueues(shopId: string) {
     await verifyShopAccess(shopId);
 
     const queues = await db.queue.findMany({
-      where: { shopId: shopId },
+      where: {
+        shopId: shopId,
+        isDeleted: false // ANALYTICS SAFE SOFT DELETE: ซ่อนคิวที่ถูกลบไปแล้วไม่ให้มาโผล่ในบอร์ด
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -222,6 +226,7 @@ export async function getCustomerQueues(shopId: string, searchKey: string) {
     const queues = await db.queue.findMany({
       where: {
         shopId,
+        isDeleted: false, // ANALYTICS SAFE SOFT DELETE: ห้ามลูกค้าเห็นคิวที่ถูกลบ
         OR: [
           { phoneNumber: { contains: cleanSearchKey } },
           { jobRef: { contains: searchKey.toUpperCase() } },
@@ -250,6 +255,7 @@ export async function getTop50Jobs(shopId: string) {
     const jobs = await db.queue.findMany({
       where: {
         shopId,
+        isDeleted: false, // ANALYTICS SAFE SOFT DELETE
         status: { in: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] }
       },
       orderBy: { updatedAt: 'desc' },
@@ -258,7 +264,11 @@ export async function getTop50Jobs(shopId: string) {
 
     if (jobs.length < 50) {
       const otherJobs = await db.queue.findMany({
-        where: { shopId, status: { notIn: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] } },
+        where: {
+          shopId,
+          isDeleted: false, // ANALYTICS SAFE SOFT DELETE
+          status: { notIn: ["PROCESSING", "WAITING", "PENDING", "REPAIRED"] }
+        },
         orderBy: { updatedAt: 'desc' },
         take: 50 - jobs.length
       })
@@ -315,12 +325,22 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
 
     const [jobs, total] = await Promise.all([
       db.queue.findMany({
-        where: { shopId, ...searchFilter },
+        where: {
+          shopId,
+          isDeleted: false, // ANALYTICS SAFE SOFT DELETE
+          ...searchFilter
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      db.queue.count({ where: { shopId, ...searchFilter } })
+      db.queue.count({
+        where: {
+          shopId,
+          isDeleted: false, // ANALYTICS SAFE SOFT DELETE
+          ...searchFilter
+        }
+      })
     ]);
 
     return { success: true, data: { jobs, total, page, totalPages: Math.ceil(total / limit) } };
@@ -330,15 +350,53 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
   }
 }
 
+// ==========================================
+// 🌟 ลบถาวร (เปลี่ยนเป็น Soft Delete เพื่อเก็บ Analytics)
+// ==========================================
 export async function deleteQueuePermanently(shopId: string, id: string) {
   try {
     await verifyShopAccess(shopId);
-    await db.queue.delete({
-      where: { id, shopId }
+
+    // ANALYTICS SAFE SOFT DELETE
+    // เปลี่ยนจาก db.queue.delete เป็น db.queue.update
+    await db.queue.update({
+      where: { id, shopId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date()
+      }
     });
+
     return { success: true };
   } catch (error: any) {
-    console.error("❌ Error deleting permanently:", error);
+    console.error("❌ Error soft deleting:", error);
     return { success: false, error: "ลบข้อมูลล้มเหลว" };
+  }
+}
+
+// ==========================================
+// 🌟 เทถังขยะทั้งหมด (Empty Trash - Soft Delete)
+// ==========================================
+export async function emptyTrash(shopId: string) {
+  try {
+    await verifyShopAccess(shopId);
+
+    // ANALYTICS SAFE SOFT DELETE: อัปเดตรายการที่อยู่ในถังขยะ (CANCELLED) ให้เป็น isDeleted
+    const result = await db.queue.updateMany({
+      where: {
+        shopId,
+        status: "CANCELLED",
+        isDeleted: false
+      },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date()
+      }
+    });
+
+    return { success: true, count: result.count };
+  } catch (error: any) {
+    console.error("❌ Error emptying trash:", error);
+    return { success: false, error: "ล้างถังขยะไม่สำเร็จ" };
   }
 }

@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/prisma"
 import { differenceInDays, isPast } from "date-fns"
-import { verifyShopAccess } from "@/lib/auth-guard" 
+import { verifyShopAccess } from "@/lib/auth-guard"
 
 export async function checkAndEnforceShopStatus(shopId: string) {
   try {
@@ -11,13 +11,13 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
     const shop = await db.shop.findUnique({
       where: { id: shopId },
-      select: { 
-        id: true, 
-        expiresAt: true, 
-        trialEndsAt: true, 
-        planStatus: true, 
-        planType: true,    
-        isActive: true 
+      select: {
+        id: true,
+        expiresAt: true,
+        trialEndsAt: true,
+        planStatus: true,
+        planType: true,
+        isActive: true
       }
     })
 
@@ -35,7 +35,7 @@ export async function checkAndEnforceShopStatus(shopId: string) {
           data: { planStatus: "ACTIVE" }
         })
       }
-      return { status: "ACTIVE", expiresAt: effectiveExpiryDate, daysLeftToPurge: null } 
+      return { status: "ACTIVE", expiresAt: effectiveExpiryDate, daysLeftToPurge: null }
     }
 
     // ==========================================
@@ -57,10 +57,10 @@ export async function checkAndEnforceShopStatus(shopId: string) {
         })
       }
 
-      return { 
-        status: "PENDING_DELETION", 
-        expiresAt: effectiveExpiryDate, 
-        daysLeftToPurge: 0 
+      return {
+        status: "PENDING_DELETION",
+        expiresAt: effectiveExpiryDate,
+        daysLeftToPurge: 0
       }
     }
 
@@ -74,10 +74,10 @@ export async function checkAndEnforceShopStatus(shopId: string) {
     }
 
     // 5. ส่งข้อมูลยืนยันว่า EXPIRED กลับไปให้ Frontend จัดการเด้งหน้า Paywall
-    return { 
-      status: "EXPIRED", 
-      expiresAt: effectiveExpiryDate, 
-      daysLeftToPurge 
+    return {
+      status: "EXPIRED",
+      expiresAt: effectiveExpiryDate,
+      daysLeftToPurge
     }
 
   } catch (error) {

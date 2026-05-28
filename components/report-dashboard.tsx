@@ -420,7 +420,7 @@ export function ReportDashboard() {
                         <div>
                             <CardTitle className="text-lg flex items-center gap-2 dark:text-slate-100">
                                 <ClipboardX className="h-5 w-5 text-rose-600 dark:text-rose-500" />
-                                รายการงานที่ถูกยกเลิก
+                                ประวัติการยกเลิกงาน
                             </CardTitle>
                             <CardDescription className="mt-1 dark:text-slate-400">ค้นหาและกรองประวัติการยกเลิกงาน (รวม {filteredCancelledJobs.length} รายการ)</CardDescription>
                         </div>

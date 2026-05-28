@@ -1,3 +1,4 @@
+// hooks/useJobSync.ts
 import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useJobStore } from '@/store/useJobStore'
@@ -51,6 +52,13 @@ export function useJobSync(shopId: string) {
 
           if (event === 'DELETE') {
             removeJob(payload.old.id)
+            return
+          }
+
+          // 🌟 ANALYTICS SAFE SOFT DELETE: 
+          // ดักจับ: ถ้ารายการถูกอัปเดตเป็น isDeleted = true ให้ลบออกจากหน้าจอ (Store) ทันที
+          if (payload.new && payload.new.isDeleted === true) {
+            removeJob(payload.new.id)
             return
           }
 
