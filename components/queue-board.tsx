@@ -1080,10 +1080,13 @@ export function QueueBoard() {
                   <RadioGroupItem value="CUSTOMER_CANCEL" id="r1" disabled={updateJobMutation.isPending} />
                   <Label htmlFor="r1" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">ลูกค้าเปลี่ยนใจ / ไม่ซ่อมแล้ว</Label>
                 </div>
-                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => setCancelReason("NO_SHOW")}>
-                  <RadioGroupItem value="NO_SHOW" id="r2" disabled={updateJobMutation.isPending} />
-                  <Label htmlFor="r2" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">ลูกค้าไม่มาส่งเครื่องตามนัด</Label>
-                </div>
+                {/* 🌟 ซ่อนตัวเลือกนี้ถ้าย้ายเข้าสถานะกำลังแกะซ่อม (PROCESSING) แล้ว */}
+                {jobToCancel?.status !== "PROCESSING" && (
+                  <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => setCancelReason("NO_SHOW")}>
+                    <RadioGroupItem value="NO_SHOW" id="r2" disabled={updateJobMutation.isPending} />
+                    <Label htmlFor="r2" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">ลูกค้าไม่มาส่งเครื่องตามนัด</Label>
+                  </div>
+                )}
                 <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => setCancelReason("UNREPAIRABLE")}>
                   <RadioGroupItem value="UNREPAIRABLE" id="r3" disabled={updateJobMutation.isPending} />
                   <Label htmlFor="r3" className="cursor-pointer flex-1 font-medium text-slate-700 dark:text-slate-300">เครื่องซ่อมไม่ได้ / ไม่คุ้ม</Label>
