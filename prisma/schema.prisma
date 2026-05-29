@@ -132,7 +132,7 @@ model Queue {
   estimatedPrice Float? // ราคาประเมินเบื้องต้น
   repairCost     Float? // ราคาซ่อมจริง (เผื่อเอาไว้สรุปยอดตอนจบงาน)
   serialNumber   String? // S/N ตัวเครื่อง
-  imei           String? // IMEI ตัวเครื่อง     
+  imei           String? // IMEI ตัวเครื่อง
 
   serviceName   String?
   isManualEntry Boolean @default(false)
@@ -173,6 +173,9 @@ model Queue {
   @@index([shopId, status, updatedAt(sort: Desc)])
   // Index เพื่อให้การดึงข้อมูลและรัน Cron Job ทำได้เร็วขึ้นสุดๆ (O(log n))
   @@index([shopId, isInWarranty, warrantyUntil])
+
+  @@index([shopId, phoneNumber])
+  @@index([shopId, customerName])
 }
 
 // ==========================================
