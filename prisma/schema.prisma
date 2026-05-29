@@ -169,6 +169,9 @@ model Queue {
   // Index เพื่อให้ Query หน้าบอร์ด (ที่ isDeleted = false) ทำงานได้เร็วเสมอ
   @@index([shopId, isDeleted])
 
+  // Index เร่งความเร็วหน้า Report และ History ที่ต้องเรียงตามเวลา
+  @@index([shopId, createdAt(sort: Desc)])
+
   // Index สำหรับดึงข้อมูล Top 50 แบบ Priority ได้เร็วที่สุด
   @@index([shopId, status, updatedAt(sort: Desc)])
   // Index เพื่อให้การดึงข้อมูลและรัน Cron Job ทำได้เร็วขึ้นสุดๆ (O(log n))
