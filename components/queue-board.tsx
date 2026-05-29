@@ -38,12 +38,13 @@ import {
   Smartphone, Wrench, Clock, Plus, PackageCheck, MoreHorizontal, ClipboardList,
   XCircle, Trash2, RotateCcw, AlertCircle, Archive, Banknote, Barcode, Hash,
   Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard,
-  Image as ImageIcon, X // 🌟 นำเข้า Icon สำหรับระบบรูปภาพ
+  Image as ImageIcon, X, ZoomIn, ZoomOut
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { updateQueueStatus, deleteQueuePermanently, emptyTrash } from "@/actions/queue"
 import { useJobStore } from "@/store/useJobStore"
 import { extractUploadDateFromUrl } from "@/lib/image-utils"
+import { QueueDetailDialog } from "@/components/queue-detail-dialog"
 
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
@@ -136,8 +137,8 @@ export function QueueBoard() {
 
   // 🌟 QUEUE IMAGE SYSTEM: State สำหรับโชว์รูปใหญ่ (Lightweight Gallery)
   const [galleryJob, setGalleryJob] = useState<RepairJob | null>(null);
-  // 🌟 เพิ่ม State นี้
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false); // 🌟 เพิ่ม State นี้
 
   useEffect(() => {
     if (jobToView) {
@@ -931,123 +932,32 @@ export function QueueBoard() {
           )}
         </div>
 
-        {/* Modal รายละเอียดและประเมินราคา */}
-        <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
-          <DialogContent className="sm:max-w-[550px] dark:bg-slate-900 dark:border-slate-800">
-            <DialogHeader>
-              <div className="flex items-center justify-between pr-6">
-                <DialogTitle className="text-xl dark:text-slate-100">
-                  รายละเอียดคิว <span className="text-blue-600 dark:text-blue-400">{jobToView?.jobRef}</span>
-                </DialogTitle>
-                <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
-                  {jobToView ? translateStatus(jobToView.status) : ""}
-                </span>
-              </div>
-              <DialogDescription className="dark:text-slate-400">
-                ตรวจสอบข้อมูลลูกค้าและบันทึกรายละเอียดเชิงลึกสำหรับงานซ่อม
-              </DialogDescription>
-            </DialogHeader>
+        {/* 🌟 นำ QueueDetailDialog มาใช้ตรงนี้แทนของเดิม */}
+        <QueueDetailDialog
+          job={jobToView}
+          open={!!jobToView}
+          onOpenChange={(open) => { if (!open) setJobToView(null) }}
+          onSave={async (jobId, data) => {
+            // ย้าย Logic จาก handleSaveDetails เดิมมาไว้ตรงนี้
+            const updatedData = {
+              estimatedPrice: data.estimatedPrice ? parseFloat(data.estimatedPrice) : null,
+              serialNumber: data.serialNumber,
+              imei: data.imei
+            };
 
-            <div className="grid gap-6 py-2 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-              <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800 space-y-4 text-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4">
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">ลูกค้า</span>
-                    <p className="font-medium text-slate-900 dark:text-slate-200">
-                      {jobToView?.customerName} {jobToView?.phoneNumber && <span className="text-slate-500 dark:text-slate-400 font-normal">({formatPhoneNumber(jobToView.phoneNumber)})</span>}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">บริการ / อาการ</span>
-                    <p className="font-medium text-emerald-700 dark:text-emerald-400">{jobToView?.serviceName || "ทั่วไป"}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">รุ่นเครื่อง</span>
-                    <p className="font-medium text-slate-900 dark:text-slate-200">
-                      {jobToView?.deviceModel} {jobToView?.deviceColor && <span className="text-slate-500 dark:text-slate-400 font-normal">(สี{jobToView.deviceColor})</span>}
-                    </p>
-                  </div>
+            const updatedJob = { ...jobToView, ...updatedData, updatedAt: new Date().toISOString() };
+            upsertJob(updatedJob as any);
+            toast({ title: "💾 บันทึกข้อมูลสำเร็จ", description: `อัปเดตรายละเอียดคิวเรียบร้อยแล้ว` });
+            setJobToView(null);
 
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">Serial Number</span>
-                    <p className="font-medium text-slate-900 dark:text-slate-200">{jobToView?.serialNumber || "-"}</p>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">IMEI</span>
-                    <p className="font-medium text-slate-900 dark:text-slate-200">{jobToView?.imei || "-"}</p>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
-                    <p className="font-medium text-slate-900 dark:text-slate-200">{jobToView?.issue || "-"}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 🌟 ภาระกิจต่อไป (Step 6) จะมาอัปเดตตรงนี้ครับ แต่สำหรับไฟล์นี้ผมเตรียมช่องว่างไว้ให้แล้ว */}
-
-              <div className="space-y-4">
-                <h4 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b dark:border-slate-800 pb-2">
-                  <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400" /> ข้อมูลสำหรับช่าง (ไม่บังคับ)
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="estimatedPrice" className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                      <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
-                    </Label>
-                    <Input
-                      id="estimatedPrice"
-                      type="number"
-                      placeholder="เช่น 1500"
-                      value={editPrice}
-                      onChange={(e) => setEditPrice(e.target.value)}
-                      className="max-w-[200px] dark:bg-slate-950 dark:border-slate-700"
-                      disabled={updateJobMutation.isPending}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="serialNumber" className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                      <Barcode className="h-3.5 w-3.5" /> Serial Number
-                    </Label>
-                    <Input
-                      id="serialNumber"
-                      placeholder="กรอก S/N เครื่อง"
-                      value={editSn}
-                      onChange={(e) => setEditSn(e.target.value)}
-                      className="dark:bg-slate-950 dark:border-slate-700"
-                      disabled={updateJobMutation.isPending}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="imei" className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                      <Hash className="h-3.5 w-3.5" /> IMEI
-                    </Label>
-                    <Input
-                      id="imei"
-                      placeholder="กรอกเลข IMEI 15 หลัก"
-                      value={editImei}
-                      onChange={(e) => setEditImei(e.target.value)}
-                      className="dark:bg-slate-950 dark:border-slate-700"
-                      disabled={updateJobMutation.isPending}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 mt-4">
-              <Button variant="outline" className="dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300" onClick={() => setJobToView(null)} disabled={updateJobMutation.isPending}>ปิดหน้าต่าง</Button>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveDetails} disabled={updateJobMutation.isPending}>
-                {updateJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                บันทึกข้อมูลช่าง
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            await updateJobMutation.mutateAsync({ id: jobId, status: jobToView!.status, data: updatedData });
+          }}
+          onUpdateJobInStore={(updatedJob) => {
+            // สั่งอัปเดตเมื่อมีการเพิ่ม/ลบรูป
+            upsertJob(updatedJob);
+            setJobToView(updatedJob);
+          }}
+        />
 
         {/* 🌟 Modal ยืนยันจบงานเข้าคลังประกัน */}
         <Dialog open={!!jobToWarranty} onOpenChange={(open) => !open && setJobToWarranty(null)}>
@@ -1177,7 +1087,7 @@ export function QueueBoard() {
 
         {/* 🌟 QUEUE IMAGE SYSTEM: Lightweight Gallery Dialog (Lazy Load) */}
         <Dialog open={!!galleryJob} onOpenChange={(open) => !open && setGalleryJob(null)}>
-          <DialogContent className="sm:max-w-md bg-transparent border-none shadow-none p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-md bg-transparent border-none shadow-none p-0 overflow-hidden [&>button]:hidden">
             <div className="bg-slate-950/90 backdrop-blur-xl p-5 rounded-2xl relative border border-slate-800/50 shadow-2xl">
               <button
                 onClick={() => setGalleryJob(null)}
@@ -1192,20 +1102,26 @@ export function QueueBoard() {
 
               <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
                 {galleryJob?.images?.map((url, idx) => (
-                // 🌟 เพิ่ม onClick เพื่อเปิดรูปใหญ่ และ Overlay แสดงเวลา
-                  <div 
-                    key={idx} 
+                  // 🌟 เพิ่ม onClick เพื่อเปิดรูปใหญ่ และ Overlay แว่นขยาย
+                  <div
+                    key={idx}
                     className="aspect-square rounded-xl overflow-hidden relative bg-slate-800 border border-slate-700/50 group cursor-pointer"
                     onClick={() => setExpandedImage(url)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={url} 
-                      alt="queue-image" 
-                      loading="lazy" 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                    <img
+                      src={url}
+                      alt="queue-image"
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1.5 text-[10px] text-white text-center backdrop-blur-sm">
+
+                    {/* 🌟 ไอคอนแว่นขยายจะโผล่ขึ้นมาตรงกลางตอน Hover */}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                      <ZoomIn className="w-8 h-8 text-white/80 drop-shadow-lg" />
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1.5 text-[10px] text-white text-center backdrop-blur-sm pointer-events-none">
                       {extractUploadDateFromUrl(url)}
                     </div>
                   </div>
@@ -1229,21 +1145,40 @@ export function QueueBoard() {
         </Dialog>
 
         {/* 🌟 QUEUE IMAGE SYSTEM: Full-Screen Image Viewer */}
-        <Dialog open={!!expandedImage} onOpenChange={(open) => !open && setExpandedImage(null)}>
-          <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-black/95 border-slate-800 p-0 overflow-hidden flex flex-col">
+        <Dialog
+          open={!!expandedImage}
+          onOpenChange={(open) => {
+            if (!open) {
+              setExpandedImage(null);
+              setIsZoomed(false); // รีเซ็ตการซูมกลับเป็นปกติเมื่อปิดหน้าต่าง
+            }
+          }}
+        >
+          <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-black/95 border-slate-800 p-0 overflow-hidden flex flex-col z-[100] not-[]:[&>button]:hidden">
             <div className="p-3 flex items-center justify-between border-b border-white/10 shrink-0">
               <span className="text-white/90 text-sm font-medium pl-2">
                 <CalendarClock className="w-4 h-4 inline-block mr-2 text-emerald-400" />
                 อัปโหลดเมื่อ: {expandedImage ? extractUploadDateFromUrl(expandedImage) : ''}
               </span>
-              <button onClick={() => setExpandedImage(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1.5 transition-colors">
+              <button
+                onClick={() => { setExpandedImage(null); setIsZoomed(false); }}
+                className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1.5 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {/* พื้นที่แสดงรูป สามารถใช้นิ้วถ่างซูม หรือลากดูในมือถือได้ (overflow-auto) */}
-            <div className="flex-1 overflow-auto flex items-center justify-center p-2 custom-scrollbar">
+
+            {/* 🌟 พื้นที่แสดงรูป: กดเพื่อซูมเข้า-ออกได้ */}
+            <div
+              className={`flex-1 overflow-auto flex p-2 custom-scrollbar ${isZoomed ? 'items-start justify-start cursor-zoom-out' : 'items-center justify-center cursor-zoom-in'}`}
+              onClick={() => setIsZoomed(!isZoomed)}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={expandedImage || ""} alt="expanded" className="max-w-none max-h-full object-contain rounded-md" />
+              <img
+                src={expandedImage || ""}
+                alt="expanded"
+                className={`${isZoomed ? 'w-[250%] sm:w-auto h-auto max-w-none' : 'w-full h-full object-contain'} rounded-md transition-all duration-300`}
+              />
             </div>
           </DialogContent>
         </Dialog>
