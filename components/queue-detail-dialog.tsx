@@ -12,7 +12,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Wrench, Banknote, Barcode, Hash, Loader2 } from "lucide-react"
+import { Wrench, Banknote, Barcode, Hash, Loader2, Image as ImageIcon, Plus, Trash2 } from "lucide-react" // 🌟 เพิ่ม Icon
+import { useToast } from "@/hooks/use-toast"
+import { compressImageToWebP } from "@/lib/image-utils"
+import { supabase } from "@/lib/supabase"
+import { updateQueueImages, deleteQueueImage } from "@/actions/queue"
 
 // 🌟 1. กำหนด Interface รับค่ามาจาก QueueBoard
 interface QueueDetailDialogProps {
@@ -20,15 +24,20 @@ interface QueueDetailDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (jobId: string, data: { estimatedPrice: string, serialNumber: string, imei: string }) => Promise<void>
+  onUpdateJobInStore: (job: any) => void // 🌟 เพิ่ม callback เพื่อให้หน้า Board อัปเดตรูปใหม่ใน Store ทันที
 }
 
-export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDetailDialogProps) {
+export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJobInStore }: QueueDetailDialogProps) {
+  const { toast } = useToast()
   
   // State สำหรับข้อมูลที่ช่างต้องกรอกเพิ่ม
   const [estimatedPrice, setEstimatedPrice] = useState("")
   const [serialNumber, setSerialNumber] = useState("")
   const [imei, setImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+
+  // QUEUE IMAGE SYSTEM: States
+  const [isUploading, setIsUploading] = useState(false)
 
   // 🌟 2. ดึงค่าเดิมของคิวนี้มาใส่ในช่อง Input อัตโนมัติเวลาเปิดขึ้นมา
   useEffect(() => {
@@ -49,6 +58,80 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDeta
     setIsSaving(false)
   }
 
+  // 🌟 QUEUE IMAGE SYSTEM: อัปโหลดรูปตรงเข้า Storage ทันที (Direct Upload)
+  const handleDirectUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const currentImagesCount = job?.images?.length || 0;
+
+    if (currentImagesCount + files.length > 4) {
+      toast({ title: "❌ เลือกได้สูงสุด 4 รูป", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const newUrls: string[] = [];
+
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          toast({ title: `❌ รูป ${file.name} เกิน 5MB`, variant: "destructive" });
+          continue;
+        }
+
+        const compressedFile = await compressImageToWebP(file);
+        
+        // สุ่มชื่อไฟล์
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+        const filePath = `${job.shopId}/${job.id}/${fileName}`;
+        
+        const { data, error } = await supabase.storage.from('queue-images').upload(filePath, compressedFile);
+        
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage.from('queue-images').getPublicUrl(filePath);
+          newUrls.push(publicUrl);
+        }
+      }
+
+      if (newUrls.length > 0) {
+        const finalImages = [...(job.images || []), ...newUrls];
+        // ยิง API เซฟลง DB
+        const res = await updateQueueImages(job.shopId, job.id, finalImages);
+        if (res.success) {
+          // อัปเดต Object ปัจจุบันให้ UI หน้า Dialog นี้เปลี่ยนตาม
+          const updatedJob = { ...job, images: finalImages };
+          onUpdateJobInStore(updatedJob); // 🌟 สั่งให้ Zustand ในบอร์ดอัปเดตตามด้วย
+          toast({ title: "✅ อัปโหลดรูปสำเร็จ" });
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "❌ อัปโหลดไม่สำเร็จ", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      // เคลียร์ค่า input file เพื่อให้เลือกไฟล์เดิมซ้ำได้
+      if (e.target) e.target.value = '';
+    }
+  }
+
+  // 🌟 QUEUE IMAGE SYSTEM: ลบรูปตรงออกจาก Storage (Direct Delete)
+  const handleDeleteImage = async (urlToRemove: string) => {
+    if (!job) return;
+    setIsUploading(true); // ยืม State loading มากันผู้ใช้กดย้ำ
+    try {
+      const res = await deleteQueueImage(job.shopId, job.id, urlToRemove);
+      if (res.success) {
+        const updatedJob = { ...job, images: res.images };
+        onUpdateJobInStore(updatedJob); // 🌟 สั่งให้ Zustand อัปเดตเพื่อเตะรูปออกจากหน้าจอ
+        toast({ title: "🗑️ ลบรูปภาพแล้ว" });
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (err: any) {
+      toast({ title: "❌ ลบรูปไม่สำเร็จ", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   // 🌟 ฟังก์ชันแปลสถานะเป็นภาษาไทย
   const translateStatus = (status: string) => {
     switch (status) {
@@ -67,57 +150,57 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDeta
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[550px] dark:bg-slate-900 dark:border-slate-800">
         <DialogHeader>
           <div className="flex items-center justify-between pr-6">
-            <DialogTitle className="text-xl">
-              รายละเอียดคิว <span className="text-blue-600">{job.jobRef || "รอรันเลขบิล"}</span>
+            <DialogTitle className="text-xl dark:text-slate-100">
+              รายละเอียดคิว <span className="text-blue-600 dark:text-blue-400">{job.jobRef || "รอรันเลขบิล"}</span>
             </DialogTitle>
-            <span className="text-xs font-medium px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full">
+            <span className="text-xs font-medium px-2.5 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-900/50">
               {translateStatus(job.status)}
             </span>
           </div>
-          <DialogDescription>
+          <DialogDescription className="dark:text-slate-400">
             ตรวจสอบข้อมูลลูกค้าและบันทึกรายละเอียดเชิงลึกสำหรับงานซ่อม
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4">
+        <div className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2">
           {/* Section 1: ข้อมูลเบื้องต้น */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4 text-sm">
+          <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800 space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-y-4 gap-x-2">
               <div>
-                <span className="text-slate-500 block mb-1 text-xs">ลูกค้า</span>
-                <p className="font-medium text-slate-900">
-                  {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 font-normal text-xs ml-1">({job.phoneNumber || job.phone})</span>}
+                <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">ลูกค้า</span>
+                <p className="font-medium text-slate-900 dark:text-slate-200">
+                  {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400 font-normal text-xs ml-1">({job.phoneNumber || job.phone})</span>}
                 </p>
               </div>
               <div>
-                <span className="text-slate-500 block mb-1 text-xs">บริการ / อาการ</span>
-                <p className="font-medium text-blue-700">{job.serviceName || "ทั่วไป"}</p>
+                <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">บริการ / อาการ</span>
+                <p className="font-medium text-blue-700 dark:text-blue-400">{job.serviceName || "ทั่วไป"}</p>
               </div>
               <div>
-                <span className="text-slate-500 block mb-1 text-xs">รุ่นเครื่อง</span>
-                <p className="font-medium text-slate-900">
-                  {job.deviceModel} {job.deviceColor && <span className="text-slate-500 font-normal text-xs ml-1">(สี{job.deviceColor})</span>}
+                <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">รุ่นเครื่อง</span>
+                <p className="font-medium text-slate-900 dark:text-slate-200">
+                  {job.deviceModel} {job.deviceColor && <span className="text-slate-500 dark:text-slate-400 font-normal text-xs ml-1">(สี{job.deviceColor})</span>}
                 </p>
               </div>
               <div>
-                <span className="text-slate-500 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
-                <p className="font-medium text-slate-900 line-clamp-2" title={job.issue}>{job.issue || "-"}</p>
+                <span className="text-slate-500 dark:text-slate-400 block mb-1 text-xs">หมายเหตุเพิ่มเติม</span>
+                <p className="font-medium text-slate-900 dark:text-slate-200 line-clamp-2" title={job.issue}>{job.issue || "-"}</p>
               </div>
             </div>
           </div>
 
           {/* Section 2: ฟอร์มสำหรับช่าง (Editable) */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-slate-800 flex items-center gap-2 border-b pb-2">
-              <Wrench className="h-4 w-4 text-slate-500" /> ข้อมูลสำหรับช่าง (Optional)
+            <h4 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b dark:border-slate-800 pb-2">
+              <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400" /> ข้อมูลสำหรับช่าง (Optional)
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="estimatedPrice" className="text-slate-600 flex items-center gap-1">
+                <Label htmlFor="estimatedPrice" className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
                   <Banknote className="h-3.5 w-3.5" /> ราคาประเมิน (บาท)
                 </Label>
                 <Input
@@ -126,12 +209,13 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDeta
                   placeholder="เช่น 1500"
                   value={estimatedPrice}
                   onChange={(e) => setEstimatedPrice(e.target.value)}
-                  className="max-w-[200px]"
+                  className="max-w-[200px] dark:bg-slate-950 dark:border-slate-700"
+                  disabled={isSaving || isUploading}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="serialNumber" className="text-slate-600 flex items-center gap-1">
+                <Label htmlFor="serialNumber" className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
                   <Barcode className="h-3.5 w-3.5" /> Serial Number
                 </Label>
                 <Input
@@ -139,11 +223,13 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDeta
                   placeholder="กรอก S/N เครื่อง"
                   value={serialNumber}
                   onChange={(e) => setSerialNumber(e.target.value)}
+                  className="dark:bg-slate-950 dark:border-slate-700"
+                  disabled={isSaving || isUploading}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="imei" className="text-slate-600 flex items-center gap-1">
+                <Label htmlFor="imei" className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
                   <Hash className="h-3.5 w-3.5" /> IMEI
                 </Label>
                 <Input
@@ -151,15 +237,54 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave }: QueueDeta
                   placeholder="กรอกเลข IMEI 15 หลัก"
                   value={imei}
                   onChange={(e) => setImei(e.target.value)}
+                  className="dark:bg-slate-950 dark:border-slate-700"
+                  disabled={isSaving || isUploading}
                 />
               </div>
             </div>
           </div>
+
+          {/* 🌟 QUEUE IMAGE SYSTEM: ส่วนแสดงผลและจัดการรูปภาพ */}
+          <div className="space-y-4 pt-4 border-t dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-slate-500" /> รูปเครื่อง / สภาพเครื่อง <span className="text-xs font-normal text-slate-400">({job?.images?.length || 0}/4)</span>
+              </h4>
+              <Input type="file" id="detail-image-upload" accept="image/*" multiple className="hidden" onChange={handleDirectUpload} disabled={isUploading || (job?.images?.length || 0) >= 4} />
+              <Button type="button" variant="outline" size="sm" className="h-7 text-xs border-slate-300 dark:border-slate-700" disabled={isUploading || (job?.images?.length || 0) >= 4} onClick={() => document.getElementById("detail-image-upload")?.click()}>
+                {isUploading ? <Loader2 className="w-3 h-3 animate-spin mr-1"/> : <Plus className="w-3 h-3 mr-1" />} แนบรูปเพิ่ม
+              </Button>
+            </div>
+
+            {job?.images && job.images.length > 0 ? (
+              <div className="grid grid-cols-4 gap-3">
+                {job.images.map((url: string, idx: number) => (
+                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group bg-slate-100 dark:bg-slate-900">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="img" loading="lazy" className="object-cover w-full h-full" />
+                    <button 
+                      type="button" 
+                      onClick={() => handleDeleteImage(url)} 
+                      disabled={isUploading}
+                      className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-rose-500 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-sm text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                ยังไม่มีรูปภาพประกอบ
+              </div>
+            )}
+          </div>
+
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>ปิดหน้าต่าง</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isSaving}>
+        <DialogFooter className="gap-3 sm:justify-end sm:space-x-3 border-t dark:border-slate-800 pt-4 mt-2">
+          <Button variant="outline" className="dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300" onClick={() => onOpenChange(false)} disabled={isSaving || isUploading}>ปิดหน้าต่าง</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave} disabled={isSaving || isUploading}>
             {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             บันทึกข้อมูล
           </Button>

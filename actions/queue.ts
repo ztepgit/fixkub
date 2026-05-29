@@ -4,6 +4,7 @@
 import { verifyShopAccess } from "@/lib/auth-guard"
 import { db } from "@/lib/prisma";
 import { z } from "zod";
+import { createClient } from "../lib/supabase/server"
 
 // ==========================================
 // 🌟 1. สร้าง Zod Schema (The Gatekeeper)
@@ -351,19 +352,36 @@ export async function searchJobHistory(shopId: string, query: string, page = 1, 
 }
 
 // ==========================================
-// 🌟 ลบถาวร (เปลี่ยนเป็น Soft Delete เพื่อเก็บ Analytics)
+// 🌟 Soft Delete เพื่อเก็บ Analytics
 // ==========================================
 export async function deleteQueuePermanently(shopId: string, id: string) {
   try {
+    // 🛡️ 1. ตรวจสอบสิทธิ์
     await verifyShopAccess(shopId);
 
-    // ANALYTICS SAFE SOFT DELETE
-    // เปลี่ยนจาก db.queue.delete เป็น db.queue.update
+    // 🔍 2. ดึงข้อมูลว่าคิวนี้มีรูปภาพแนบไว้หรือไม่
+    const queue = await db.queue.findUnique({
+      where: { id, shopId },
+      select: { images: true }
+    });
+
+    // 🗑️ 3. ถ้ารูปมีอยู่จริง ให้ยิงไปลบไฟล์ออกจาก Supabase Storage ทันทีเพื่อประหยัด Cost
+    if (queue?.images && queue.images.length > 0) {
+      const supabase = await createClient();
+      const paths = queue.images.map(url => url.split('/queue-images/')[1]).filter(Boolean);
+
+      if (paths.length > 0) {
+        await supabase.storage.from('queue-images').remove(paths);
+      }
+    }
+
+    // 💾 4. ANALYTICS SAFE SOFT DELETE: เปลี่ยนสถานะ ซ่อนจากบอร์ด แต่เก็บ Row ไว้ทำ Report
     await db.queue.update({
       where: { id, shopId },
       data: {
         isDeleted: true,
-        deletedAt: new Date()
+        deletedAt: new Date(),
+        images: [] // ล้าง Array รูปทิ้งไปเลย เพราะไฟล์จริงโดนลบไปแล้ว
       }
     });
 
@@ -398,5 +416,45 @@ export async function emptyTrash(shopId: string) {
   } catch (error: any) {
     console.error("❌ Error emptying trash:", error);
     return { success: false, error: "ล้างถังขยะไม่สำเร็จ" };
+  }
+}
+
+// QUEUE IMAGE SYSTEM: อัปเดต Array รูปภาพเข้า DB
+export async function updateQueueImages(shopId: string, queueId: string, imageUrls: string[]) {
+  try {
+    await verifyShopAccess(shopId);
+    const queue = await db.queue.update({
+      where: { id: queueId, shopId },
+      data: { images: imageUrls }
+    });
+    return { success: true, data: queue };
+  } catch (error: any) {
+    return { success: false, error: "อัปเดตรูปภาพล้มเหลว" };
+  }
+}
+
+// QUEUE IMAGE SYSTEM: ลบไฟล์รูปเดียวจาก DB และ Storage
+export async function deleteQueueImage(shopId: string, queueId: string, imageUrlToRemove: string) {
+  try {
+    await verifyShopAccess(shopId);
+
+    // 1. ดึงข้อมูลเดิม
+    const queue = await db.queue.findUnique({ where: { id: queueId }, select: { images: true } });
+    if (!queue) throw new Error("ไม่พบคิว");
+
+    // 2. ลบจาก DB
+    const newImages = queue.images.filter(url => url !== imageUrlToRemove);
+    await db.queue.update({ where: { id: queueId }, data: { images: newImages } });
+
+    // 3. ลบจาก Storage
+    const supabase = await createClient();
+    const path = imageUrlToRemove.split('/queue-images/')[1]; // Extract path
+    if (path) {
+      await supabase.storage.from('queue-images').remove([path]);
+    }
+
+    return { success: true, images: newImages };
+  } catch (error: any) {
+    return { success: false, error: "ลบรูปภาพล้มเหลว" };
   }
 }

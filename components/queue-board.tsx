@@ -1,3 +1,4 @@
+//components/queue-board.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -36,7 +37,8 @@ import { useToast } from "@/hooks/use-toast"
 import {
   Smartphone, Wrench, Clock, Plus, PackageCheck, MoreHorizontal, ClipboardList,
   XCircle, Trash2, RotateCcw, AlertCircle, Archive, Banknote, Barcode, Hash,
-  Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard
+  Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard,
+  Image as ImageIcon, X // 🌟 นำเข้า Icon สำหรับระบบรูปภาพ
 } from "lucide-react"
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { updateQueueStatus, deleteQueuePermanently, emptyTrash } from "@/actions/queue"
@@ -68,6 +70,7 @@ type RepairJob = {
   isInWarranty?: boolean
   warrantyArchivedAt?: Date | string
   warrantyUntil?: Date | string
+  images?: string[] // 🌟 เพิ่ม Type สำหรับรูปภาพ
 }
 
 // 🌟 ปรับสีคอลัมน์ให้อ่านง่ายใน Dark Mode
@@ -129,6 +132,9 @@ export function QueueBoard() {
   // 🛡️ Warranty Archive States
   const [isWarrantyOpen, setIsWarrantyOpen] = useState(false)
   const [warrantySearch, setWarrantySearch] = useState("")
+
+  // 🌟 QUEUE IMAGE SYSTEM: State สำหรับโชว์รูปใหญ่ (Lightweight Gallery)
+  const [galleryJob, setGalleryJob] = useState<RepairJob | null>(null);
 
   useEffect(() => {
     if (jobToView) {
@@ -798,9 +804,23 @@ export function QueueBoard() {
                             <Card key={job.id} className="shadow-sm border-slate-200 dark:border-slate-700 dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700/50 transition-colors cursor-default relative group">
                               <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between space-y-0">
                                 <div>
-                                  <Badge variant="outline" className={`text-white border-transparent ${col.badgeColor} mb-1`}>
-                                    {job.jobRef}
-                                  </Badge>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge variant="outline" className={`text-white border-transparent ${col.badgeColor}`}>
+                                      {job.jobRef}
+                                    </Badge>
+
+                                    {/* 🌟 QUEUE IMAGE SYSTEM: Minimal Image Badge บน Board */}
+                                    {job.images && job.images.length > 0 && (
+                                      <div
+                                        className="flex items-center gap-1 text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded cursor-pointer hover:bg-slate-200 transition-colors border border-slate-200 dark:border-slate-700"
+                                        onClick={(e) => { e.stopPropagation(); setGalleryJob(job); }}
+                                      >
+                                        <ImageIcon className="w-3 h-3" />
+                                        <span className="font-semibold">{job.images.length}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
                                   <CardTitle className="text-sm font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
                                     <Smartphone className="h-4 w-4 text-emerald-600 dark:text-emerald-500 shrink-0" />
                                     <span className="truncate">
@@ -925,7 +945,7 @@ export function QueueBoard() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-6 py-2">
+            <div className="grid gap-6 py-2 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
               <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800 space-y-4 text-sm">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4">
                   <div>
@@ -961,6 +981,8 @@ export function QueueBoard() {
                   </div>
                 </div>
               </div>
+
+              {/* 🌟 ภาระกิจต่อไป (Step 6) จะมาอัปเดตตรงนี้ครับ แต่สำหรับไฟล์นี้ผมเตรียมช่องว่างไว้ให้แล้ว */}
 
               <div className="space-y-4">
                 <h4 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b dark:border-slate-800 pb-2">
@@ -1023,6 +1045,7 @@ export function QueueBoard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
         {/* 🌟 Modal ยืนยันจบงานเข้าคลังประกัน */}
         <Dialog open={!!jobToWarranty} onOpenChange={(open) => !open && setJobToWarranty(null)}>
           <DialogContent className="dark:bg-slate-900 dark:border-slate-800 sm:max-w-[425px]">
@@ -1146,6 +1169,52 @@ export function QueueBoard() {
                 {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "ลบ"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 🌟 QUEUE IMAGE SYSTEM: Lightweight Gallery Dialog (Lazy Load) */}
+        <Dialog open={!!galleryJob} onOpenChange={(open) => !open && setGalleryJob(null)}>
+          <DialogContent className="sm:max-w-md bg-transparent border-none shadow-none p-0 overflow-hidden">
+            <div className="bg-slate-950/90 backdrop-blur-xl p-5 rounded-2xl relative border border-slate-800/50 shadow-2xl">
+              <button
+                onClick={() => setGalleryJob(null)}
+                className="absolute top-4 right-4 text-slate-400 bg-slate-800/50 rounded-full p-1.5 hover:bg-slate-800 hover:text-white transition-colors z-10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-emerald-400" /> รูปภาพเครื่อง {galleryJob?.jobRef}
+              </h3>
+
+              <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
+                {galleryJob?.images?.map((url, idx) => (
+                  <div key={idx} className="aspect-square rounded-xl overflow-hidden relative bg-slate-800 border border-slate-700/50">
+                    {/* Lazy load image natively */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt="queue-image"
+                      loading="lazy"
+                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 flex justify-end border-t border-slate-800/50 pt-4">
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
+                  onClick={() => {
+                    setJobToView(galleryJob);
+                    setGalleryJob(null);
+                  }}
+                >
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  จัดการรูปเพิ่มเติม
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
