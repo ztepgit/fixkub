@@ -1,7 +1,7 @@
 // lib/image-utils.ts
 // QUEUE IMAGE SYSTEM: Client-side Image Compression (No heavy dependencies)
 
-export async function compressImageToWebP(file: File, maxWidth = 1600, quality = 0.75): Promise<File> {
+export async function compressImageToWebP(file: File, maxWidth = 1600, quality = 0.85): Promise<File> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -41,4 +41,19 @@ export async function compressImageToWebP(file: File, maxWidth = 1600, quality =
     };
     reader.onerror = (error) => reject(error);
   });
+}
+
+// 🌟 Helper ดึงวันที่และเวลาอัปโหลดจาก URL
+export function extractUploadDateFromUrl(url: string): string {
+  try {
+    // ดึงตัวเลข Timestamp 13 หลักจากชื่อไฟล์ เช่น 1716976620000-abcd.webp
+    const match = url.match(/(\d{13})-[a-z0-9]+\.webp/i);
+    if (match && match[1]) {
+      return new Date(parseInt(match[1])).toLocaleString('th-TH', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }) + ' น.';
+    }
+  } catch (e) {}
+  return 'ไม่ระบุเวลา';
 }

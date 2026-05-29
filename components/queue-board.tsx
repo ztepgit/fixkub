@@ -43,6 +43,7 @@ import {
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { updateQueueStatus, deleteQueuePermanently, emptyTrash } from "@/actions/queue"
 import { useJobStore } from "@/store/useJobStore"
+import { extractUploadDateFromUrl } from "@/lib/image-utils"
 
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
@@ -135,6 +136,8 @@ export function QueueBoard() {
 
   // 🌟 QUEUE IMAGE SYSTEM: State สำหรับโชว์รูปใหญ่ (Lightweight Gallery)
   const [galleryJob, setGalleryJob] = useState<RepairJob | null>(null);
+  // 🌟 เพิ่ม State นี้
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (jobToView) {
@@ -1189,15 +1192,22 @@ export function QueueBoard() {
 
               <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
                 {galleryJob?.images?.map((url, idx) => (
-                  <div key={idx} className="aspect-square rounded-xl overflow-hidden relative bg-slate-800 border border-slate-700/50">
-                    {/* Lazy load image natively */}
+                // 🌟 เพิ่ม onClick เพื่อเปิดรูปใหญ่ และ Overlay แสดงเวลา
+                  <div 
+                    key={idx} 
+                    className="aspect-square rounded-xl overflow-hidden relative bg-slate-800 border border-slate-700/50 group cursor-pointer"
+                    onClick={() => setExpandedImage(url)}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt="queue-image"
-                      loading="lazy"
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                    <img 
+                      src={url} 
+                      alt="queue-image" 
+                      loading="lazy" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
                     />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1.5 text-[10px] text-white text-center backdrop-blur-sm">
+                      {extractUploadDateFromUrl(url)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1214,6 +1224,26 @@ export function QueueBoard() {
                   จัดการรูปเพิ่มเติม
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* 🌟 QUEUE IMAGE SYSTEM: Full-Screen Image Viewer */}
+        <Dialog open={!!expandedImage} onOpenChange={(open) => !open && setExpandedImage(null)}>
+          <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-black/95 border-slate-800 p-0 overflow-hidden flex flex-col">
+            <div className="p-3 flex items-center justify-between border-b border-white/10 shrink-0">
+              <span className="text-white/90 text-sm font-medium pl-2">
+                <CalendarClock className="w-4 h-4 inline-block mr-2 text-emerald-400" />
+                อัปโหลดเมื่อ: {expandedImage ? extractUploadDateFromUrl(expandedImage) : ''}
+              </span>
+              <button onClick={() => setExpandedImage(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1.5 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* พื้นที่แสดงรูป สามารถใช้นิ้วถ่างซูม หรือลากดูในมือถือได้ (overflow-auto) */}
+            <div className="flex-1 overflow-auto flex items-center justify-center p-2 custom-scrollbar">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={expandedImage || ""} alt="expanded" className="max-w-none max-h-full object-contain rounded-md" />
             </div>
           </DialogContent>
         </Dialog>
