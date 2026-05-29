@@ -1088,6 +1088,11 @@ export function QueueBoard() {
         {/* 🌟 QUEUE IMAGE SYSTEM: Lightweight Gallery Dialog (Lazy Load) */}
         <Dialog open={!!galleryJob} onOpenChange={(open) => !open && setGalleryJob(null)}>
           <DialogContent className="sm:max-w-md bg-transparent border-none shadow-none p-0 overflow-hidden [&>button]:hidden">
+            {/* 🌟 เพิ่ม DialogTitle ซ่อนไว้เพื่อแก้ warning */}
+            <DialogHeader className="sr-only">
+              <DialogTitle>แกลลอรี่รูปภาพ</DialogTitle>
+            </DialogHeader>
+
             <div className="bg-slate-950/90 backdrop-blur-xl p-5 rounded-2xl relative border border-slate-800/50 shadow-2xl">
               <button
                 onClick={() => setGalleryJob(null)}
@@ -1154,7 +1159,12 @@ export function QueueBoard() {
             }
           }}
         >
-          <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-black/95 border-slate-800 p-0 overflow-hidden flex flex-col z-[100] not-[]:[&>button]:hidden">
+          <DialogContent className="max-w-5xl w-[95vw] h-[90vh] bg-black/95 border-slate-800 p-0 overflow-hidden flex flex-col z-[100] [&>button]:hidden">
+            {/* 🌟 เพิ่ม DialogTitle ซ่อนไว้เพื่อแก้ warning */}
+            <DialogHeader className="sr-only">
+              <DialogTitle>แสดงรูปภาพขนาดใหญ่</DialogTitle>
+            </DialogHeader>
+
             <div className="p-3 flex items-center justify-between border-b border-white/10 shrink-0">
               <span className="text-white/90 text-sm font-medium pl-2">
                 <CalendarClock className="w-4 h-4 inline-block mr-2 text-emerald-400" />
