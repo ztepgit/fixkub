@@ -25,16 +25,16 @@ import { checkAndEnforceShopStatus } from "@/actions/shop-status" // 🌟 เพ
 function CheckoutForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  
+
   const plan = searchParams.get("plan") || "yearly"
   const shopId = searchParams.get("shopId")
-  
+
   const { toast } = useToast()
-  
+
   const [paymentMethod, setPaymentMethod] = useState("promptpay")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [isCopied, setIsCopied] = useState(false) 
+  const [isCopied, setIsCopied] = useState(false)
 
   const [slipFile, setSlipFile] = useState<File | null>(null)
 
@@ -44,9 +44,9 @@ function CheckoutForm() {
   const [isLoadingPaymentInfo, setIsLoadingPaymentInfo] = useState(true)
 
   // 🌟 State สำหรับเก็บข้อมูลร้านค้าที่กำลังชำระเงิน
-  const [shopInfo, setShopInfo] = useState<{name: string, url: string} | null>(null)
+  const [shopInfo, setShopInfo] = useState<{ name: string, url: string } | null>(null)
   const [isLoadingShop, setIsLoadingShop] = useState(true)
-  
+
   // 🌟 State สำหรับเช็คว่าร้านนี้มาจากหน้า Paywall (โดนระงับ) หรือไม่
   const [isExpired, setIsExpired] = useState(false)
 
@@ -90,10 +90,10 @@ function CheckoutForm() {
           if (shopRes.success && shopRes.data) {
             setShopInfo({
               name: shopRes.data.name,
-              url: `${window.location.origin}/${shopRes.data.slug}` 
+              url: `${window.location.origin}/${shopRes.data.slug}`
             })
           }
-          
+
           // 🌟 3. เช็คสถานะว่าหมดอายุอยู่หรือไม่ เพื่อนำไปคุมปุ่ม "ยกเลิก"
           const statusRes = await checkAndEnforceShopStatus(shopId)
           if (statusRes.status === "EXPIRED" || statusRes.status === "PENDING_DELETION") {
@@ -107,7 +107,7 @@ function CheckoutForm() {
         }
       }
     }
-    
+
     fetchInitialData()
   }, [shopId])
 
@@ -134,14 +134,14 @@ function CheckoutForm() {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!slipFile || !shopId) {
       toast({ title: "ข้อมูลไม่ครบถ้วน", description: "กรุณาอัปโหลดสลิปยืนยันการโอนเงิน", variant: "destructive" })
       return
     }
 
     setIsSubmitting(true)
-    
+
     try {
       const formData = new FormData()
       formData.append("files", slipFile)
@@ -152,35 +152,35 @@ function CheckoutForm() {
         method: "POST",
         body: formData
       })
-      
+
       const result = await res.json()
 
       if (result.success) {
         const paidAmount = result.data.amount
-        
+
         if (paidAmount < packageDetails.price) {
-          toast({ 
-            title: "ยอดเงินไม่ถูกต้อง", 
-            description: `คุณโอนมา ${paidAmount} บาท (ขาดอีก ${packageDetails.price - paidAmount} บาท) กรุณาตรวจสอบอีกครั้ง`, 
-            variant: "destructive" 
+          toast({
+            title: "ยอดเงินไม่ถูกต้อง",
+            description: `คุณโอนมา ${paidAmount} บาท (ขาดอีก ${packageDetails.price - paidAmount} บาท) กรุณาตรวจสอบอีกครั้ง`,
+            variant: "destructive"
           })
           setIsSubmitting(false)
           return
         }
 
-        const planEnum = plan === "monthly" ? "BASIC_MONTHLY" : "BASIC_YEARLY" 
-        
+        const planEnum = plan === "monthly" ? "BASIC_MONTHLY" : "BASIC_YEARLY"
+
         // 🌟 แก้ไขบรรทัดนี้: เพิ่ม result.data.transRef เข้าไปเป็นตัวแปรที่ 4
         const updateRes = await processPaymentSuccess(shopId, planEnum, paidAmount, result.data.transRef)
-        
+
         if (updateRes.success) {
-           setIsSuccess(true) 
+          setIsSuccess(true)
         } else {
-           toast({ 
-             title: "เกิดข้อผิดพลาด", 
-             description: updateRes.error || "ตรวจสลิปผ่านแล้ว แต่ไม่อัปเดตฐานข้อมูล กรุณาติดต่อแอดมิน", 
-             variant: "destructive" 
-           })
+          toast({
+            title: "เกิดข้อผิดพลาด",
+            description: updateRes.error || "ตรวจสลิปผ่านแล้ว แต่ไม่อัปเดตฐานข้อมูล กรุณาติดต่อแอดมิน",
+            variant: "destructive"
+          })
         }
 
       } else {
@@ -189,7 +189,7 @@ function CheckoutForm() {
     } catch (error) {
       toast({ title: "ระบบขัดข้อง", description: "ไม่สามารถตรวจสอบสลิปได้ในขณะนี้ กรุณาลองใหม่", variant: "destructive" })
     }
-    
+
     setIsSubmitting(false)
   }
 
@@ -204,7 +204,7 @@ function CheckoutForm() {
           ระบบได้รับยอดเงินจำนวน <span className="font-bold text-emerald-600">{packageDetails.priceText}</span> เรียบร้อยแล้ว สิทธิ์การใช้งานถูกเพิ่มเข้าสู่ร้านค้าของคุณแล้ว
         </p>
         {/* 🌟 บังคับ Refresh หน้าเว็บด้วย window.location เพื่อเคลียร์ Cache สถานะ Paywall */}
-        <Button 
+        <Button
           onClick={() => window.location.href = "/dashboard"}
           className="bg-emerald-600 hover:bg-emerald-700 h-12 px-8 text-base shadow-md hover:scale-105 transition-all"
         >
@@ -228,7 +228,7 @@ function CheckoutForm() {
       </div>
 
       <div className="grid gap-8 md:grid-cols-5 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
+
         {/* คอลัมน์ซ้าย: สรุปคำสั่งซื้อ */}
         <div className="md:col-span-2 space-y-6">
           <Card className="border-slate-200 shadow-sm sticky top-24">
@@ -236,7 +236,7 @@ function CheckoutForm() {
               <CardTitle className="text-lg">สรุปคำสั่งซื้อ</CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
-              
+
               <div className="mb-6 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
                 <h4 className="text-sm font-semibold text-slate-500 mb-2">ชำระเงินสำหรับร้านค้า:</h4>
                 {isLoadingShop ? (
@@ -290,7 +290,7 @@ function CheckoutForm() {
               <ShieldCheck className="h-4 w-4 mr-1 text-emerald-600" /> ตรวจสอบสลิปอัตโนมัติ ใช้งานได้ทันที
             </CardFooter>
           </Card>
-          
+
           <div className="text-center text-sm text-slate-500 flex items-center justify-center gap-2">
             <HelpCircle className="h-4 w-4" /> มีปัญหาการชำระเงิน? <Link href="#" className="text-emerald-600 font-medium hover:underline">ติดต่อแอดมิน</Link>
           </div>
@@ -305,54 +305,37 @@ function CheckoutForm() {
                 <CardDescription>สแกน QR Code เพื่อโอนเงิน และอัปโหลดสลิปยืนยัน</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-2 gap-4">
-                  <div>
-                    <RadioGroupItem value="promptpay" id="promptpay" className="peer sr-only" />
-                    <Label htmlFor="promptpay" className="flex flex-col items-center justify-between rounded-md border-2 border-slate-200 bg-transparent p-4 hover:bg-slate-50 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 [&:has([data-state=checked])]:border-blue-600 cursor-pointer transition-all">
-                      <QrCode className="mb-2 h-6 w-6 text-slate-700" />
-                      <span className="font-semibold text-sm">พร้อมเพย์ / QR</span>
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="bank" id="bank" className="peer sr-only" disabled />
-                    <Label htmlFor="bank" className="flex flex-col items-center justify-between rounded-md border-2 border-slate-200 bg-transparent p-4 opacity-50 cursor-not-allowed">
-                      <span className="mb-2 font-bold text-lg text-slate-400">BANK</span>
-                      <span className="font-semibold text-sm">โอนเงินธนาคาร</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
 
                 {paymentMethod === "promptpay" && (
                   <div className="bg-slate-50/80 p-6 rounded-2xl border border-slate-200 flex flex-col items-center text-center animate-in fade-in duration-300 min-h-[300px] justify-center">
-                    
+
                     {isLoadingPaymentInfo ? (
                       <div className="flex flex-col items-center space-y-4">
-                         <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
-                         <p className="text-slate-500 text-sm">กำลังโหลดข้อมูลบัญชีรับเงิน...</p>
+                        <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+                        <p className="text-slate-500 text-sm">กำลังโหลดข้อมูลบัญชีรับเงิน...</p>
                       </div>
                     ) : !promptpayId ? (
                       <div className="flex flex-col items-center space-y-4 py-8">
-                         <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center">
-                           <ShieldCheck className="h-8 w-8 text-slate-300" />
-                         </div>
-                         <p className="text-slate-500 text-sm">ระบบยังไม่ได้ตั้งค่าบัญชีรับเงิน (PromptPay ID)</p>
+                        <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center">
+                          <ShieldCheck className="h-8 w-8 text-slate-300" />
+                        </div>
+                        <p className="text-slate-500 text-sm">ระบบยังไม่ได้ตั้งค่าบัญชีรับเงิน (PromptPay ID)</p>
                       </div>
                     ) : (
                       <>
                         <Badge className="mb-5 bg-[#003D7C] hover:bg-[#003D7C] text-white px-3 py-1 text-xs">PromptPay</Badge>
-                        
+
                         <div className="bg-white p-3 rounded-2xl border-[3px] border-[#003D7C]/20 flex items-center justify-center mb-6 shadow-sm overflow-hidden transition-transform hover:scale-105 duration-300">
-                          <QRCodeCanvas 
-                            value={qrPayload} 
-                            size={200} 
-                            bgColor={"#ffffff"} 
-                            fgColor={"#0f172a"} 
-                            level={"H"} 
+                          <QRCodeCanvas
+                            value={qrPayload}
+                            size={200}
+                            bgColor={"#ffffff"}
+                            fgColor={"#0f172a"}
+                            level={"H"}
                             includeMargin={false}
                           />
                         </div>
-                        
+
                         <div className="w-full bg-white p-4 rounded-xl border border-slate-200 space-y-3 relative overflow-hidden">
                           <div className="absolute top-0 left-0 w-full h-1.5 bg-[#003D7C]"></div>
                           <div className="space-y-0.5">
@@ -362,10 +345,10 @@ function CheckoutForm() {
 
                           <div className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-slate-100">
                             <span className="font-mono font-bold text-slate-700 tracking-wider text-base pl-2">{promptpayId}</span>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={handleCopyPromptPay}
                               className={`h-8 px-3 rounded-md font-medium transition-colors ${isCopied ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-700' : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'}`}
                             >
@@ -387,10 +370,10 @@ function CheckoutForm() {
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <Store className="w-5 h-5 text-slate-400" /> หลักฐานการโอนเงิน
                   </h3>
-                  
+
                   <div className="grid gap-2 pt-2">
                     <Label>อัปโหลดสลิปโอนเงิน <span className="text-red-500">*</span></Label>
-                    
+
                     {!slipFile ? (
                       <Label htmlFor="slip" className="border-2 border-dashed border-emerald-200 bg-emerald-50/50 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-emerald-50 transition-colors cursor-pointer group">
                         <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
