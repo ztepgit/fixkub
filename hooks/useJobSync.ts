@@ -1,5 +1,5 @@
 // hooks/useJobSync.ts
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
@@ -8,7 +8,6 @@ import { getTop50Jobs } from '@/actions/queue'
 export function useJobSync(shopId: string) {
   const queryClient = useQueryClient()
   const [isConnectedRealtime, setIsConnectedRealtime] = useState(false)
-  const channelRef = useRef<any>(null)
 
   // 1. Realtime sync
   useEffect(() => {
@@ -77,8 +76,6 @@ export function useJobSync(shopId: string) {
           setIsConnectedRealtime(false)
         }
       })
-
-    channelRef.current = channel
 
     return () => {
       supabase.removeChannel(channel)
