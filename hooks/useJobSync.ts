@@ -16,6 +16,15 @@ export function useJobSync(shopId: string) {
 
     const channelName = `dashboard_sync:${shopId}`
 
+    // 🌟 ลบ channel เดิมก่อนเสมอ
+    const existing = supabase.getChannels()
+      .find(c => c.topic === `realtime:${channelName}`)
+
+    if (existing) {
+      void supabase.removeChannel(existing)
+    }
+
+
     const channel = supabase
       .channel(channelName)
       .on(

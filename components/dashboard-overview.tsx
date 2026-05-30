@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import dynamic from "next/dynamic"
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,27 +23,37 @@ import {
 } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import {
   Activity, Wrench, PackageCheck, Wallet, Smartphone, Loader2, User, Banknote,
   MoreHorizontal, ClipboardList, Barcode, Hash, Phone,
-  QrCode, Copy, Download, Link, Eye, EyeOff
+  QrCode, Copy, Download, Link, Eye, EyeOff, TrendingUp, Clock, Search, ChevronRight, CheckCircle2, AlertCircle
 } from "lucide-react"
 
-import { updateQueueStatus } from "@/actions/queue"
+import { updateQueueStatus, getTop50Jobs } from "@/actions/queue"
 import { isSameDay } from "date-fns" 
+import { queryKeys } from "@/lib/query-keys"
 
-import { useJobStore } from "@/store/useJobStore"
+import { useJobStore } from "@/store/useJobStore" // 🌟 UI State Only
 import { useShopStore } from "@/store/useShopStore" 
+import { useJobSync } from "@/hooks/useJobSync" // 🌟 Realtime Sync
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
+import { Queue, QueueStatus, CancelReason } from "@prisma/client"
+
+// 🌟 สร้าง Type โดยอิงจาก Prisma
+type RepairJob = Queue & {
+  timeElapsed?: string;
+  phone?: string; 
+}
 
 const QRCodeCanvas = dynamic(
   () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
   { ssr: false }
 )
 
-const formatPhoneNumber = (phone?: string) => {
+const formatPhoneNumber = (phone?: string | null) => {
   if (!phone) return ""
   const cleaned = phone.replace(/\D/g, '')
   if (cleaned.length === 10) return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
@@ -66,14 +76,30 @@ const formatFullDateTime = (date?: Date | string) => {
 
 export function DashboardOverview() {
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const qrWrapperRef = useRef<HTMLDivElement>(null)
 
-  const jobs = useJobStore((state) => state.jobs)
-  const upsertJob = useJobStore((state) => state.upsertJob)
-  const lastSyncAt = useJobStore((state) => state.lastSyncAt)
   const slug = useShopStore((state) => state.shop?.slug)
+  const shopId = useShopStore((state) => state.shop?.id || "")
 
-  const [jobToView, setJobToView] = useState<any>(null)
+  // 🌟 1. นำระบบ Realtime เข้ามาทำงาน
+  useJobSync(shopId)
+
+  // 🌟 2. ดึงข้อมูลผ่าน TanStack Query (Single Source of Truth)
+  const { data: allJobs = [], isLoading: isJobsLoading } = useQuery({
+    queryKey: queryKeys.queues.list(shopId),
+    queryFn: async () => {
+      const res = await getTop50Jobs(shopId);
+      if (!res.success) throw new Error(res.error);
+      return res.data as RepairJob[];
+    },
+    staleTime: 1000 * 60 * 5, 
+    enabled: !!shopId,
+  })
+
+  // 🌟 3. ดึง UI Action จาก Store เพื่อเปิด Dialog
+  const { jobToView, setJobToView } = useJobStore()
+
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
@@ -96,61 +122,82 @@ export function DashboardOverview() {
   const currentSlug = slug || fetchedShop?.slug
   const shopUrl = currentSlug ? `https://${currentSlug}.getfixx.net` : ""
 
+  const jobToViewData = useMemo(() => allJobs.find(j => j.id === jobToView) || null, [allJobs, jobToView]);
+
   useEffect(() => {
-    if (jobToView) {
-      setEditPrice(jobToView.estimatedPrice?.toString() || "")
-      setEditSn(jobToView.serialNumber || "")
-      setEditImei(jobToView.imei || "")
+    if (jobToViewData) {
+      setEditPrice(jobToViewData.estimatedPrice?.toString() || "")
+      setEditSn(jobToViewData.serialNumber || "")
+      setEditImei(jobToViewData.imei || "")
     }
-  }, [jobToView])
+  }, [jobToViewData])
 
   const today = new Date()
   
-  // 🌟 แจ้งซ่อมวันนี้: นับเฉพาะงานที่ถูกสร้างในวันนี้
-  const todayCount = jobs.filter(j => isSameDay(new Date(j.createdAt), today)).length
+  // 🌟 คำนวณสถิติต่างๆ ผ่าน useMemo ป้องกัน Rerender
+  const todayCount = useMemo(() => allJobs.filter(j => isSameDay(new Date(j.createdAt), today)).length, [allJobs])
+  const activeCount = useMemo(() => allJobs.filter(j => ['PENDING', 'WAITING', 'PROCESSING'].includes(j.status)).length, [allJobs])
+  const readyCount = useMemo(() => allJobs.filter(j => j.repairedAt && isSameDay(new Date(j.repairedAt), today)).length, [allJobs])
+  const repairedCountForProgress = useMemo(() => allJobs.filter(j => j.status === 'REPAIRED').length, [allJobs])
   
-  // 🌟 กำลังดำเนินการ: นับงานที่ยังค้างอยู่ในสถานะรอ/กำลังซ่อม (ไม่สนว่าสร้างวันไหน)
-  const activeCount = jobs.filter(j => ['PENDING', 'WAITING', 'PROCESSING'].includes(j.status)).length
-  
-  // 🌟 แก้ไข: นับรวมทุกงานที่ "ซ่อมเสร็จภายในวันนี้"
-  // ไม่สนใจว่าตอนนี้สถานะจะเป็นอะไร (ดอง, ทิ้ง, คืนลูกค้า) ตราบใดที่ repairedAt คือวันนี้ = นับเป็นผลงานวันนี้
-  const readyCount = jobs.filter(j => 
-    j.repairedAt && isSameDay(new Date(j.repairedAt), today)
-  ).length
+  const revenueToday = useMemo(() => 
+    allJobs
+      .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
+      .reduce((sum, j) => sum + (Number(j.estimatedPrice) || 0), 0),
+  [allJobs])
 
-  // 🌟 รายได้วันนี้: นับเฉพาะงานที่ COMPLETED และส่งมอบในวันนี้
-  const revenueToday = jobs
-    .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
-    .reduce((sum, j) => sum + (Number(j.estimatedPrice) || 0), 0)
+  const recentUpdates = useMemo(() => 
+    allJobs
+      .filter(j => ['PROCESSING', 'REPAIRED', 'PENDING', 'WAITING'].includes(j.status))
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
+      .slice(0, 5),
+  [allJobs])
 
+  const totalInProgress = activeCount + repairedCountForProgress
+  const completionRate = totalInProgress === 0 ? 0 : Math.round((repairedCountForProgress / totalInProgress) * 100)
+
+  // 🌟 4. ระบบ Mutation แก้ไขข้อมูลคิวซ่อม
   const updateJobMutation = useMutation({
-    mutationFn: async (vars: { id: string, status: string, data: any }) => {
-      const res = await updateQueueStatus(vars.id, vars.status, vars.data)
+    mutationFn: async ({ id, status, data }: { id: string, status: string, data?: any }) => {
+      const res = await updateQueueStatus(id, status, data)
       if (!res.success) throw new Error(res.error || "Update failed")
       return res.data
     },
-    onMutate: async (vars) => {
-      const optimisticJob = { ...jobToView, ...vars.data, updatedAt: new Date().toISOString() }
-      upsertJob(optimisticJob)
-      setJobToView(null)
+    onMutate: async (updatedJob) => {
+      const qKey = queryKeys.queues.list(shopId)
+      await queryClient.cancelQueries({ queryKey: qKey })
+      const previousJobs = queryClient.getQueryData<RepairJob[]>(qKey)
+      
+      queryClient.setQueryData(qKey, (old: RepairJob[]) => {
+        return old?.map((job) => 
+          job.id === updatedJob.id 
+            ? { ...job, status: updatedJob.status as any, ...updatedJob.data, updatedAt: new Date().toISOString() } 
+            : job
+        )
+      })
+
+      return { previousJobs, qKey }
     },
-    onSuccess: () => {
-      toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตรายละเอียดคิวเรียบร้อยแล้ว" })
+    onError: (err, variables, context) => {
+      if (context?.previousJobs) queryClient.setQueryData(context.qKey, context.previousJobs)
+      toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ", variant: "destructive" })
     },
-    onError: (err) => {
-      console.error(err)
-      toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ ระบบกำลังซิงค์ใหม่...", variant: "destructive" })
+    onSettled: (data, error, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: context?.qKey })
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.stats(shopId) })
     }
   })
 
   const handleSaveDetails = () => {
-    if (!jobToView) return
+    if (!jobToViewData) return
     const updatedData = {
       estimatedPrice: editPrice ? parseFloat(editPrice) : null,
       serialNumber: editSn,
       imei: editImei
     }
-    updateJobMutation.mutate({ id: jobToView.id, status: jobToView.status, data: updatedData })
+    updateJobMutation.mutate({ id: jobToViewData.id, status: jobToViewData.status, data: updatedData })
+    setJobToView(null)
+    toast({ title: "✅ บันทึกข้อมูลสำเร็จ", description: "อัปเดตรายละเอียดคิวเรียบร้อยแล้ว" })
   }
 
   const copyLink = () => {
@@ -185,7 +232,7 @@ export function DashboardOverview() {
     }
   }
 
-  if (jobs.length === 0 && lastSyncAt === 0) {
+  if (isJobsLoading) {
     return (
       <div className="flex h-64 w-full items-center justify-center text-slate-400 gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
@@ -243,6 +290,13 @@ export function DashboardOverview() {
               <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                 {isHidden ? "***" : readyCount} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">เครื่อง</span>
               </div>
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                  <span>อัตราส่วน งานรอรับ : งานกำลังซ่อม</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{completionRate}%</span>
+                </div>
+                <Progress value={completionRate} className="h-1.5 bg-slate-100 dark:bg-slate-800" indicatorClassName="bg-emerald-500" />
+              </div>
             </CardContent>
           </Card>
 
@@ -263,19 +317,26 @@ export function DashboardOverview() {
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
             <CardHeader>
               <CardTitle className="dark:text-slate-100">รายการอัปเดตล่าสุด</CardTitle>
-              <CardDescription className="dark:text-slate-400">งานที่เคลื่อนไหวในระบบ</CardDescription>
+              <CardDescription className="dark:text-slate-400">งานที่เคลื่อนไหวในระบบ (แสดง 5 รายการล่าสุด)</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[420px] pr-4">
                 <div className="space-y-4">
-                  {jobs.length === 0 ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">ยังไม่มีข้อมูลงานซ่อม</p>
+                  {recentUpdates.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-8">ยังไม่มีความเคลื่อนไหวงานซ่อม</p>
                   ) : (
-                    jobs.map((job: any) => (
+                    recentUpdates.map((job: RepairJob) => (
                       <div key={job.id} className="flex items-start justify-between border-b dark:border-slate-800 pb-4 last:border-0 last:pb-0">
                         <div className="flex items-start gap-3 sm:gap-4">
-                          <div className="h-10 w-10 mt-0.5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                            <Smartphone className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                          <div className={`p-2 mt-0.5 rounded-full shrink-0 ${
+                            job.status === 'REPAIRED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' :
+                            job.status === 'PROCESSING' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                            job.status === 'WAITING' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-800'
+                          }`}>
+                            {job.status === 'REPAIRED' ? <CheckCircle2 className="h-5 w-5" /> : 
+                             job.status === 'PROCESSING' ? <Wrench className="h-5 w-5" /> : 
+                             <Smartphone className="h-5 w-5" />}
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
@@ -297,7 +358,7 @@ export function DashboardOverview() {
                               {job.phoneNumber && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {formatPhoneNumber(job.phoneNumber)}</span>}
                               <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
                                 <Banknote className="h-3 w-3" />
-                                {job.estimatedPrice ? `฿${parseInt(job.estimatedPrice).toLocaleString()}` : "ยังไม่ประเมิน"}
+                                {job.estimatedPrice ? `฿${job.estimatedPrice.toLocaleString()}` : "ยังไม่ประเมิน"}
                               </span>
                             </div>
                           </div>
@@ -306,9 +367,9 @@ export function DashboardOverview() {
                         <div className="text-right shrink-0 flex flex-col items-end gap-2">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className={
-                              job.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800" :
-                                job.status === "CANCELLED" || job.status === "ARCHIVED" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800" :
-                                  "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800"
+                              job.status === "REPAIRED" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800" :
+                                job.status === "PROCESSING" ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800" :
+                                  "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800"
                             }>
                               {translateStatus(job.status)}
                             </Badge>
@@ -318,7 +379,7 @@ export function DashboardOverview() {
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-800"><MoreHorizontal className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52 dark:bg-slate-900 dark:border-slate-800">
-                                <DropdownMenuItem className="cursor-pointer dark:text-slate-300 dark:focus:bg-slate-800" onClick={() => setJobToView(job)}>
+                                <DropdownMenuItem className="cursor-pointer dark:text-slate-300 dark:focus:bg-slate-800" onClick={() => setJobToView(job.id)}>
                                   <ClipboardList className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />รายละเอียด / ประเมินราคา
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -393,10 +454,10 @@ export function DashboardOverview() {
         </div>
 
         {/* Modal ประเมินราคา */}
-        <Dialog open={!!jobToView} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
+        <Dialog open={!!jobToViewData} onOpenChange={(open) => { if (!open) setJobToView(null) }}>
           <DialogContent className="sm:max-w-[550px] dark:bg-slate-900 dark:border-slate-800">
             <DialogHeader>
-              <DialogTitle className="text-xl dark:text-slate-100">ประเมินราคาคิว <span className="text-blue-600 dark:text-blue-400">{jobToView?.jobRef}</span></DialogTitle>
+              <DialogTitle className="text-xl dark:text-slate-100">ประเมินราคาคิว <span className="text-blue-600 dark:text-blue-400">{jobToViewData?.jobRef}</span></DialogTitle>
             </DialogHeader>
             <div className="grid gap-6 py-2">
               <div className="space-y-4">
