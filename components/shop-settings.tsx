@@ -333,12 +333,30 @@ export function ShopSettings() {
                         <CalendarDays className="h-4 w-4 text-slate-400" />
                         {planInfo.expiryDate ? (
                           <>
-                            {planInfo.isExpired ? 'หมดอายุเมื่อ:' : 'เหลือเวลา:'}
-                            <span className={`ml-1 ${planInfo.isExpired ? 'text-rose-600' : (planInfo.daysLeft <= 3 ? 'text-amber-600' : 'text-emerald-600')}`}>
-                              {planInfo.isExpired
-                                ? format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })
-                                : `${planInfo.daysLeft} วัน (ถึง ${format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })})`}
-                            </span>
+                            {planInfo.isExpired ? (
+                              <>
+                                <span>หมดอายุเมื่อ:</span>
+                                <span className="ml-1 text-rose-600">
+                                  {format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })}
+                                </span>
+                              </>
+                            ) : planInfo.daysLeft > 0 ? (
+                              <>
+                                <span>เหลือเวลา:</span>
+                                <span className={`ml-1 ${planInfo.daysLeft <= 3 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                  {planInfo.daysLeft} วัน (ถึง {format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })})
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-amber-600 font-bold">
+                                  หมดอายุวันที่ {format(planInfo.expiryDate, "dd MMM yyyy", { locale: th })}
+                                </span>
+                                <span className="ml-1 text-amber-600/80 text-sm font-normal">
+                                  (เวลา {format(planInfo.expiryDate, "HH:mm")} น.)
+                                </span>
+                              </>
+                            )}
                           </>
                         ) : (
                           "ไม่มีข้อมูลวันหมดอายุ"
