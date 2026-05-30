@@ -301,8 +301,8 @@ function CheckoutForm() {
           <form onSubmit={handleCheckout}>
             <Card className="border-slate-200 shadow-md">
               <CardHeader>
-                <CardTitle className="text-xl">เลือกช่องทางการชำระเงิน</CardTitle>
-                <CardDescription>สแกน QR Code เพื่อโอนเงิน และอัปโหลดสลิปยืนยัน</CardDescription>
+                <CardTitle className="text-xl">ชำระเงิน</CardTitle>
+                <CardDescription>สแกน QR Code เพื่อชำระเงิน และอัปโหลดสลิปยืนยัน</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
 
