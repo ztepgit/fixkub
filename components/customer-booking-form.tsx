@@ -1,3 +1,4 @@
+// components/customer-booking-form.tsx
 "use client"
 
 import { useState } from "react"
@@ -13,8 +14,11 @@ import { createQueue } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerQueueStatus } from "@/components/customer-queue-status"
 
-// 🌟 Import Store ที่เพิ่งสร้างใหม่
 import { useShopSync } from "@/hooks/useShopSync"
+
+// 🌟 Import เพิ่มเติมตาม Architecture ใหม่
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const COMMON_SERVICES = [
   "เปลี่ยนจอ", "เปลี่ยนแบต", "ติดฟิล์ม", "ชาร์จไม่เข้า",
@@ -22,23 +26,24 @@ const COMMON_SERVICES = [
 ]
 
 interface CustomerBookingFormProps {
-  shopId: string; // 🌟 บังคับให้ต้องส่ง shopId เข้ามา (ห้ามเป็น Optional แล้ว)
+  shopId: string;
   shopName?: string;
   shopLogoUrl?: string | null;
 }
 
 export function CustomerBookingForm({ 
-  shopId, // 🌟 ลบ Default "shop_test_001" ทิ้ง
-  shopName = "ร้านซ่อมมือถือ", // 🌟 เปลี่ยนชื่อ Default ให้ดูเป็นกลางๆ
+  shopId, 
+  shopName = "ร้านซ่อมมือถือ", 
   shopLogoUrl = null 
 }: CustomerBookingFormProps) {
   
-  // 🌟 ดึงข้อมูลร้านผ่าน Hook (มันจะโหลด Cache -> Fetch -> ฟัง Realtime ให้อัตโนมัติ)
   const shop = useShopSync(shopId)
   const displayShopName = shop?.name || shopName
   const displayShopLogo = shop?.logoUrl || shopLogoUrl
 
   const { toast } = useToast() 
+  const queryClient = useQueryClient() // 🌟 เพิ่ม queryClient
+
   const [activeTab, setActiveTab] = useState("booking")
   const [isSubmitting, setIsSubmitting] = useState(false) 
   const [isSuccess, setIsSuccess] = useState(false)
@@ -70,6 +75,9 @@ export function CustomerBookingForm({
       if (response.success) {
         setQueueRef(response.data?.jobRef || "Q-XXXX")
         setIsSuccess(true)
+        
+        // 🌟 บังคับ Invalidate Query หลังจากจองสำเร็จ เพื่อให้หน้าบอร์ดอัปเดตข้อมูลตรงกันเป๊ะ
+        queryClient.invalidateQueries({ queryKey: queryKeys.queues.list(shopId) })
       } else {
         toast({ title: "❌ เกิดข้อผิดพลาด", description: response.error, variant: "destructive" })
       }
@@ -133,7 +141,6 @@ export function CustomerBookingForm({
     <div className="mx-auto w-full max-w-md space-y-0 drop-shadow-2xl">
       <div className="bg-white px-6 pt-8 pb-4 rounded-t-[1.5rem] border-b border-slate-100 flex flex-col items-center text-center relative z-10">
         
-        {/* 🌟 แสดงชื่อและโลโก้จาก Store อัตโนมัติ (เปลี่ยนปุ๊บ เด้งปั๊บ) */}
         <Avatar className="h-16 w-16 border-[3px] border-white shadow-md mb-3 bg-white">
           {displayShopLogo ? (
             <AvatarImage src={displayShopLogo} className="object-cover bg-white" />

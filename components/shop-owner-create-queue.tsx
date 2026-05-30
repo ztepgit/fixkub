@@ -2,17 +2,18 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query" // 🌟 1. นำเข้า useQueryClient
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createQueue, updateQueueImages } from "@/actions/queue" // เพิ่ม updateQueueImages
+import { createQueue, updateQueueImages } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, ImagePlus, X } from "lucide-react" // เพิ่มไอคอนที่ต้องใช้
-import { useJobStore } from "@/store/useJobStore"
+import { Loader2, ImagePlus, X } from "lucide-react"
 import { useShopStore } from "@/store/useShopStore"
-import { compressImageToWebP } from "@/lib/image-utils" // ฟังก์ชันบีบอัดที่เราสร้างไว้
-import { supabase } from "@/lib/supabase" // Supabase Client
+import { compressImageToWebP } from "@/lib/image-utils"
+import { supabase } from "@/lib/supabase"
+import { queryKeys } from "@/lib/query-keys" // 🌟 2. นำเข้า queryKeys
 
 const COMMON_SERVICES = [
   "เปลี่ยนจอ",
@@ -26,8 +27,8 @@ const COMMON_SERVICES = [
 ]
 
 export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) {
-  const upsertJob = useJobStore((state) => state.upsertJob)
   const { toast } = useToast()
+  const queryClient = useQueryClient() // 🌟 3. เรียกใช้ queryClient
 
   const shopId = useShopStore((state) => state.shop?.id)
 
@@ -109,7 +110,6 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         isManualEntry: true,
       })
 
-      // 🌟 เพิ่ม || !response.data เพื่อให้ TypeScript สบายใจ
       if (!response.success || !response.data) {
         toast({ title: "❌ เกิดข้อผิดพลาด", description: response.error || "ข้อมูลสูญหาย", variant: "destructive" })
         return;
@@ -136,18 +136,15 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         // 3. ถ้าอัปโหลดรูปสำเร็จ ให้เอา URL ไปอัปเดตลง Database
         if (finalImagesUrls.length > 0) {
           await updateQueueImages(shopId, queueId, finalImagesUrls);
-          response.data.images = finalImagesUrls; // เอารูปยัดใส่ object ที่จะขึ้นบอร์ดด้วย
+          response.data.images = finalImagesUrls; // เอารูปยัดใส่ object
         }
       }
 
       // 4. ล้าง Preview ออกจาก Memory
       selectedImages.forEach(img => URL.revokeObjectURL(img.preview));
 
-      // 5. อัปเดตบอร์ด (Zustand) ทันที
-      upsertJob({
-        ...response.data,
-        updatedAt: new Date().toISOString(),
-      })
+      // 🌟 5. แจ้ง TanStack Query ให้ทำการดึงข้อมูลคิวที่ร้านใหม่ (แทนการใช้ upsertJob)
+      queryClient.invalidateQueries({ queryKey: queryKeys.queues.list(shopId) })
 
       toast({
         title: "✅ สร้างคิวสำเร็จ",
