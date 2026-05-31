@@ -112,7 +112,6 @@ export default function LandingPage() {
           description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้เปิดร้านครั้งแรกเท่านั้น",
           variant: "destructive",
         })
-        router.push('/dashboard')
         return
       }
 
