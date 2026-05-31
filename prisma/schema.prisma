@@ -136,7 +136,9 @@ model Queue {
 
   serviceName   String?
   serviceCategory String?
-  
+
+  deviceBrand     String?
+
   isManualEntry Boolean @default(false)
 
   status QueueStatus @default(PENDING)
@@ -181,6 +183,11 @@ model Queue {
 
   @@index([shopId, phoneNumber])
   @@index([shopId, customerName])
+
+  // Index เพื่อให้ Analytics (groupBy) ทำงานได้รวดเร็ว
+  @@index([shopId, serviceCategory])
+  @@index([shopId, deviceBrand])
+  @@index([shopId, deviceModel])
 }
 
 // ==========================================

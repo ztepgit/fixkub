@@ -20,6 +20,7 @@ import { useShopSync } from "@/hooks/useShopSync"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { COMMON_SERVICES } from "@/lib/common-services" // 🌟 Import Master Data แบบใหม่
+import { parseDeviceModel } from "@/lib/device-parser" // 🌟 Import Parser
 
 interface CustomerBookingFormProps {
   shopId: string;
@@ -66,11 +67,15 @@ export function CustomerBookingForm({
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
+      // 🌟 1. Parse และ Normalize ข้อมูลอุปกรณ์ก่อนส่ง
+      const parsedDevice = parseDeviceModel(deviceModel);
+
       const response = await createQueue({
         shopId,
         customerName,
         phoneNumber: phone,
-        deviceModel,
+        deviceModel: parsedDevice.normalizedModel, // 🌟 2. ใช้ค่าที่จัดระเบียบแล้ว
+        deviceBrand: parsedDevice.brand,           // 🌟 3. แนบ Brand เข้าไป
         deviceColor,
         issue,
         serviceName,

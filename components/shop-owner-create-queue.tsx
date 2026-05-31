@@ -17,6 +17,8 @@ import { queryKeys } from "@/lib/query-keys"
 
 // 🌟 Import Master Data แบบใหม่
 import { COMMON_SERVICES } from "@/lib/common-services"
+// 🌟 1. นำเข้า Parser สำหรับ Analytics
+import { parseDeviceModel } from "@/lib/device-parser"
 
 export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) {
   const { toast } = useToast()
@@ -73,7 +75,7 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
 
   const removeImage = (index: number) => {
     const newImages = [...selectedImages];
-    URL.revokeObjectURL(newImages[index].preview); 
+    URL.revokeObjectURL(newImages[index].preview);
     newImages.splice(index, 1);
     setSelectedImages(newImages);
   };
@@ -86,11 +88,17 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
 
     setIsSubmitting(true)
     try {
+      // 🌟 2. Parse และ Normalize ข้อมูลอุปกรณ์ก่อนส่งไปให้ Database
+      const parsedDevice = parseDeviceModel(deviceModel);
+
       const response = await createQueue({
         shopId: shopId,
         customerName,
         phoneNumber: phone,
-        deviceModel,
+
+        deviceModel: parsedDevice.normalizedModel, // 🌟 3. ใช้ชื่อรุ่นที่จัดระเบียบแล้ว
+        deviceBrand: parsedDevice.brand,           // 🌟 4. แนบ Brand เข้าไปด้วย
+
         deviceColor,
         serialNumber,
         imei,
@@ -123,7 +131,7 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
 
         if (finalImagesUrls.length > 0) {
           await updateQueueImages(shopId, queueId, finalImagesUrls);
-          response.data.images = finalImagesUrls; 
+          response.data.images = finalImagesUrls;
         }
       }
 
@@ -191,23 +199,23 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
 
         <div className="flex flex-col gap-3">
           <Label htmlFor="serviceName" className="font-semibold text-slate-700">บริการที่ต้องการ</Label>
-          <Input 
-            id="serviceName" 
-            placeholder="เช่น เปลี่ยนจอ, เปลี่ยนแบต" 
-            value={serviceName} 
+          <Input
+            id="serviceName"
+            placeholder="เช่น เปลี่ยนจอ, เปลี่ยนแบต"
+            value={serviceName}
             onChange={(e) => {
               setServiceName(e.target.value);
               setServiceCategory(""); // 🌟 ดักการพิมพ์ Manual ให้ล้าง Category ทิ้ง
-            }} 
-            className="focus-visible:ring-emerald-500" 
-            disabled={isSubmitting} 
+            }}
+            className="focus-visible:ring-emerald-500"
+            disabled={isSubmitting}
           />
           <div className="flex flex-wrap gap-2 pt-1">
             {COMMON_SERVICES.map((service) => (
               <button
-                key={service.label} 
-                type="button" 
-                onClick={() => handleChipClick(service)} 
+                key={service.label}
+                type="button"
+                onClick={() => handleChipClick(service)}
                 disabled={isSubmitting}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${serviceName === service.label ? "bg-emerald-600 text-white border-emerald-600 shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"}`}
               >

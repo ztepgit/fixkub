@@ -1,4 +1,4 @@
-//actions/queue.ts
+// actions/queue.ts
 "use server";
 
 import { verifyShopAccess } from "@/lib/auth-guard"
@@ -22,6 +22,8 @@ const createQueueSchema = z.object({
     .pipe(z.string().regex(/^0\d{8,9}$/, "เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 9-10 หลัก)")),
 
   deviceModel: z.string().trim().min(1, "กรุณากรอกรุ่นมือถือ/อุปกรณ์").max(100, "ชื่อรุ่นยาวเกินไป"),
+  // 🌟 เพิ่มฟิลด์ deviceBrand เข้าไปใน Zod Schema
+  deviceBrand: z.string().optional().nullable(),
   deviceColor: z.string().trim().max(50, "ระบุสีสั้นๆ พอครับ").optional().or(z.literal("")),
   issue: z.string().trim().max(500, "รายละเอียดต้องไม่เกิน 500 ตัวอักษร").optional().or(z.literal("")),
   serviceName: z.string().trim().min(1, "กรุณาเลือกบริการ").max(100, "ชื่อบริการยาวเกินไป"),
@@ -90,7 +92,11 @@ export async function createQueue(input: CreateQueueInput) {
         jobRef: generatedJobRef,
         customerName: safeData.customerName,
         phoneNumber: safeData.phoneNumber, // เบอร์นี้สะอาด ไร้ขีดแล้ว
+        
+        // 🌟 อัปเดตการรับค่า Device Model & Brand
         deviceModel: safeData.deviceModel,
+        deviceBrand: safeData.deviceBrand || null, 
+
         deviceColor: safeData.deviceColor || null,
         serialNumber: safeData.serialNumber || null,
         imei: safeData.imei || null,
