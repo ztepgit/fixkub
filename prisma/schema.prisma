@@ -135,6 +135,8 @@ model Queue {
   imei           String? // IMEI ตัวเครื่อง
 
   serviceName   String?
+  serviceCategory String?
+  
   isManualEntry Boolean @default(false)
 
   status QueueStatus @default(PENDING)

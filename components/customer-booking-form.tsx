@@ -19,11 +19,7 @@ import { useShopSync } from "@/hooks/useShopSync"
 // 🌟 Import เพิ่มเติมตาม Architecture ใหม่
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-
-const COMMON_SERVICES = [
-  "เปลี่ยนจอ", "เปลี่ยนแบต", "ติดฟิล์ม", "ชาร์จไม่เข้า",
-  "เปิดไม่ติด", "โดนน้ำ", "ย้ายข้อมูล", "ปลดล็อคเครื่อง",
-]
+import { COMMON_SERVICES } from "@/lib/common-services" // 🌟 Import Master Data แบบใหม่
 
 interface CustomerBookingFormProps {
   shopId: string;
@@ -31,52 +27,61 @@ interface CustomerBookingFormProps {
   shopLogoUrl?: string | null;
 }
 
-export function CustomerBookingForm({ 
-  shopId, 
-  shopName = "ร้านซ่อมมือถือ", 
-  shopLogoUrl = null 
+export function CustomerBookingForm({
+  shopId,
+  shopName = "ร้านซ่อมมือถือ",
+  shopLogoUrl = null
 }: CustomerBookingFormProps) {
-  
+
   const shop = useShopSync(shopId)
   const displayShopName = shop?.name || shopName
   const displayShopLogo = shop?.logoUrl || shopLogoUrl
 
-  const { toast } = useToast() 
-  const queryClient = useQueryClient() // 🌟 เพิ่ม queryClient
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const [activeTab, setActiveTab] = useState("booking")
-  const [isSubmitting, setIsSubmitting] = useState(false) 
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [queueRef, setQueueRef] = useState("")
 
   const [serviceName, setServiceName] = useState<string>("")
+  const [serviceCategory, setServiceCategory] = useState<string>("") // 🌟 เพิ่ม State สำหรับหมวดหมู่
   const [deviceModel, setDeviceModel] = useState<string>("")
   const [deviceColor, setDeviceColor] = useState<string>("")
   const [issue, setIssue] = useState<string>("")
   const [customerName, setCustomerName] = useState<string>("")
-  const [phone, setPhone] = useState<string>("") 
+  const [phone, setPhone] = useState<string>("")
 
   const getInitial = (name: string) => {
     return name ? name.charAt(0).toUpperCase() : "S"
   }
 
-  const handleChipClick = (service: string) => {
-    setServiceName(service)
+  // 🌟 แก้ไขให้รับค่าเป็น Object { category, label }
+  const handleChipClick = (service: { category: string; label: string }) => {
+    setServiceName(service.label)
+    setServiceCategory(service.category)
   }
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
       const response = await createQueue({
-        shopId, customerName, phoneNumber: phone, 
-        deviceModel, deviceColor, issue, serviceName, isManualEntry: false, 
+        shopId,
+        customerName,
+        phoneNumber: phone,
+        deviceModel,
+        deviceColor,
+        issue,
+        serviceName,
+        serviceCategory, // 🌟 ส่ง serviceCategory เข้าไปด้วย
+        isManualEntry: false,
       })
 
       if (response.success) {
         setQueueRef(response.data?.jobRef || "Q-XXXX")
         setIsSuccess(true)
-        
-        // 🌟 บังคับ Invalidate Query หลังจากจองสำเร็จ เพื่อให้หน้าบอร์ดอัปเดตข้อมูลตรงกันเป๊ะ
+
         queryClient.invalidateQueries({ queryKey: queryKeys.queues.list(shopId) })
       } else {
         toast({ title: "❌ เกิดข้อผิดพลาด", description: response.error, variant: "destructive" })
@@ -96,10 +101,10 @@ export function CustomerBookingForm({
         </div>
         <h2 className="text-2xl font-bold text-slate-800 mb-2">แจ้งซ่อมสำเร็จ!</h2>
         <p className="text-slate-600 mb-6">
-          คุณสามารถใช้เบอร์โทร <span className="font-bold text-emerald-600">{phone}</span><br/>เพื่อเช็คสถานะงานซ่อมได้ตลอดเวลา
+          คุณสามารถใช้เบอร์โทร <span className="font-bold text-emerald-600">{phone}</span><br />เพื่อเช็คสถานะงานซ่อมได้ตลอดเวลา
         </p>
 
-        <div 
+        <div
           onClick={() => {
             navigator.clipboard.writeText(queueRef)
             toast({ title: "✅ คัดลอกรหัสคิวสำเร็จ", description: "สามารถนำไปวางหน้าเช็คสถานะได้เลยครับ" })
@@ -116,18 +121,18 @@ export function CustomerBookingForm({
         </div>
 
         <div className="flex flex-col gap-3 w-full">
-          <Button 
-            className="w-full h-12 text-base bg-emerald-600 hover:bg-emerald-700 shadow-md" 
+          <Button
+            className="w-full h-12 text-base bg-emerald-600 hover:bg-emerald-700 shadow-md"
             onClick={() => { setIsSuccess(false); setActiveTab("status") }}
           >
             ไปหน้าเช็คสถานะ
           </Button>
-          <Button 
+          <Button
             variant="ghost"
-            className="w-full h-12 text-slate-500 hover:bg-slate-50" 
+            className="w-full h-12 text-slate-500 hover:bg-slate-50"
             onClick={() => {
               setIsSuccess(false)
-              setServiceName(""); setDeviceModel(""); setDeviceColor(""); setIssue(""); setCustomerName(""); setPhone("")
+              setServiceName(""); setServiceCategory(""); setDeviceModel(""); setDeviceColor(""); setIssue(""); setCustomerName(""); setPhone("")
             }}
           >
             แจ้งซ่อมเครื่องอื่นเพิ่มเติม
@@ -140,7 +145,7 @@ export function CustomerBookingForm({
   return (
     <div className="mx-auto w-full max-w-md space-y-0 drop-shadow-2xl">
       <div className="bg-white px-6 pt-8 pb-4 rounded-t-[1.5rem] border-b border-slate-100 flex flex-col items-center text-center relative z-10">
-        
+
         <Avatar className="h-16 w-16 border-[3px] border-white shadow-md mb-3 bg-white">
           {displayShopLogo ? (
             <AvatarImage src={displayShopLogo} className="object-cover bg-white" />
@@ -151,14 +156,14 @@ export function CustomerBookingForm({
           )}
         </Avatar>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{displayShopName}</h1>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-5">
           <TabsList className="grid w-full grid-cols-2 bg-slate-100/80 p-1.5 rounded-xl h-14 border border-slate-200/50">
             <TabsTrigger value="booking" className="rounded-lg text-sm font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all flex items-center justify-center gap-2 h-full">
-              <PenLine className="w-4 h-4"/> แจ้งซ่อม
+              <PenLine className="w-4 h-4" /> แจ้งซ่อม
             </TabsTrigger>
             <TabsTrigger value="status" className="rounded-lg text-sm font-bold data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all flex items-center justify-center gap-2 h-full">
-              <Search className="w-4 h-4"/> เช็คสถานะ
+              <Search className="w-4 h-4" /> เช็คสถานะ
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -171,11 +176,27 @@ export function CustomerBookingForm({
               <Label htmlFor="serviceName" className="text-base font-semibold flex items-center gap-2">
                 <PenLine className="h-4 w-4 text-emerald-600" /> 1. บริการที่ต้องการ <span className="text-red-500">*</span>
               </Label>
-              <Input id="serviceName" placeholder="พิมพ์บริการ หรือ อาการหลัก..." value={serviceName} onChange={(e) => setServiceName(e.target.value)} className="border-slate-200 focus-visible:ring-emerald-500 bg-slate-50" />
+              {/* 🌟 ดักการพิมพ์ Manual ถ้าพิมพ์เองให้ลบ Category ทิ้ง (เซ็ตเป็นค่าว่าง) */}
+              <Input
+                id="serviceName"
+                placeholder="พิมพ์บริการ หรือ อาการหลัก..."
+                value={serviceName}
+                onChange={(e) => {
+                  setServiceName(e.target.value);
+                  setServiceCategory("");
+                }}
+                className="border-slate-200 focus-visible:ring-emerald-500 bg-slate-50"
+              />
               <div className="flex flex-wrap gap-2 pt-1">
+                {/* 🌟 แสดงผล Chip ตามข้อมูลใน Master Data แบบใหม่ */}
                 {COMMON_SERVICES.map((service) => (
-                  <button key={service} type="button" onClick={() => handleChipClick(service)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${ serviceName === service ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"}`}>
-                    {service}
+                  <button
+                    key={service.label}
+                    type="button"
+                    onClick={() => handleChipClick(service)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${serviceName === service.label ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700"}`}
+                  >
+                    {service.label}
                   </button>
                 ))}
               </div>

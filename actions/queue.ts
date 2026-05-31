@@ -25,6 +25,7 @@ const createQueueSchema = z.object({
   deviceColor: z.string().trim().max(50, "ระบุสีสั้นๆ พอครับ").optional().or(z.literal("")),
   issue: z.string().trim().max(500, "รายละเอียดต้องไม่เกิน 500 ตัวอักษร").optional().or(z.literal("")),
   serviceName: z.string().trim().min(1, "กรุณาเลือกบริการ").max(100, "ชื่อบริการยาวเกินไป"),
+  serviceCategory: z.string().optional().or(z.literal("")),
 
   serialNumber: z.string().trim().max(100, "Serial Number ยาวเกินไป").optional().or(z.literal("")),
   imei: z.string().trim().max(50, "IMEI ยาวเกินไป").optional().or(z.literal("")),
@@ -95,6 +96,7 @@ export async function createQueue(input: CreateQueueInput) {
         imei: safeData.imei || null,
         issue: safeData.issue || null,
         serviceName: safeData.serviceName,
+        serviceCategory: safeData.serviceCategory || null,
         isManualEntry: safeData.isManualEntry,
         status: "PENDING",
       },
