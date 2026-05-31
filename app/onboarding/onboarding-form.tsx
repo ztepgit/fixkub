@@ -208,7 +208,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
                 {isSubmittingShop ? (
                   <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> กำลังสร้างร้านค้า...</>
                 ) : plan === "free" ? (
-                  <>เริ่มทดลองใช้งานฟรี 14 วัน <ArrowRight className="ml-2 h-5 w-5" /></>
+                  <>เริ่มทดลองใช้งานฟรี 14 วัน<ArrowRight className="ml-2 h-5 w-5" /></>
                 ) : (
                   <>สร้างร้านค้าและไปหน้าชำระเงิน <ArrowRight className="ml-2 h-5 w-5" /></>
                 )}

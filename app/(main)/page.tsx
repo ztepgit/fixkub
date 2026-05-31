@@ -24,7 +24,7 @@ import { checkUserHasShop, getUserShops } from "@/actions/shop"
 import { createDemoShopAction } from "@/actions/demo"
 import { useShopStore } from "@/store/useShopStore"
 import Autoplay from "embla-carousel-autoplay" // 🌟 เพิ่มบรรทัดนี้เพื่อทำ Auto Slide
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,CarouselDots } from "@/components/ui/carousel"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselDots } from "@/components/ui/carousel"
 import { getCarouselItems } from "@/actions/carousel"
 import { Footer } from "@/components/footer"
 
@@ -261,7 +261,7 @@ export default function LandingPage() {
             {!isLoggedIn ? (
               <Link href="/login">
                 <Button variant="outline" className="hidden md:inline-flex border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                  เข้าสู่ระบบร้านค้า
+                  เข้าสู่ระบบ
                 </Button>
               </Link>
             ) : (
@@ -503,7 +503,7 @@ export default function LandingPage() {
 
       </main>
 
-     <Footer />
+      <Footer />
 
       <Dialog open={showLoginPopup} onOpenChange={setShowLoginPopup}>
         <DialogContent className="sm:max-w-md">
@@ -516,14 +516,18 @@ export default function LandingPage() {
               ระบบต้องการให้ท่านเข้าสู่ระบบก่อนทำรายการ
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            <Button type="button" variant="outline" onClick={() => setShowLoginPopup(false)} className="w-full">
-              ยกเลิก
-            </Button>
+
+          {/* 🌟 แก้ไข CSS ของ DialogFooter ตรงนี้ */}
+          <DialogFooter className="flex flex-col gap-2 mt-4 sm:flex-col sm:space-x-0">
             <Button type="button" onClick={handleContinueToLogin} className="w-full bg-blue-600 hover:bg-blue-700">
               ไปหน้าเข้าสู่ระบบ
             </Button>
+            <Button type="button" variant="outline" onClick={() => setShowLoginPopup(false)} className="w-full">
+              ยกเลิก
+            </Button>
           </DialogFooter>
+          {/* 🌟 จบการแก้ไข */}
+
         </DialogContent>
       </Dialog>
 
