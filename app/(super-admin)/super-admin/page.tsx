@@ -1,3 +1,5 @@
+//app/(super-admin)/super-admin/page.tsx
+
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -325,7 +327,7 @@ export default function SuperAdminCreateShopPage() {
                               variant="secondary"
                               onClick={handleCheckSlug}
                               disabled={isCheckingSlug || !watchSlug || watchSlug.length < 3}
-                              className="shrink-0"
+                              className="shrink-0 hover:bg-slate-200"
                             >
                               {isCheckingSlug ? <Loader2 className="h-4 w-4 animate-spin" /> : "ตรวจสอบ"}
                             </Button>
@@ -335,11 +337,6 @@ export default function SuperAdminCreateShopPage() {
                         {slugStatus === "available" && (
                           <p className="text-sm font-medium text-emerald-600 flex items-center mt-1.5">
                             <CheckCircle2 className="h-4 w-4 mr-1.5" /> URL นี้ว่าง สามารถใช้งานได้!
-                          </p>
-                        )}
-                        {slugStatus === "taken" && (
-                          <p className="text-sm font-medium text-rose-500 flex items-center mt-1.5">
-                            <XCircle className="h-4 w-4 mr-1.5" /> ขออภัย URL นี้มีผู้ใช้งานแล้ว
                           </p>
                         )}
                         <FormMessage />
