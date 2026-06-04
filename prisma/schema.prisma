@@ -61,6 +61,7 @@ model Shop {
   queues        Queue[]
   payments      PaymentTransaction[]
   subscriptions SubscriptionHistory[]
+  receipts Receipt[] // เพิ่มความสัมพันธ์กลับไปยัง Receipt
 }
 
 // ==========================================
@@ -213,6 +214,8 @@ model PaymentTransaction {
   updatedAt  DateTime  @updatedAt
   approvedAt DateTime?
 
+  receipt       Receipt? // ความสัมพันธ์ 1-1 ไปหาใบเสร็จ
+
   @@index([shopId])
 }
 
@@ -225,6 +228,26 @@ model SystemSetting {
   accountName String? // ชื่อบัญชีรับเงิน
 
   updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 8. RECEIPT
+// ==========================================
+model Receipt {
+  id                   String             @id @default(cuid())
+  paymentTransactionId String             @unique
+  paymentTransaction   PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Restrict)
+  shopId               String
+  shop                 Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  receiptNo            String             @unique
+  amount               Float
+  pdfPath              String
+  issuedAt             DateTime
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([shopId])
+  @@index([receiptNo])
 }
 
 // ==========================================

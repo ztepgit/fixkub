@@ -1,4 +1,4 @@
-//actions/subscription.ts
+// actions/subscription.ts
 "use server"
 
 import { db } from "@/lib/prisma"
@@ -6,6 +6,9 @@ import { addMonths, addYears, isAfter, differenceInDays } from "date-fns"
 import { PlanType } from "@prisma/client"
 import { z } from "zod"
 import { verifyShopAccess } from "@/lib/auth-guard"
+import { createClient } from "@/lib/supabase/server"
+import { generateUniqueReceiptNo } from "@/actions/receipt"
+import { generateReceiptPDF } from "@/lib/receipt-generator"
 
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง)
 const PRICE_TABLE: Record<PlanType, number> = {
@@ -167,12 +170,17 @@ export async function processPaymentSuccess(
       await verifyShopAccess(shopId)
     }
 
-    // 🌟 ป้องกัน Replay Attack
+    // 🌟 ด่านตรวจจับ Payment ซ้ำด้วย transRef (Idempotent Check)
     const existingTransaction = await db.paymentTransaction.findUnique({
-      where: { transRef: transRef }
+      where: { transRef: transRef },
+      include: { receipt: true } // เผื่อเคสดึงข้อมูลใบเสร็จ
     })
 
     if (existingTransaction) {
+      if (existingTransaction.status === "APPROVED") {
+         // ถ้ารายการนี้อนุมัติไปแล้ว (เช่น webhook ชนกับ frontend) ให้ถือว่า Success ไปเลย
+         return { success: true, message: "รายการถูกอนุมัติไปแล้วก่อนหน้านี้" };
+      }
       throw new Error(`สลิปนี้ถูกใช้งานไปแล้วเมื่อ ${existingTransaction.createdAt.toLocaleString("th-TH")} ไม่สามารถนำกลับมาใช้ซ้ำได้`)
     }
 
@@ -195,6 +203,30 @@ export async function processPaymentSuccess(
     const { newExpiresAt, prorateCredit, baseAmount } = calculationResult;
     const now = new Date()
 
+    // 🌟 สร้างเลขใบเสร็จเตรียมไว้
+    const receiptNo = await generateUniqueReceiptNo();
+
+    // 🌟 อัปโหลด PDF ลง Supabase Storage ก่อนรัน Transaction 
+    // (เพราะเราไม่สามารถเรียก Storage API ใน Prisma Transaction ได้อย่างปลอดภัย)
+    const yearMonth = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    const pdfPath = `receipts/${yearMonth}/${receiptNo}.pdf`;
+    
+    const pdfBytes = await generateReceiptPDF({
+      receiptNo,
+      issuedAt: now,
+      shopName: shop.name,
+      plan: planToBuy,
+      amount: amount,
+      subscriptionStartsAt: !isRenewal ? now : shop.subscriptionStartsAt, // ถ้าต่ออายุเอาวันเริ่มเดิม ถ้าอัปเกรดเริ่มวันนี้
+      expiresAt: newExpiresAt
+    });
+
+    const supabase = await createClient();
+    const { error: uploadError } = await supabase.storage.from("receipts").upload(pdfPath, pdfBytes, { contentType: "application/pdf" });
+    
+    if (uploadError) throw new Error("ไม่สามารถบันทึกเอกสารใบเสร็จได้: " + uploadError.message);
+
+    // 🌟 ยิง Transaction Database ม้วนเดียวจบ
     await db.$transaction(async (tx) => {
 
       // 1. อัปเดตร้านค้า (วันหมดอายุใหม่)
@@ -210,7 +242,7 @@ export async function processPaymentSuccess(
         }
       })
 
-      // 2. สร้างประวัติ
+      // 2. สร้างประวัติ (History)
       await tx.subscriptionHistory.create({
         data: {
           shopId: shopId,
@@ -222,7 +254,7 @@ export async function processPaymentSuccess(
         }
       })
 
-      // 3. บิลการเงิน (เก็บบันทึกมูลค่าเครดิตที่ใช้ทบยอดด้วย)
+      // 3. สร้าง PaymentTransaction พร้อม Receipt ซ้อนไปเลย (Nested Create)
       await tx.paymentTransaction.create({
         data: {
           shopId: shopId,
@@ -234,12 +266,22 @@ export async function processPaymentSuccess(
           approvedAt: now,
           isUpgrade: shop.planType !== "FREE_TRIAL" && !isRenewal,
           transRef: transRef,
+          // 🌟 4. สร้างใบเสร็จผูกติดไปพร้อมกันเลย!
+          receipt: {
+            create: {
+               shopId: shopId,
+               receiptNo: receiptNo,
+               amount: amount,
+               pdfPath: pdfPath,
+               issuedAt: now
+            }
+          }
         }
       })
 
     })
 
-    return { success: true, newExpiresAt, prorateCredit }
+    return { success: true, newExpiresAt, receiptNo, prorateCredit }
   } catch (error: any) {
     console.error("Payment Processing Error:", error)
 
