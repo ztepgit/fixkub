@@ -82,6 +82,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
             ค้นหาและดาวน์โหลดใบเสร็จย้อนหลัง
           </CardDescription>
         </div>
+        {/* 🌟 ปุ่มดูประวัติเต็ม (นำไปสู่หน้าแยก) Temporaly Hidden
         <Button 
           variant="link" 
           className="text-sm text-emerald-600 dark:text-emerald-500 p-0 h-auto" 
@@ -89,6 +90,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
         >
           ดูประวัติทั้งหมด
         </Button>
+        */}
       </CardHeader>
       
       <CardContent className="pt-6 space-y-4">
