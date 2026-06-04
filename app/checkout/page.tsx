@@ -1,3 +1,4 @@
+//app/checkout/page.tsx
 "use client"
 
 import { useState, Suspense, useEffect } from "react"
@@ -52,7 +53,7 @@ function CheckoutForm() {
 
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
-    price: 299,
+    price: 299,// เทส1บาท
     priceText: "฿299.00",
     period: "ต่อเดือน",
     features: ["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รายงานรายได้", "หน้าเช็คสถานะสำหรับลูกค้า"]

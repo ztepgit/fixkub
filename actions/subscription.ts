@@ -15,7 +15,7 @@ import { generateReceiptPDF } from "@/lib/receipt-generator"
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง)
 const PRICE_TABLE: Record<PlanType, number> = {
   FREE_TRIAL: 0,
-  BASIC_MONTHLY: 299,
+  BASIC_MONTHLY: 299,//เทส1บาท
   BASIC_YEARLY: 2290,
   PRO_MONTHLY: 399,
   PRO_YEARLY: 3290,
