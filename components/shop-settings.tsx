@@ -26,6 +26,8 @@ import { th } from "date-fns/locale"
 
 import { updateShopSettings, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
+import { ReceiptHistoryCard } from "../components/receip-history-card" // 🌟 เพิ่มการนำเข้า ReceiptHistoryCard มาใช้ในหน้า ShopSettings
+import { getShopPaymentHistory, downloadReceiptPDF } from "@/actions/receipt"
 
 const QRCodeCanvas = dynamic(
   () => import("qrcode.react").then((mod) => mod.QRCodeCanvas),
@@ -617,6 +619,8 @@ export function ShopSettings() {
               )}
             </CardContent>
           </Card>
+          {/* 🌟 5. ประวัติใบเสร็จขนาดกะทัดรัด (NEW Receipt History Card) */}
+          <ReceiptHistoryCard shopId={shop?.id} />
         </div>
 
         <div className="lg:col-span-4 relative hidden md:block">

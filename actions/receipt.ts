@@ -2,7 +2,7 @@
 "use server"
 
 import { db } from "@/lib/prisma"
-import { Prisma } from "@prisma/client" // 🌟 เพิ่ม Import Prisma สำหรับเช็ค Error Code
+import { Prisma } from "@prisma/client"
 import { verifyShopAccess } from "@/lib/auth-guard"
 import { createClient } from "@/lib/supabase/server"
 
@@ -19,10 +19,8 @@ export async function generateAndCreateReceipt(data: {
   const yearMonth = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`; // "202606"
   const prefix = `R-${yearMonth}-`;
 
-  // 🌟 รันลูป Retry สูงสุด 3 ครั้งเมื่อเกิดการชนกันของเลขที่ใบเสร็จ
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      // 1. หาเลขที่ล่าสุดของเดือนนี้
       const lastReceipt = await db.receipt.findFirst({
         where: { receiptNo: { startsWith: prefix } },
         orderBy: { receiptNo: 'desc' },
@@ -36,15 +34,12 @@ export async function generateAndCreateReceipt(data: {
         nextNumber = lastSeq + 1;
       }
 
-      const receiptNo = `${prefix}${nextNumber.toString().padStart(4, '0')}`; // R-202606-0001
+      const receiptNo = `${prefix}${nextNumber.toString().padStart(4, '0')}`; 
       
-      // สร้าง PDF Path ล่วงหน้า
       const yearPath = now.getFullYear().toString();
       const monthPath = (now.getMonth() + 1).toString().padStart(2, '0');
       const pdfPath = `receipts/${yearPath}/${monthPath}/${receiptNo}.pdf`;
 
-      // 2. พยายามสร้าง Receipt Record ทันที
-      // 🚨 หากมี 2 Request ดึงเลขเดียวกันไปใช้ จังหวะที่ Create ตรงนี้จะเกิด Error P2002 ทันที
       const receipt = await db.receipt.create({
         data: {
           receiptNo,
@@ -56,24 +51,19 @@ export async function generateAndCreateReceipt(data: {
         }
       });
 
-      // ถ้าผ่านบรรทัดบนมาได้ แสดงว่าจองเลขสำเร็จและไม่ซ้ำแน่นอน
       return receipt;
 
     } catch (error) {
-      // 3. ดักจับ Error ทะเบียนซ้ำ (Unique Constraint Violation)
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        continue; // 🔄 ชนกับ Request อื่น ให้เริ่มลูปเพื่อรันเลขใหม่
+        continue; 
       }
-
-      // ถ้าเป็น Error อื่นๆ เช่น DB ล่ม ให้โยน Error ออกไป
       throw error;
     }
   }
 
-  // 💥 กรณีที่ลองครบ 3 รอบแล้วยังชนอยู่
   throw new Error("Failed to generate unique receipt number");
 }
 
@@ -86,12 +76,12 @@ export async function getShopPaymentHistory(shopId: string) {
 
     const history = await db.paymentTransaction.findMany({
       where: { shopId },
-      include: { receipt: true }, // 🌟 ดึงข้อมูลใบเสร็จติดมาด้วย
+      include: { receipt: true },
       orderBy: { createdAt: 'desc' }
     });
 
     return { success: true, data: history };
-  } catch (error: any) {
+  } catch (error) {
     return { success: false, error: "ไม่สามารถดึงประวัติการชำระเงินได้" };
   }
 }
@@ -101,10 +91,8 @@ export async function getShopPaymentHistory(shopId: string) {
 // ==========================================
 export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
   try {
-    // 🛡️ ด่านที่ 1: ยืนยันสิทธิ์ว่าเป็นคนในร้านจริงไหม (IDOR Guard)
     await verifyShopAccess(shopId);
 
-    // 🛡️ ด่านที่ 2: ดึงข้อมูลใบเสร็จและตรวจสอบว่าใบเสร็จนี้เป็นของร้านตัวเอง
     const receipt = await db.receipt.findUnique({
       where: { receiptNo }
     });
@@ -113,7 +101,6 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
        return { success: false, error: "ไม่มีสิทธิ์เข้าถึงเอกสารนี้ หรือไม่พบเอกสาร" };
     }
 
-    // 🔗 สร้าง Signed URL อายุ 60 วินาทีให้ลูกค้าดาวน์โหลดจาก Supabase Storage แบบ Private
     const supabase = await createClient();
     const { data, error } = await supabase.storage
       .from('receipts')
@@ -124,7 +111,82 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
     }
 
     return { success: true, url: data.signedUrl };
-  } catch (error: any) {
+  } catch (error) {
     return { success: false, error: "เกิดข้อผิดพลาดในการดึงเอกสาร" };
+  }
+}
+
+// ==========================================
+// 🌟 4. ดึงข้อมูลประวัติใบเสร็จล่าสุด 10 รายการ (สำหรับ Widget)
+// ==========================================
+export async function getLatestReceiptHistory(shopId: string) {
+  try {
+    await verifyShopAccess(shopId);
+
+    // 💡 แก้ไข Type Error: เช็คจากการที่ receipt มี id แทน
+    const history = await db.paymentTransaction.findMany({
+      where: { 
+        shopId, 
+        receipt: { id: { not: undefined } } 
+      },
+      include: { receipt: true },
+      orderBy: { approvedAt: 'desc' },
+      take: 10
+    });
+
+    return { success: true, data: history };
+  } catch (error) {
+    return { success: false, error: "ไม่สามารถดึงประวัติใบเสร็จได้" };
+  }
+}
+
+// ==========================================
+// 🌟 5. ค้นหาใบเสร็จจากเลขที่ หรือวันที่ (จำกัด 10 รายการ)
+// ==========================================
+export async function searchReceiptHistory({
+  shopId,
+  receiptNo,
+  date
+}: {
+  shopId: string;
+  receiptNo?: string;
+  date?: Date;
+}) {
+  try {
+    await verifyShopAccess(shopId);
+
+    let dateFilter = {};
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      dateFilter = {
+        approvedAt: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      };
+    }
+
+    // 💡 แก้ไข Type Error: ส่ง Query ไปฝั่ง Receipt แทนถ้ามีการค้นหาด้วย receiptNo
+    const history = await db.paymentTransaction.findMany({
+      where: {
+        shopId,
+        receipt: receiptNo 
+          ? { receiptNo: { contains: receiptNo, mode: "insensitive" } }
+          : { id: { not: undefined } },
+        ...dateFilter
+      },
+      include: { receipt: true },
+      orderBy: { approvedAt: 'desc' },
+      take: 10
+    });
+
+    return { success: true, data: history };
+  } catch (error) {
+    return { success: false, error: "ไม่สามารถค้นหาใบเสร็จได้" };
   }
 }
