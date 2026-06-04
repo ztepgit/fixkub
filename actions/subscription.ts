@@ -1,3 +1,4 @@
+//actions/subscription.ts
 "use server"
 
 import { db } from "@/lib/prisma"
@@ -24,9 +25,63 @@ const paymentSchema = z.object({
 })
 
 // ==========================================
-// 🌟 ฟังก์ชันคำนวณวันหมดอายุใหม่และเครดิตคงเหลือ (Credit-Based Proration)
+// 🌟 1. ฟังก์ชันคำนวณวันหมดอายุสำหรับการ "ต่ออายุ" (Renewal)
+// ไม่มีการคำนวณ Prorate ทบเวลาจากวันหมดอายุเดิมเสมอ
 // ==========================================
-export async function calculateNewExpiryAndProrate(shopId: string, planToBuy: PlanType) {
+export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType) {
+  const now = new Date();
+
+  const shop = await db.shop.findUnique({
+    where: { id: shopId }
+  });
+
+  if (!shop) throw new Error("ไม่พบร้านค้า");
+
+  const effectiveCurrentExpiry = shop.expiresAt || shop.trialEndsAt;
+  const isTrial = shop.planType === "FREE_TRIAL";
+  
+  // 🌟 THE FIX: ให้ใช้ Effective Expiry (วันหมดอายุเดิม) เป็นฐาน ถัามันยังไม่หมดอายุ
+  // แต่ถ้าหมดอายุไปแล้ว หรือเพิ่งสมัคร ให้เริ่มนับจากวันนี้ (now)
+  let baseDate = (effectiveCurrentExpiry && isAfter(effectiveCurrentExpiry, now)) 
+    ? effectiveCurrentExpiry 
+    : now;
+
+  // 💡 โบนัส 30 วันฟรี สำหรับร้านเปิดใหม่
+  const paidHistoryCount = await db.subscriptionHistory.count({
+    where: { shopId, status: "COMPLETED" }
+  });
+  const isNewUserBonusEligible = paidHistoryCount === 0 && !isTrial && !effectiveCurrentExpiry;
+  if (isNewUserBonusEligible) {
+    baseDate = addMonths(baseDate, 1);
+  }
+
+  let newExpiresAt = baseDate;
+  if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
+    newExpiresAt = addMonths(newExpiresAt, 1); 
+  } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
+    newExpiresAt = addYears(newExpiresAt, 1);  
+  } else if (planToBuy === "LIFETIME") {
+    newExpiresAt = addYears(newExpiresAt, 99); 
+  } else {
+    newExpiresAt = addMonths(newExpiresAt, 1); 
+  }
+
+  const baseAmount = PRICE_TABLE[planToBuy];
+  const finalAmountToPay = baseAmount; 
+
+  return { 
+    newExpiresAt, 
+    prorateCredit: 0, // Renewal ไม่มีการสร้าง Credit
+    baseAmount,
+    finalAmountToPay
+  };
+}
+
+// ==========================================
+// 🌟 2. ฟังก์ชันคำนวณวันหมดอายุและเครดิตสำหรับการ "อัปเกรด/ดาวน์เกรด" (Credit-Based Proration)
+// ตัดยอดเป็นส่วนลด และเริ่มนับใหม่จาก "วันนี้" เสมอ
+// ==========================================
+export async function calculateUpgradeExpiryAndProrate(shopId: string, planToBuy: PlanType) {
   const now = new Date();
 
   const shop = await db.shop.findUnique({
@@ -42,28 +97,22 @@ export async function calculateNewExpiryAndProrate(shopId: string, planToBuy: Pl
   let prorateCredit = 0;
   let baseDate = now; // 🌟 แบบ Prorate เราจะเริ่มนับวันใหม่จาก "วันนี้" เสมอ
 
-  // 💡 ถ้าเป็นช่วงทดลองใช้ฟรี หรือไม่มีวันเหลือ -> ไม่มีการหักเครดิต
-  // แต่ถ้าเป็นลูกค้าที่มีแพ็กเกจจ่ายเงินเดิม และยังมีวันเหลือ -> แปลงวันเป็นเครดิต
   if (hasTimeLeft && !isTrial && effectiveCurrentExpiry) {
     const daysLeft = differenceInDays(effectiveCurrentExpiry, now);
     const currentPlanPrice = PRICE_TABLE[shop.planType];
     
-    // หาว่าแพ็กเกจเดิมหารเฉลี่ยตกวันละกี่บาท (คิดฐาน 30 วัน/เดือน หรือ 365 วัน/ปี)
     let dailyRate = 0;
     if (shop.planType.includes("MONTHLY")) {
       dailyRate = currentPlanPrice / 30;
     } else if (shop.planType.includes("YEARLY")) {
       dailyRate = currentPlanPrice / 365;
     } else if (shop.planType === "LIFETIME") {
-      dailyRate = 0; // Lifetime ทบไม่ได้
+      dailyRate = 0; 
     }
 
-    // มูลค่าเงินคงเหลือที่ตีเป็นส่วนลดได้
     prorateCredit = Math.max(0, parseFloat((daysLeft * dailyRate).toFixed(2)));
   }
 
-  // 💡 Logic โบนัสฟรี 30 วันสำหรับผู้ใช้ใหม่ 
-  // (ถ้าหมดช่วงทดลองแล้วเพิ่งมาซื้อครั้งแรก)
   const paidHistoryCount = await db.subscriptionHistory.count({
     where: { shopId, status: "COMPLETED" }
   });
@@ -72,7 +121,6 @@ export async function calculateNewExpiryAndProrate(shopId: string, planToBuy: Pl
     baseDate = addMonths(baseDate, 1);
   }
 
-  // 💡 คำนวณวันหมดอายุใหม่ เริ่มจาก "วันนี้ (หรือเดือนหน้าถ้าได้โบนัส)"
   let newExpiresAt = baseDate;
   if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
     newExpiresAt = addMonths(newExpiresAt, 1); 
@@ -84,9 +132,8 @@ export async function calculateNewExpiryAndProrate(shopId: string, planToBuy: Pl
     newExpiresAt = addMonths(newExpiresAt, 1); 
   }
 
-  // 💡 ข้อมูลที่จะคืนกลับไป
   const baseAmount = PRICE_TABLE[planToBuy];
-  const finalAmountToPay = Math.max(0, baseAmount - prorateCredit); // ยอดที่ต้องโอนจริง (ไม่ติดลบ)
+  const finalAmountToPay = Math.max(0, baseAmount - prorateCredit); 
 
   return { 
     newExpiresAt, 
@@ -135,8 +182,17 @@ export async function processPaymentSuccess(
 
     if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
 
-    // 🌟 เรียกใช้ฟังก์ชันที่คำนวณแบบ Proration แล้ว
-    const { newExpiresAt, prorateCredit, baseAmount } = await calculateNewExpiryAndProrate(shopId, planToBuy)
+    // 🌟 ตรวจสอบว่าเป็น Renewal หรือ Upgrade/Downgrade
+    const isRenewal = shop.planType === planToBuy && shop.planType !== "FREE_TRIAL";
+    
+    let calculationResult;
+    if (isRenewal) {
+      calculationResult = await calculateRenewalExpiry(shopId, planToBuy);
+    } else {
+      calculationResult = await calculateUpgradeExpiryAndProrate(shopId, planToBuy);
+    }
+
+    const { newExpiresAt, prorateCredit, baseAmount } = calculationResult;
     const now = new Date()
 
     await db.$transaction(async (tx) => {
@@ -148,7 +204,8 @@ export async function processPaymentSuccess(
           isActive: true,            
           planType: planToBuy,
           planStatus: "ACTIVE",
-          subscriptionStartsAt: now, // อัปเดตวันเริ่มบิลใหม่เป็นวันนี้
+          // อัปเดต subscriptionStartsAt เฉพาะตอนที่เปลี่ยนแพ็กเกจ
+          subscriptionStartsAt: !isRenewal ? now : undefined,
           expiresAt: newExpiresAt,
         }
       })
@@ -175,7 +232,7 @@ export async function processPaymentSuccess(
           plan: planToBuy,
           status: "APPROVED",
           approvedAt: now,
-          isUpgrade: shop.planType !== "FREE_TRIAL",
+          isUpgrade: shop.planType !== "FREE_TRIAL" && !isRenewal,
           transRef: transRef,
         }
       })
