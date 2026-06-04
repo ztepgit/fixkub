@@ -7,7 +7,9 @@ import { PlanType } from "@prisma/client"
 import { z } from "zod"
 import { verifyShopAccess } from "@/lib/auth-guard"
 import { createClient } from "@/lib/supabase/server"
-import { generateUniqueReceiptNo } from "@/actions/receipt"
+
+// 🌟 เปลี่ยนจากการดึง generateUniqueReceiptNo เป็น generateAndCreateReceipt 
+import { generateAndCreateReceipt } from "@/actions/receipt"
 import { generateReceiptPDF } from "@/lib/receipt-generator"
 
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง)
@@ -15,9 +17,9 @@ const PRICE_TABLE: Record<PlanType, number> = {
   FREE_TRIAL: 0,
   BASIC_MONTHLY: 299,
   BASIC_YEARLY: 2290,
-  PRO_MONTHLY: 399, // สมมติราคา Pro
-  PRO_YEARLY: 3290, // สมมติราคา Pro
-  LIFETIME: 9900,   // สมมติราคา
+  PRO_MONTHLY: 399,
+  PRO_YEARLY: 3290,
+  LIFETIME: 9900,
 }
 
 const paymentSchema = z.object({
@@ -43,13 +45,10 @@ export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType
   const effectiveCurrentExpiry = shop.expiresAt || shop.trialEndsAt;
   const isTrial = shop.planType === "FREE_TRIAL";
   
-  // 🌟 THE FIX: ให้ใช้ Effective Expiry (วันหมดอายุเดิม) เป็นฐาน ถัามันยังไม่หมดอายุ
-  // แต่ถ้าหมดอายุไปแล้ว หรือเพิ่งสมัคร ให้เริ่มนับจากวันนี้ (now)
   let baseDate = (effectiveCurrentExpiry && isAfter(effectiveCurrentExpiry, now)) 
     ? effectiveCurrentExpiry 
     : now;
 
-  // 💡 โบนัส 30 วันฟรี สำหรับร้านเปิดใหม่
   const paidHistoryCount = await db.subscriptionHistory.count({
     where: { shopId, status: "COMPLETED" }
   });
@@ -74,7 +73,7 @@ export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType
 
   return { 
     newExpiresAt, 
-    prorateCredit: 0, // Renewal ไม่มีการสร้าง Credit
+    prorateCredit: 0,
     baseAmount,
     finalAmountToPay
   };
@@ -98,7 +97,7 @@ export async function calculateUpgradeExpiryAndProrate(shopId: string, planToBuy
   const hasTimeLeft = effectiveCurrentExpiry && isAfter(effectiveCurrentExpiry, now);
 
   let prorateCredit = 0;
-  let baseDate = now; // 🌟 แบบ Prorate เราจะเริ่มนับวันใหม่จาก "วันนี้" เสมอ
+  let baseDate = now;
 
   if (hasTimeLeft && !isTrial && effectiveCurrentExpiry) {
     const daysLeft = differenceInDays(effectiveCurrentExpiry, now);
@@ -173,12 +172,11 @@ export async function processPaymentSuccess(
     // 🌟 ด่านตรวจจับ Payment ซ้ำด้วย transRef (Idempotent Check)
     const existingTransaction = await db.paymentTransaction.findUnique({
       where: { transRef: transRef },
-      include: { receipt: true } // เผื่อเคสดึงข้อมูลใบเสร็จ
+      include: { receipt: true } 
     })
 
     if (existingTransaction) {
       if (existingTransaction.status === "APPROVED") {
-         // ถ้ารายการนี้อนุมัติไปแล้ว (เช่น webhook ชนกับ frontend) ให้ถือว่า Success ไปเลย
          return { success: true, message: "รายการถูกอนุมัติไปแล้วก่อนหน้านี้" };
       }
       throw new Error(`สลิปนี้ถูกใช้งานไปแล้วเมื่อ ${existingTransaction.createdAt.toLocaleString("th-TH")} ไม่สามารถนำกลับมาใช้ซ้ำได้`)
@@ -190,7 +188,6 @@ export async function processPaymentSuccess(
 
     if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
 
-    // 🌟 ตรวจสอบว่าเป็น Renewal หรือ Upgrade/Downgrade
     const isRenewal = shop.planType === planToBuy && shop.planType !== "FREE_TRIAL";
     
     let calculationResult;
@@ -203,46 +200,19 @@ export async function processPaymentSuccess(
     const { newExpiresAt, prorateCredit, baseAmount } = calculationResult;
     const now = new Date()
 
-    // 🌟 สร้างเลขใบเสร็จเตรียมไว้
-    const receiptNo = await generateUniqueReceiptNo();
-
-    // 🌟 อัปโหลด PDF ลง Supabase Storage ก่อนรัน Transaction 
-    // (เพราะเราไม่สามารถเรียก Storage API ใน Prisma Transaction ได้อย่างปลอดภัย)
-    const yearMonth = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-    const pdfPath = `receipts/${yearMonth}/${receiptNo}.pdf`;
-    
-    const pdfBytes = await generateReceiptPDF({
-      receiptNo,
-      issuedAt: now,
-      shopName: shop.name,
-      plan: planToBuy,
-      amount: amount,
-      subscriptionStartsAt: !isRenewal ? now : shop.subscriptionStartsAt, // ถ้าต่ออายุเอาวันเริ่มเดิม ถ้าอัปเกรดเริ่มวันนี้
-      expiresAt: newExpiresAt
-    });
-
-    const supabase = await createClient();
-    const { error: uploadError } = await supabase.storage.from("receipts").upload(pdfPath, pdfBytes, { contentType: "application/pdf" });
-    
-    if (uploadError) throw new Error("ไม่สามารถบันทึกเอกสารใบเสร็จได้: " + uploadError.message);
-
-    // 🌟 ยิง Transaction Database ม้วนเดียวจบ
-    await db.$transaction(async (tx) => {
-
-      // 1. อัปเดตร้านค้า (วันหมดอายุใหม่)
+    // 🌟 1️⃣ ยิง Transaction Database ม้วนแรกจบ (บันทึกอัปเดตร้าน และ PaymentTx)
+    const paymentTx = await db.$transaction(async (tx) => {
       await tx.shop.update({
         where: { id: shopId },
         data: {
           isActive: true,            
           planType: planToBuy,
           planStatus: "ACTIVE",
-          // อัปเดต subscriptionStartsAt เฉพาะตอนที่เปลี่ยนแพ็กเกจ
           subscriptionStartsAt: !isRenewal ? now : undefined,
           expiresAt: newExpiresAt,
         }
       })
 
-      // 2. สร้างประวัติ (History)
       await tx.subscriptionHistory.create({
         data: {
           shopId: shopId,
@@ -254,34 +224,56 @@ export async function processPaymentSuccess(
         }
       })
 
-      // 3. สร้าง PaymentTransaction พร้อม Receipt ซ้อนไปเลย (Nested Create)
-      await tx.paymentTransaction.create({
+      // รีเทิร์นตัว Transaction กลับมาเพื่อเอา ID ไปสร้างใบเสร็จ
+      return await tx.paymentTransaction.create({
         data: {
           shopId: shopId,
-          amount: amount,           // ยอดที่โอนจริง
-          baseAmount: baseAmount,   // ราคาเต็มของแพ็กเกจ
-          prorateCredit: prorateCredit, // เครดิตที่ได้จากวันคงเหลือของแพ็กเก่า
+          amount: amount,
+          baseAmount: baseAmount,
+          prorateCredit: prorateCredit,
           plan: planToBuy,
           status: "APPROVED",
           approvedAt: now,
           isUpgrade: shop.planType !== "FREE_TRIAL" && !isRenewal,
           transRef: transRef,
-          // 🌟 4. สร้างใบเสร็จผูกติดไปพร้อมกันเลย!
-          receipt: {
-            create: {
-               shopId: shopId,
-               receiptNo: receiptNo,
-               amount: amount,
-               pdfPath: pdfPath,
-               issuedAt: now
-            }
-          }
+          // 🚨 เอาระบบ Nested Create (receipt: { create: ... }) ออก เพราะเราจะใช้ Action ที่กัน Race-condition แทน
         }
       })
-
     })
 
-    return { success: true, newExpiresAt, receiptNo, prorateCredit }
+    // 🌟 2️⃣ สร้างใบเสร็จด้วยระบบป้องกัน Race-condition (มี Retry ในตัว)
+    const receipt = await generateAndCreateReceipt({
+      paymentTransactionId: paymentTx.id,
+      shopId: shopId,
+      amount: amount,
+      issuedAt: now
+    });
+
+    // 🌟 3️⃣ สร้าง PDF และอัปโหลดลง Supabase
+    try {
+      const pdfBytes = await generateReceiptPDF({
+        receiptNo: receipt.receiptNo,
+        issuedAt: now,
+        shopName: shop.name,
+        plan: planToBuy,
+        amount: amount,
+        subscriptionStartsAt: !isRenewal ? now : shop.subscriptionStartsAt,
+        expiresAt: newExpiresAt
+      });
+
+      const supabase = await createClient();
+      const { error: uploadError } = await supabase.storage
+        .from("receipts")
+        .upload(receipt.pdfPath, pdfBytes, { contentType: "application/pdf" });
+      
+      if (uploadError) {
+        console.error("Supabase Upload Error:", uploadError.message);
+      }
+    } catch (pdfError) {
+      console.error("Failed to generate or upload receipt PDF:", pdfError);
+    }
+
+    return { success: true, newExpiresAt, receiptNo: receipt.receiptNo, prorateCredit }
   } catch (error: any) {
     console.error("Payment Processing Error:", error)
 
