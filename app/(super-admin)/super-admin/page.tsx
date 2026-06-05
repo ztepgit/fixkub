@@ -81,11 +81,13 @@ export default function SuperAdminCreateShopPage() {
       form.setError("slug", { type: "manual", message: "Slug ต้องมีอย่างน้อย 3 ตัวอักษร" })
       return
     }
+    
 
     setIsCheckingSlug(true)
     setSlugStatus("idle")
 
     const res = await checkSlugAvailability(currentSlug)
+    console.log("CHECK RESULT =", res)
 
     if (res.success) {
       if (res.available) {

@@ -137,10 +137,14 @@ export async function createShopAction(input: CreateShopInput) {
 // ==========================================
 export async function checkSlugAvailability(slug: string) {
   try {
+    console.log("========== CHECK SLUG ==========")
+    console.log("INPUT:", slug)
     const exists = await db.shop.findUnique({
       where: { slug },
       select: { id: true }
     });
+    console.log("FOUND:", exists)
+
     return { success: true, available: !exists };
   } catch (error) {
     console.error("Check Slug Error:", error);

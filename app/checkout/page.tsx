@@ -224,7 +224,7 @@ function CheckoutForm() {
       <div className="container mx-auto max-w-5xl mb-8">
         <Link href={isExpired ? "/paywall" : "/#pricing"}>
           <Button variant="ghost" className="text-slate-500 hover:text-slate-800 -ml-4 font-bold">
-            <ArrowLeft className="h-4 w-4 mr-2" /> {isExpired ? "กลับไปหน้าแจ้งเตือน (Paywall)" : "ยกเลิกและกลับไปเลือกแพ็กเกจ"}
+            <ArrowLeft className="h-4 w-4 mr-2" /> {isExpired ? "กลับไปหน้าแจ้งเตือน (Paywall)" : "ต้องการแพ็กเกจอื่น"}
           </Button>
         </Link>
       </div>

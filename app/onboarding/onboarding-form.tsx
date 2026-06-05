@@ -1,3 +1,4 @@
+//app/onboarding/onboarding-form.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -47,8 +48,9 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
   const watchSlug = form.watch("slug")
 
   useEffect(() => {
-    if (slugStatus !== "idle") setSlugStatus("idle")
-  }, [watchSlug, slugStatus])
+  setSlugStatus("idle")
+  form.clearErrors("slug")
+}, [watchSlug])
 
   useEffect(() => {
     if (watchName && !form.formState.dirtyFields.slug) {
@@ -68,6 +70,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
     setSlugStatus("idle")
 
     const res = await checkSlugAvailability(currentSlug)
+    console.log("CHECK RESULT =", res)
     
     if (res.success) {
       if (res.available) {
