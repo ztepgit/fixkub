@@ -146,23 +146,23 @@ export default function LandingPage() {
   }
 
   const handleGoToDashboard = async () => {
-  if (!userEmail) return;
+    if (!userEmail) return;
 
-  const res = await getUserShops(userEmail);
+    const res = await getUserShops(userEmail);
 
-  if (res.success) {
-    setShopSelectAction("dashboard");
-    setUserShops(res.shops || []);
-    setSelectedShopId(res.shops?.[0]?.id || "new_shop");
-    setShowShopSelectPopup(true);
+    if (res.success) {
+      setShopSelectAction("dashboard");
+      setUserShops(res.shops || []);
+      setSelectedShopId(res.shops?.[0]?.id || "new_shop");
+      setShowShopSelectPopup(true);
+    }
   }
-}
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
     setUserEmail(null)
-    
+
     router.refresh()
   }
 
@@ -416,7 +416,7 @@ export default function LandingPage() {
                   <h3 className="text-2xl font-bold text-slate-900">รายเดือน</h3>
                   <p className="text-slate-500 mt-2">เหมาะสำหรับร้านเปิดใหม่</p>
                   <div className="my-6 flex items-baseline gap-2">
-                    {/* เทส1บาท */ }
+                    {/* เทส1บาท */}
                     <span className="text-4xl font-extrabold text-slate-900">฿1</span>
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
@@ -533,8 +533,8 @@ export default function LandingPage() {
                 </div>
               ))}
 
-              {/* 🌟 อนุญาตให้โชว์ปุ่มสร้างร้านใหม่ ถ้าไม่ได้เป็นพนักงานล้วน 100% */}
-              {shopSelectAction === "dashboard" && userShops.some(s => s.role === "OWNER") && (
+              {/* 🌟 อนุญาตให้โชว์ปุ่มสร้างร้านใหม่ ถ้าเพิ่งสมัครใช้งาน (0 ร้าน) หรือ มีสิทธิ์เป็นเจ้าของร้านอย่างน้อย 1 ร้าน (OWNER) */}
+              {shopSelectAction === "dashboard" && (userShops.length === 0 || userShops.some(s => s.role === "OWNER")) && (
                 <div>
                   <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
                   <Label
