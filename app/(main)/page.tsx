@@ -146,17 +146,23 @@ export default function LandingPage() {
   }
 
   const handleGoToDashboard = async () => {
-    if (!userEmail) return;
+  if (!userEmail) return;
 
-    const res = await getUserShops(userEmail);
+  const res = await getUserShops(userEmail);
 
-    if (res.success) {
-      setShopSelectAction("dashboard");
-      setUserShops(res.shops || []);
-      setSelectedShopId(res.shops?.[0]?.id || "new_shop");
-      setShowShopSelectPopup(true);
-    }
+  if (res.success) {
+    setShopSelectAction("dashboard");
+    setUserShops(res.shops || []);
+    setSelectedShopId(res.shops?.[0]?.id || "new_shop");
+    setShowShopSelectPopup(true);
+  } else {
+    toast({
+      title: "เกิดข้อผิดพลาด",
+      description: "ไม่สามารถดึงข้อมูลร้านค้าได้ กรุณาลองใหม่อีกครั้ง",
+      variant: "destructive",
+    });
   }
+}
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -504,8 +510,8 @@ export default function LandingPage() {
             </DialogTitle>
             <DialogDescription>
               {shopSelectAction === "dashboard"
-                ? "ระบบพบว่าท่านมีร้านค้าหลายสาขา กรุณาเลือกร้านค้าที่ต้องการเข้าสู่หน้าจัดการ"
-                : `กรุณาเลือกว่าต้องการซื้อแพ็กเกจให้กับร้านใด`
+                ? "กรุณาเลือกร้านค้าที่ต้องการจัดการ หรือเลือกสร้างร้านค้าใหม่"
+                : `กรุณาเลือกร้านค้าที่ต้องการซื้อแพ็กเกจ`
               }
             </DialogDescription>
           </DialogHeader>
