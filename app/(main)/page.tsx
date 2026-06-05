@@ -1,3 +1,4 @@
+//app/(main)/page.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -146,23 +147,23 @@ export default function LandingPage() {
   }
 
   const handleGoToDashboard = async () => {
-  if (!userEmail) return;
+    if (!userEmail) return;
 
-  const res = await getUserShops(userEmail);
+    const res = await getUserShops(userEmail);
 
-  if (res.success) {
-    setShopSelectAction("dashboard");
-    setUserShops(res.shops || []);
-    setSelectedShopId(res.shops?.[0]?.id || "new_shop");
-    setShowShopSelectPopup(true);
-  } else {
-    toast({
-      title: "เกิดข้อผิดพลาด",
-      description: "ไม่สามารถดึงข้อมูลร้านค้าได้ กรุณาลองใหม่อีกครั้ง",
-      variant: "destructive",
-    });
+    if (res.success) {
+      setShopSelectAction("dashboard");
+      setUserShops(res.shops || []);
+      setSelectedShopId(res.shops?.[0]?.id || "new_shop");
+      setShowShopSelectPopup(true);
+    } else {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถดึงข้อมูลร้านค้าได้ กรุณาลองใหม่อีกครั้ง",
+        variant: "destructive",
+      });
+    }
   }
-}
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -539,8 +540,8 @@ export default function LandingPage() {
                 </div>
               ))}
 
-              {/* 🌟 อนุญาตให้โชว์ปุ่มสร้างร้านใหม่ ถ้าเพิ่งสมัครใช้งาน (0 ร้าน) หรือ มีสิทธิ์เป็นเจ้าของร้านอย่างน้อย 1 ร้าน (OWNER) */}
-              {shopSelectAction === "dashboard" && (userShops.length === 0 || userShops.some(s => s.role === "OWNER")) && (
+              {/* 🌟 ถ้า User มีร้านอยู่แล้ว Modal จะขึ้นมาให้เลือกร้านที่ต่ออายุ หรือสร้างร้านใหม่ ถ้ายังไม่มีร้านจะพาไปสร้างชื่อร้านเลย */}
+              {(shopSelectAction === "dashboard" || userShops.some(s => s.role === "OWNER")) && (
                 <div>
                   <RadioGroupItem value="new_shop" id="new_shop" className="peer sr-only" />
                   <Label
