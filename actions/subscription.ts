@@ -12,15 +12,16 @@ import { createClient } from "@/lib/supabase/server"
 import { generateAndCreateReceipt } from "@/actions/receipt"
 import { generateReceiptPDF } from "@/lib/receipt-generator"
 
-// 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง)
+// 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง) เทส1บาท
 const PRICE_TABLE: Record<PlanType, number> = {
   FREE_TRIAL: 0,
-  BASIC_MONTHLY: 299,//เทส1บาท
+  BASIC_MONTHLY: 1,
   BASIC_YEARLY: 2290,
   PRO_MONTHLY: 399,
   PRO_YEARLY: 3290,
   LIFETIME: 9900,
 }
+
 
 const paymentSchema = z.object({
   shopId: z.string().trim().min(1, "ไม่พบรหัสร้านค้า"),

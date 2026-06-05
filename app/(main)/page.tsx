@@ -47,7 +47,7 @@ export default function LandingPage() {
   const [isDemoLoading, setIsDemoLoading] = useState(false)
 
   // 🌟 เพิ่ม flag กันยิงซ้ำ (Context Selection Problem Guard)
-  const [hasRouted, setHasRouted] = useState(false)
+
   const [banners, setBanners] = useState<any[]>([])
 
   useEffect(() => {
@@ -70,28 +70,7 @@ export default function LandingPage() {
     }
   }, [])
 
-  // 🌟 useEffect สำหรับ Auto Routing เมื่อเข้าสู่ระบบเสร็จแล้ว
-  useEffect(() => {
-    const handleAutoRouting = async () => {
-      // 🛡️ Guard: ถ้าไม่มีอีเมล, ยังไม่ล็อกอิน, ยิง route ไปแล้ว หรือ กำลังเปิด Modal อยู่ ให้หยุดการทำงานทันที
-      if (!userEmail || !isLoggedIn || hasRouted || showShopSelectPopup) return
 
-      setHasRouted(true)
-
-      const res = await getUserShops(userEmail)
-
-      if (res.success && res.shops && res.shops.length > 0) {
-        // ถ้ามีร้านเดียว พาเข้า Dashboard อัตโนมัติเลย (ไม่ต้องให้เสียเวลากด)
-        if (res.shops.length === 1) {
-          updateShop(res.shops[0])
-          router.push(`/dashboard?shopId=${res.shops[0].id}`)
-        }
-        // ถ้ามีหลายร้าน (หรือเป็น Staff หลายร้าน) ระบบจะไม่ออโต้ ปล่อยให้อยู่หน้า Landing Page ตามปกติ
-      }
-    }
-
-    handleAutoRouting()
-  }, [userEmail, isLoggedIn, hasRouted, showShopSelectPopup, router, updateShop])
 
   // 🌟 ฟังก์ชันการเลือกแพ็กเกจ
   const handleSelectPlan = async (plan: string) => {
@@ -197,7 +176,7 @@ export default function LandingPage() {
     await supabase.auth.signOut()
     setIsLoggedIn(false)
     setUserEmail(null)
-    setHasRouted(false) // 🌟 เคลียร์ flag เพื่อให้ล็อกอินรอบหน้า Auto-route ทำงานได้อีก
+    
     router.refresh()
   }
 
@@ -451,7 +430,8 @@ export default function LandingPage() {
                   <h3 className="text-2xl font-bold text-slate-900">รายเดือน</h3>
                   <p className="text-slate-500 mt-2">เหมาะสำหรับร้านเปิดใหม่</p>
                   <div className="my-6 flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900">฿299</span>
+                    {/* เทส1บาท */ }
+                    <span className="text-4xl font-extrabold text-slate-900">฿1</span>
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
                   <ul className="space-y-3 mb-8">

@@ -51,10 +51,11 @@ function CheckoutForm() {
   // 🌟 State สำหรับเช็คว่าร้านนี้มาจากหน้า Paywall (โดนระงับ) หรือไม่
   const [isExpired, setIsExpired] = useState(false)
 
+   {/* เทส1บาท */ }
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
-    price: 299,// เทส1บาท
-    priceText: "฿299.00",
+    price: 1,
+    priceText: "฿1.00",
     period: "ต่อเดือน",
     features: ["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รายงานรายได้", "หน้าเช็คสถานะสำหรับลูกค้า"]
   } : {
