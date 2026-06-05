@@ -146,31 +146,17 @@ export default function LandingPage() {
   }
 
   const handleGoToDashboard = async () => {
-    if (!userEmail) return;
+  if (!userEmail) return;
 
-    const res = await getUserShops(userEmail);
+  const res = await getUserShops(userEmail);
 
-    if (res.success && res.shops && res.shops.length > 0) {
-      if (res.shops.length > 1) {
-        setShopSelectAction("dashboard");
-        setUserShops(res.shops);
-        setSelectedShopId(res.shops[0].id);
-        setShowShopSelectPopup(true);
-      }
-      else {
-        updateShop(res.shops[0]);
-        router.push(`/dashboard?shopId=${res.shops[0].id}`);
-      }
-
-    } else {
-      toast({
-        title: "คุณยังไม่มีร้านค้า",
-        description: "กรุณาเลือกแพ็กเกจเพื่อเปิดร้านค้าก่อนเข้าใช้งานระบบ",
-        variant: "destructive",
-      });
-      document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
-    }
+  if (res.success) {
+    setShopSelectAction("dashboard");
+    setUserShops(res.shops || []);
+    setSelectedShopId(res.shops?.[0]?.id || "new_shop");
+    setShowShopSelectPopup(true);
   }
+}
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
