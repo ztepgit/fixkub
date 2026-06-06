@@ -50,6 +50,8 @@ export default function LandingPage() {
   // 🌟 เพิ่ม flag กันยิงซ้ำ (Context Selection Problem Guard)
 
   const [banners, setBanners] = useState<any[]>([])
+  const [showPendingPaymentModal, setShowPendingPaymentModal] = useState(false)
+  const [pendingPaymentShopId, setPendingPaymentShopId] = useState<string | null>(null)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -130,7 +132,16 @@ export default function LandingPage() {
       if (selectedShopId === "new_shop") {
         router.push(`/onboarding`)
       } else {
-        const selectedShop = userShops.find(s => String(s.id) === String(selectedShopId))
+        const selectedShop = userShops.find(
+          s => String(s.id) === String(selectedShopId)
+        )
+
+        if (selectedShop?.planType === "PENDING_PAYMENT") {
+          setPendingPaymentShopId(selectedShop.id)
+          setShowPendingPaymentModal(true)
+          return
+        }
+
         if (selectedShop) {
           updateShop(selectedShop)
           router.push(`/dashboard?shopId=${selectedShop.id}`)
@@ -143,6 +154,7 @@ export default function LandingPage() {
         router.push(`/checkout?shopId=${selectedShopId}&plan=${selectedPlan}`)
       }
     }
+
     setShowShopSelectPopup(false)
   }
 
@@ -569,6 +581,71 @@ export default function LandingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+     <Dialog
+  open={showPendingPaymentModal}
+  onOpenChange={setShowPendingPaymentModal}
+>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle className="text-xl text-center">
+        เข้าสู่กระดานจัดการร้านค้าไม่ได้
+      </DialogTitle>
+      
+      {/* 🌟 A11y: แนะนำให้มี DialogDescription ไว้สำหรับ Screen Reader ควรอ่านสรุปสั้นๆ (ซ่อนไว้ด้วย sr-only ได้ถ้าไม่ต้องการให้แสดงซ้ำ) */}
+      <DialogDescription className="sr-only">
+        คุณจำเป็นต้องเลือกแพ็กเกจหรือเริ่มทดลองใช้ฟรีก่อนเข้าสู่กระดานจัดการร้านค้า
+      </DialogDescription>
+    </DialogHeader>
+
+    {/* 🌟 ย้ายเนื้อหาหลักออกมาอยู่ใน <div> ธรรมดา เพื่อแก้ปัญหาการซ้อนแท็ก <p> ผิดปกติ */}
+    <div className="text-center space-y-3 py-2 text-sm text-slate-600">
+      <p>
+        คุณยังเข้าสู่ <strong>"กระดานจัดการร้านค้า"</strong> ไม่ได้
+      </p>
+
+      <p>
+        โปรดกดปุ่ม <strong>"ทดลองใช้ฟรี 14 วัน"</strong>{" "}
+        หรือเลือกชำระเงินทันที เพื่อรับสิทธิ์
+        <strong> ฟรีเพิ่มอีก 30 วัน </strong>
+        สำหรับลูกค้าใหม่
+      </p>
+
+      {/* 🌟 A11y: ใส่ role="alert" และ aria-live="polite" เพื่อให้ Screen Reader ประกาศเตือนอัตโนมัติ */}
+      <div 
+        role="alert" 
+        aria-live="polite"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-800"
+      >
+        <strong>คำเตือน: </strong>
+        หากกดปุ่ม "<strong>ทดลองใช้ฟรี 14 วัน</strong>"
+        จะไม่ได้รับวันแถม 30 วัน
+        คุณสามารถชำระเงินทันที เพื่อรับวันใช้งานฟรี 30 วัน
+      </div>
+    </div>
+
+    <DialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
+      <Button
+        className="w-full bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-500"
+        onClick={() => {
+          setShowPendingPaymentModal(false)
+          setShowShopSelectPopup(false)
+          router.push("/#pricing")
+        }}
+      >
+        ชำระเงินทันที
+      </Button>
+
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => setShowPendingPaymentModal(false)}
+      >
+        ยกเลิก
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
     </div>
   )

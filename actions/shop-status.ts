@@ -1,3 +1,4 @@
+// actions/shop-status.ts
 "use server"
 
 import { db } from "@/lib/prisma"
@@ -22,6 +23,13 @@ export async function checkAndEnforceShopStatus(shopId: string) {
     })
 
     if (!shop) return { status: "NOT_FOUND" }
+    if (shop.planType === "PENDING_PAYMENT") {
+      return {
+        status: "PENDING_PAYMENT",
+        expiresAt: null,
+        daysLeftToPurge: null
+      }
+    }
 
     // 🌟 1. ดึงวันที่สิ้นสุดที่แท้จริงออกมา (ให้ความสำคัญกับ expiresAt ก่อน ถ้าเป็น Null ค่อยดู trialEndsAt)
     const effectiveExpiryDate = shop.expiresAt || shop.trialEndsAt;

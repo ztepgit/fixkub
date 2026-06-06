@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -95,7 +96,13 @@ export default function MainPage() {
           setExpiresAt(res.expiresAt)
         }
 
-        // 🌟 ตรวจสอบแบบเด็ดขาด: ถ้าสถานะที่ได้กลับมาคือหมดอายุ ให้เด้ง Paywall ทันที!
+        // 🌟 ร้านยังไม่ได้เลือกแพ็กเกจ
+        if (res.status === "PENDING_PAYMENT") {
+          router.push("/paywall?mode=pending-payment")
+          return
+        }
+
+        // 🌟 หมดอายุ / รอการลบ / เกิดข้อผิดพลาด
         if (
           res.status === "EXPIRED" ||
           res.status === "PENDING_DELETION" ||
