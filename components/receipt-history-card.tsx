@@ -1,4 +1,5 @@
-// 🌟 นำเข้าข้อมูลและไลบรารีที่จำเป็น (เพิ่มไว้ที่หัวไฟล์ shop-settings.tsx)
+//components/receipt-history-card.tsx
+"use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
@@ -25,6 +26,8 @@ type ReceiptHistoryItem = PaymentTransaction & {
 
 // 🌟 Component สำหรับแสดงประวัติใบเสร็จขนาดกะทัดรัด
 export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
+  console.log("ReceiptHistoryCard render")
+  console.log("shopId =", shopId)
   const { toast } = useToast();
   const router = useRouter();
   
@@ -52,6 +55,8 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
     enabled: !!shopId,
     staleTime: 5 * 60 * 1000,
   });
+  console.log("displayData =", displayData)
+  console.log("displayData length =", displayData.length)
 
   const handleDownload = async (receiptNo: string) => {
     if (!shopId) return;

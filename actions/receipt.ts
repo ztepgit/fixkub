@@ -34,8 +34,8 @@ export async function generateAndCreateReceipt(data: {
         nextNumber = lastSeq + 1;
       }
 
-      const receiptNo = `${prefix}${nextNumber.toString().padStart(4, '0')}`; 
-      
+      const receiptNo = `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+
       const yearPath = now.getFullYear().toString();
       const monthPath = (now.getMonth() + 1).toString().padStart(2, '0');
       const pdfPath = `receipts/${yearPath}/${monthPath}/${receiptNo}.pdf`;
@@ -58,7 +58,7 @@ export async function generateAndCreateReceipt(data: {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        continue; 
+        continue;
       }
       throw error;
     }
@@ -80,6 +80,8 @@ export async function getShopPaymentHistory(shopId: string) {
       orderBy: { createdAt: 'desc' }
     });
 
+    console.log("history length =", history.length)
+
     return { success: true, data: history };
   } catch (error) {
     return { success: false, error: "ไม่สามารถดึงประวัติการชำระเงินได้" };
@@ -98,7 +100,7 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
     });
 
     if (!receipt || receipt.shopId !== shopId) {
-       return { success: false, error: "ไม่มีสิทธิ์เข้าถึงเอกสารนี้ หรือไม่พบเอกสาร" };
+      return { success: false, error: "ไม่มีสิทธิ์เข้าถึงเอกสารนี้ หรือไม่พบเอกสาร" };
     }
 
     const supabase = await createClient();
@@ -107,7 +109,7 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
       .createSignedUrl(receipt.pdfPath, 60);
 
     if (error || !data) {
-       return { success: false, error: "ระบบเอกสารขัดข้อง กรุณาลองใหม่" };
+      return { success: false, error: "ระบบเอกสารขัดข้อง กรุณาลองใหม่" };
     }
 
     return { success: true, url: data.signedUrl };
@@ -120,19 +122,22 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
 // 🌟 4. ดึงข้อมูลประวัติใบเสร็จล่าสุด 10 รายการ (สำหรับ Widget)
 // ==========================================
 export async function getLatestReceiptHistory(shopId: string) {
+  console.log("getLatestReceiptHistory", shopId)
   try {
     await verifyShopAccess(shopId);
 
     // 💡 แก้ไข Type Error: เช็คจากการที่ receipt มี id แทน
     const history = await db.paymentTransaction.findMany({
-      where: { 
-        shopId, 
-        receipt: { id: { not: undefined } } 
+      where: {
+        shopId,
+        receipt: { id: { not: undefined } }
       },
       include: { receipt: true },
       orderBy: { approvedAt: 'desc' },
       take: 10
     });
+    console.log("history =", history)
+    console.log("history length =", history.length)
 
     return { success: true, data: history };
   } catch (error) {
@@ -159,10 +164,10 @@ export async function searchReceiptHistory({
     if (date) {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
-      
+
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
-      
+
       dateFilter = {
         approvedAt: {
           gte: startOfDay,
@@ -175,7 +180,7 @@ export async function searchReceiptHistory({
     const history = await db.paymentTransaction.findMany({
       where: {
         shopId,
-        receipt: receiptNo 
+        receipt: receiptNo
           ? { receiptNo: { contains: receiptNo, mode: "insensitive" } }
           : { id: { not: undefined } },
         ...dateFilter
@@ -184,6 +189,8 @@ export async function searchReceiptHistory({
       orderBy: { approvedAt: 'desc' },
       take: 10
     });
+
+    console.log("history length =", history.length)
 
     return { success: true, data: history };
   } catch (error) {

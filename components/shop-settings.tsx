@@ -26,7 +26,7 @@ import { th } from "date-fns/locale"
 
 import { updateShopSettings, getShopSettings, getShopStaff, addShopStaff, removeShopStaff } from "@/actions/shop"
 import { useShopStore } from "@/store/useShopStore"
-import { ReceiptHistoryCard } from "../components/receip-history-card" // 🌟 เพิ่มการนำเข้า ReceiptHistoryCard มาใช้ในหน้า ShopSettings
+import { ReceiptHistoryCard } from "./receipt-history-card" // 🌟 เพิ่มการนำเข้า ReceiptHistoryCard มาใช้ในหน้า ShopSettings
 import { getShopPaymentHistory, downloadReceiptPDF } from "@/actions/receipt"
 
 const QRCodeCanvas = dynamic(
