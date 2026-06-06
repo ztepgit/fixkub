@@ -8,20 +8,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy, Store, Globe } from "lucide-react"
+import { CheckCircle2, QrCode, ArrowLeft, UploadCloud, Send, ShieldCheck, HelpCircle, FileImage, X, Loader2, Copy, Store, Globe, CircleAlert } from "lucide-react"
 
-// 🌟 Import Library สำหรับสร้าง QR Code 
+// 🌟 Import UI สำหรับทำ Modal (Dialog)
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+
 import generatePayload from "promptpay-qr"
 import { QRCodeCanvas } from "qrcode.react"
 
-// 🌟 Import Actions
 import { getSystemSettings } from "@/actions/setting"
 import { getShopById } from "@/actions/shop"
 import { processPaymentSuccess } from "@/actions/subscription"
-import { checkAndEnforceShopStatus } from "@/actions/shop-status" // 🌟 เพิ่ม Import นี้
+import { checkAndEnforceShopStatus } from "@/actions/shop-status"
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
@@ -39,19 +39,19 @@ function CheckoutForm() {
 
   const [slipFile, setSlipFile] = useState<File | null>(null)
 
-  // 🌟 State สำหรับเก็บข้อมูลพร้อมเพย์
   const [promptpayId, setPromptpayId] = useState("")
   const [accountName, setAccountName] = useState("")
   const [isLoadingPaymentInfo, setIsLoadingPaymentInfo] = useState(true)
 
-  // 🌟 State สำหรับเก็บข้อมูลร้านค้าที่กำลังชำระเงิน
   const [shopInfo, setShopInfo] = useState<{ name: string, url: string } | null>(null)
   const [isLoadingShop, setIsLoadingShop] = useState(true)
 
-  // 🌟 State สำหรับเช็คว่าร้านนี้มาจากหน้า Paywall (โดนระงับ) หรือไม่
   const [isExpired, setIsExpired] = useState(false)
 
-   {/* เทส1บาท */ }
+  // 🌟 เพิ่ม State สำหรับคุม Modal แจ้งเตือนข้อผิดพลาดจาก SlipOK
+  const [errorModalOpen, setErrorModalOpen] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
     price: 1,
@@ -66,7 +66,6 @@ function CheckoutForm() {
     features: ["ทุกอย่างในแพ็กเกจรายเดือน", "ประหยัดกว่าถึง 36%", "ซัพพอร์ตด่วน (Priority)", "เพิ่มสิทธิ์ Lucky Draw"]
   }
 
-  // 🌟 ดักทาง: ถ้าไม่มี shopId ให้เตะกลับไปหน้าแรก
   useEffect(() => {
     if (!shopId) {
       toast({ title: "ไม่พบข้อมูลร้านค้า", description: "กรุณาทำรายการตามขั้นตอน", variant: "destructive" })
@@ -74,10 +73,8 @@ function CheckoutForm() {
     }
   }, [shopId, router, toast])
 
-  // 🌟 ดึงข้อมูลพร้อมเพย์ ข้อมูลร้านค้า และเช็คสถานะการหมดอายุ
   useEffect(() => {
     const fetchInitialData = async () => {
-      // 1. ดึงข้อมูลระบบ (PromptPay)
       const sysRes = await getSystemSettings()
       if (sysRes.success && sysRes.data) {
         setPromptpayId(sysRes.data.promptpayId || "")
@@ -85,7 +82,6 @@ function CheckoutForm() {
       }
       setIsLoadingPaymentInfo(false)
 
-      // 2. ดึงข้อมูลร้านค้าจาก shopId
       if (shopId) {
         try {
           const shopRes = await getShopById(shopId)
@@ -96,7 +92,6 @@ function CheckoutForm() {
             })
           }
 
-          // 🌟 3. เช็คสถานะว่าหมดอายุอยู่หรือไม่ เพื่อนำไปคุมปุ่ม "ยกเลิก"
           const statusRes = await checkAndEnforceShopStatus(shopId)
           if (statusRes.status === "EXPIRED" || statusRes.status === "PENDING_DELETION") {
             setIsExpired(true)
@@ -172,7 +167,6 @@ function CheckoutForm() {
 
         const planEnum = plan === "monthly" ? "BASIC_MONTHLY" : "BASIC_YEARLY"
 
-        // 🌟 แก้ไขบรรทัดนี้: เพิ่ม result.data.transRef เข้าไปเป็นตัวแปรที่ 4
         const updateRes = await processPaymentSuccess(shopId, planEnum, paidAmount, result.data.transRef)
 
         if (updateRes.success) {
@@ -186,10 +180,14 @@ function CheckoutForm() {
         }
 
       } else {
-        toast({ title: "ตรวจสลิปไม่ผ่าน", description: result.message, variant: "destructive" })
+        // 🌟 เปลี่ยนจาก Toast เป็นการเปิด Modal Center Screen แทนเมื่อตรวจสลิปจาก SlipOK ไม่ผ่าน
+        setErrorMessage(result.message || "ไม่สามารถตรวจสอบสลิปได้")
+        setErrorModalOpen(true)
       }
     } catch (error) {
-      toast({ title: "ระบบขัดข้อง", description: "ไม่สามารถตรวจสอบสลิปได้ในขณะนี้ กรุณาลองใหม่", variant: "destructive" })
+      // 🌟 เปลี่ยนจาก Toast เป็นเปิด Modal กรณีที่ระบบ Network หรือ API ล่ม
+      setErrorMessage("ไม่สามารถตรวจสอบสลิปได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลัง")
+      setErrorModalOpen(true)
     }
 
     setIsSubmitting(false)
@@ -205,7 +203,6 @@ function CheckoutForm() {
         <p className="text-slate-600 mb-8 max-w-md mx-auto">
           ระบบได้รับยอดเงินจำนวน <span className="font-bold text-emerald-600">{packageDetails.priceText}</span> เรียบร้อยแล้ว สิทธิ์การใช้งานถูกเพิ่มเข้าสู่ร้านค้าของคุณแล้ว
         </p>
-        {/* 🌟 บังคับ Refresh หน้าเว็บด้วย window.location เพื่อเคลียร์ Cache สถานะ Paywall */}
         <Button
           onClick={() => window.location.href = "/dashboard"}
           className="bg-emerald-600 hover:bg-emerald-700 h-12 px-8 text-base shadow-md hover:scale-105 transition-all"
@@ -220,7 +217,6 @@ function CheckoutForm() {
 
   return (
     <>
-      {/* 🌟 ดึงปุ่มย้อนกลับมาไว้ข้างใน Component นี้ เพื่อให้เช็ค State isExpired ได้ */}
       <div className="container mx-auto max-w-5xl mb-8">
         <Link href={isExpired ? "/paywall" : "/#pricing"}>
           <Button variant="ghost" className="text-slate-500 hover:text-slate-800 -ml-4 font-bold">
@@ -417,6 +413,34 @@ function CheckoutForm() {
           </form>
         </div>
       </div>
+
+      {/* 🌟 เพิ่ม Modal แจ้งเตือนข้อผิดพลาดกลางหน้าจอ */}
+      <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
+        <DialogContent className="sm:max-w-md border-rose-100">
+          <DialogHeader className="flex flex-col items-center pt-2">
+            <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4">
+              <CircleAlert className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-rose-600 text-center">
+              ตรวจสอบสลิปไม่สำเร็จ
+            </DialogTitle>
+            <DialogDescription className="whitespace-pre-wrap break-words text-base pt-3 text-center text-slate-600">
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-center pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto min-w-[120px]"
+              onClick={() => setErrorModalOpen(false)}
+            >
+              ปิด
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
