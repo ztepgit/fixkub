@@ -14,12 +14,13 @@ import { generateReceiptPDF } from "@/lib/receipt-generator"
 
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง) เทส1บาท
 const PRICE_TABLE: Record<PlanType, number> = {
+  PENDING_PAYMENT: 0,
   FREE_TRIAL: 0,
   BASIC_MONTHLY: 1,
   BASIC_YEARLY: 2290,
   PRO_MONTHLY: 399,
   PRO_YEARLY: 3290,
-  LIFETIME: 9900,
+  LIFETIME: 9900
 }
 
 
@@ -44,36 +45,50 @@ export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType
   if (!shop) throw new Error("ไม่พบร้านค้า");
 
   const effectiveCurrentExpiry = shop.expiresAt || shop.trialEndsAt;
-  const isTrial = shop.planType === "FREE_TRIAL";
-  
-  let baseDate = (effectiveCurrentExpiry && isAfter(effectiveCurrentExpiry, now)) 
-    ? effectiveCurrentExpiry 
+  const hasActiveTrial =
+    shop.planType === "FREE_TRIAL" &&
+    !!shop.trialEndsAt;
+
+  let baseDate = (effectiveCurrentExpiry && isAfter(effectiveCurrentExpiry, now))
+    ? effectiveCurrentExpiry
     : now;
 
-  const paidHistoryCount = await db.subscriptionHistory.count({
-    where: { shopId, status: "COMPLETED" }
-  });
-  const isNewUserBonusEligible = paidHistoryCount === 0 && !isTrial && !effectiveCurrentExpiry;
+  const paidHistoryCount =
+    await db.subscriptionHistory.count({
+      where: {
+        shopId,
+        status: "COMPLETED",
+        amountPaid: {
+          gt: 0
+        }
+      }
+    });
+
+  const isNewUserBonusEligible =
+    paidHistoryCount === 0 &&
+    !shop.hasUsedTrial &&
+    !hasActiveTrial &&
+    !effectiveCurrentExpiry;
   if (isNewUserBonusEligible) {
     baseDate = addMonths(baseDate, 1);
   }
 
   let newExpiresAt = baseDate;
   if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
-    newExpiresAt = addMonths(newExpiresAt, 1); 
+    newExpiresAt = addMonths(newExpiresAt, 1);
   } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
-    newExpiresAt = addYears(newExpiresAt, 1);  
+    newExpiresAt = addYears(newExpiresAt, 1);
   } else if (planToBuy === "LIFETIME") {
-    newExpiresAt = addYears(newExpiresAt, 99); 
+    newExpiresAt = addYears(newExpiresAt, 99);
   } else {
-    newExpiresAt = addMonths(newExpiresAt, 1); 
+    newExpiresAt = addMonths(newExpiresAt, 1);
   }
 
   const baseAmount = PRICE_TABLE[planToBuy];
-  const finalAmountToPay = baseAmount; 
+  const finalAmountToPay = baseAmount;
 
-  return { 
-    newExpiresAt, 
+  return {
+    newExpiresAt,
     prorateCredit: 0,
     baseAmount,
     finalAmountToPay
@@ -94,53 +109,65 @@ export async function calculateUpgradeExpiryAndProrate(shopId: string, planToBuy
   if (!shop) throw new Error("ไม่พบร้านค้า");
 
   const effectiveCurrentExpiry = shop.expiresAt || shop.trialEndsAt;
-  const isTrial = shop.planType === "FREE_TRIAL";
+  const hasActiveTrial =
+    shop.planType === "FREE_TRIAL" &&
+    !!shop.trialEndsAt
   const hasTimeLeft = effectiveCurrentExpiry && isAfter(effectiveCurrentExpiry, now);
 
   let prorateCredit = 0;
   let baseDate = now;
 
-  if (hasTimeLeft && !isTrial && effectiveCurrentExpiry) {
+  if (hasTimeLeft && !hasActiveTrial && effectiveCurrentExpiry) {
     const daysLeft = differenceInDays(effectiveCurrentExpiry, now);
     const currentPlanPrice = PRICE_TABLE[shop.planType];
-    
+
     let dailyRate = 0;
     if (shop.planType.includes("MONTHLY")) {
       dailyRate = currentPlanPrice / 30;
     } else if (shop.planType.includes("YEARLY")) {
       dailyRate = currentPlanPrice / 365;
     } else if (shop.planType === "LIFETIME") {
-      dailyRate = 0; 
+      dailyRate = 0;
     }
 
     prorateCredit = Math.max(0, parseFloat((daysLeft * dailyRate).toFixed(2)));
   }
 
   const paidHistoryCount = await db.subscriptionHistory.count({
-    where: { shopId, status: "COMPLETED" }
-  });
-  const isNewUserBonusEligible = paidHistoryCount === 0 && !isTrial && !effectiveCurrentExpiry;
+    where: {
+      shopId,
+      status: "COMPLETED",
+      amountPaid: {
+        gt: 0
+      }
+    }
+  })
+  const isNewUserBonusEligible =
+    paidHistoryCount === 0 &&
+    !shop.hasUsedTrial &&
+    !hasActiveTrial &&
+    !effectiveCurrentExpiry;
   if (isNewUserBonusEligible) {
     baseDate = addMonths(baseDate, 1);
   }
 
   let newExpiresAt = baseDate;
   if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
-    newExpiresAt = addMonths(newExpiresAt, 1); 
+    newExpiresAt = addMonths(newExpiresAt, 1);
   } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
-    newExpiresAt = addYears(newExpiresAt, 1);  
+    newExpiresAt = addYears(newExpiresAt, 1);
   } else if (planToBuy === "LIFETIME") {
-    newExpiresAt = addYears(newExpiresAt, 99); 
+    newExpiresAt = addYears(newExpiresAt, 99);
   } else {
-    newExpiresAt = addMonths(newExpiresAt, 1); 
+    newExpiresAt = addMonths(newExpiresAt, 1);
   }
 
   const baseAmount = PRICE_TABLE[planToBuy];
-  const finalAmountToPay = Math.max(0, baseAmount - prorateCredit); 
+  const finalAmountToPay = Math.max(0, baseAmount - prorateCredit);
 
-  return { 
-    newExpiresAt, 
-    prorateCredit, 
+  return {
+    newExpiresAt,
+    prorateCredit,
     baseAmount,
     finalAmountToPay
   };
@@ -154,7 +181,7 @@ export async function processPaymentSuccess(
   rawPlanToBuy: string | PlanType,
   rawAmount: number,
   rawTransRef: string,
-  isWebhook: boolean = false 
+  isWebhook: boolean = false,
 ) {
   try {
     const validatedData = paymentSchema.parse({
@@ -173,12 +200,12 @@ export async function processPaymentSuccess(
     // 🌟 ด่านตรวจจับ Payment ซ้ำด้วย transRef (Idempotent Check)
     const existingTransaction = await db.paymentTransaction.findUnique({
       where: { transRef: transRef },
-      include: { receipt: true } 
+      include: { receipt: true }
     })
 
     if (existingTransaction) {
       if (existingTransaction.status === "APPROVED") {
-         return { success: true, message: "รายการถูกอนุมัติไปแล้วก่อนหน้านี้" };
+        return { success: true, message: "รายการถูกอนุมัติไปแล้วก่อนหน้านี้" };
       }
       throw new Error(`สลิปนี้ถูกใช้งานไปแล้วเมื่อ ${existingTransaction.createdAt.toLocaleString("th-TH")} ไม่สามารถนำกลับมาใช้ซ้ำได้`)
     }
@@ -190,7 +217,7 @@ export async function processPaymentSuccess(
     if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
 
     const isRenewal = shop.planType === planToBuy && shop.planType !== "FREE_TRIAL";
-    
+
     let calculationResult;
     if (isRenewal) {
       calculationResult = await calculateRenewalExpiry(shopId, planToBuy);
@@ -206,11 +233,12 @@ export async function processPaymentSuccess(
       await tx.shop.update({
         where: { id: shopId },
         data: {
-          isActive: true,            
+          isActive: true,
           planType: planToBuy,
           planStatus: "ACTIVE",
           subscriptionStartsAt: !isRenewal ? now : undefined,
           expiresAt: newExpiresAt,
+          trialEndsAt: null,
         }
       })
 
@@ -266,7 +294,7 @@ export async function processPaymentSuccess(
       const { error: uploadError } = await supabase.storage
         .from("receipts")
         .upload(receipt.pdfPath, pdfBytes, { contentType: "application/pdf" });
-      
+
       if (uploadError) {
         console.error("Supabase Upload Error:", uploadError.message);
       }

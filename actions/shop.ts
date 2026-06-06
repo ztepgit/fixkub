@@ -60,7 +60,7 @@ export async function registerPublicShop(formData: FormData) {
           slug: data.slug,
           // --- ล็อคค่าสำหรับคนรอจ่ายเงิน ---
           isActive: false,
-          planType: "FREE_TRIAL",
+          planType: "PENDING_PAYMENT",
           trialEndsAt: null,
           expiresAt: null,
           subscriptionStartsAt: null,
@@ -122,12 +122,15 @@ export async function registerFreeTrialShop(formData: FormData) {
         data: {
           name: data.name,
           slug: data.slug,
-          // --- ล็อคค่าสำหรับ Free Trial ---
-          isActive: true,            // เปิดให้ใช้งานทันที
+
+          isActive: true,
           planType: "FREE_TRIAL",
-          trialEndsAt: trialEndsAt,  // เริ่มนับถอยหลัง 14 วัน
+
+          trialEndsAt: trialEndsAt,
           expiresAt: null,
           subscriptionStartsAt: null,
+
+          hasUsedTrial: true,
         }
       })
 

@@ -44,6 +44,8 @@ model Shop {
   trialEndsAt          DateTime? // วันที่หมดช่วงทดลองใช้ฟรี
   subscriptionStartsAt DateTime? // วันที่เริ่มจ่ายเงินรอบล่าสุด (เอาไว้คำนวณ Prorate)
   expiresAt            DateTime? // 🌟 วันหมดอายุของแพ็กเกจ (ใช้ตัวนี้คำนวณทบวัน)
+  
+  hasUsedTrial Boolean @default(false)
 
   isActive Boolean @default(true)
 
@@ -263,6 +265,7 @@ enum CancelReason {
 }
 
 enum PlanType {
+  PENDING_PAYMENT
   FREE_TRIAL
   BASIC_MONTHLY
   BASIC_YEARLY
