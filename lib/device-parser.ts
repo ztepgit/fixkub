@@ -18,7 +18,7 @@ export function parseDeviceModel(input: string): { brand: string | null; normali
     // 🌟 1. Brand Mapping (ตรวจสอบด้วย Canonical Brand Priority)
     // ลำดับมีความสำคัญสูงที่สุด Sub-brand และแบรนด์เฉพาะเจาะจงต้องมาก่อน
     const BRAND_PRIORITY = [
-        { brand: "POCO", keywords: ["poco", "โพโค่", "โพโค", "โปโกะ"] },
+        { brand: "POCO", keywords: ["poco", "โพโค", "โพโค่", "โปโค่", "โปโกะ"] },
         { brand: "IQOO", keywords: ["iqoo", "ไอคู", "ไอคิว", "ไอคิวโอ"] },
         {
             brand: "APPLE", keywords: ["iphone", "ipad", "macbook", "macbook air", "macbook pro", "mac mini", "imac", "apple watch", "airpods", "apple", "ไอโฟน", "ไอแพด", "แมคบุ๊ค", "แม็คบุ๊ค", "แอปเปิ้ล", "ไอแมค", "ไอแม็ค", "แมคมินิ", "แม็คมินิ", "mac mini",
@@ -51,9 +51,9 @@ export function parseDeviceModel(input: string): { brand: string | null; normali
         { brand: "MEIZU", keywords: ["meizu", "เมย์ซู", "เมซู", "เหมยซู่"] },
         { brand: "BLACKVIEW", keywords: ["blackview"] },
         { brand: "DOOGEE", keywords: ["doogee"] },
-        { brand: "OUKITEL", keywords: ["oukitel"] },
+        { brand: "OUKITEL", keywords: ["oukitel", "อูกิเทล", "โอกิเทล"] },
         { brand: "UMIDIGI", keywords: ["umidigi"] },
-        { brand: "ALDOCUBE", keywords: ["alldocube", "aldocube"] },
+        { brand: "ALLDOCUBE", keywords: ["alldocube", "aldocube", "ออลดูคูบ", "ออลดูคูป"] },
         { brand: "CHUWI", keywords: ["chuwi"] }
     ];
 

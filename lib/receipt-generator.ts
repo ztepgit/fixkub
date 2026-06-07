@@ -75,7 +75,7 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
 
   drawLine("เลขที่ใบเสร็จ:", data.receiptNo);
   drawLine("วันที่:", formatDate(data.issuedAt));
-  drawLine("ผู้รับเงิน:", "Peter Lee");
+  drawLine("ผู้รับเงิน:", "จตุรชัย รณเกียรติเมธา");
   drawLine("ผู้ชำระเงิน:", data.shopName);
 
   cursorY -= 20;
@@ -84,7 +84,7 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
   page.drawLine({ start: { x: margin, y: cursorY }, end: { x: width - margin, y: cursorY }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
   cursorY -= 25;
   
-  drawLine("รายการ:", "ค่าบริการระบบ Getfixx");
+  drawLine("รายการ:", "ค่าบริการ ระบบคิวซ่อมมือถือ Getfixx");
   drawLine("แพ็กเกจ:", data.plan.replace('_', ' '));
   drawLine("วันที่เริ่มใช้งาน:", formatDate(data.subscriptionStartsAt));
   drawLine("วันหมดอายุ:", formatDate(data.expiresAt));
