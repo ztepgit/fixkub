@@ -13,6 +13,9 @@ import {
   pdf,
 } from '@react-pdf/renderer';
 
+// 🌟 Import bahttext
+import { bahttext } from 'bahttext';
+
 interface ReceiptData {
   receiptNo: string;
   issuedAt: Date;
@@ -60,8 +63,8 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     position: 'relative',
-    width: 20, // ลดขนาดลง
-    height: 20, // ลดขนาดลง
+    width: 20,
+    height: 20,
   },
   logoShadow: {
     position: 'absolute',
@@ -205,9 +208,20 @@ const styles = StyleSheet.create({
   // --- Summary Section ---
   summaryContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between', // 🌟 ปรับให้ข้อความอยู่สองฝั่ง
     alignItems: 'center',
     marginBottom: 50,
+  },
+  summaryBahtText: {
+    fontSize: 11,
+    color: '#666666', // ใช้สีเทากลางเพื่อให้ไม่แย่งซีนตัวเลขหลัก
+    fontStyle: 'italic',
+    flex: 1,
+    paddingRight: 10,
+  },
+  summaryTotalGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   summaryLabel: {
     fontSize: 12,
@@ -247,26 +261,26 @@ const WrenchIcon = () => {
   const svgPath = "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z";
   return (
     <View
-  style={{
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ECFDF5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }}
->
-  <Svg viewBox="0 0 24 24" width={18} height={18}>
-    <Path
-      d={svgPath}
-      stroke="#059669"
-      strokeWidth={2}
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-</View>
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#ECFDF5',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Svg viewBox="0 0 24 24" width={18} height={18}>
+        <Path
+          d={svgPath}
+          stroke="#059669"
+          strokeWidth={2}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
   );
 };
 
@@ -275,7 +289,7 @@ const ReceiptHeader = () => (
     <View style={styles.logoCompanyGroup}>
       <WrenchIcon />
       <View>
-        <Text style={styles.companyName}>Getfixx</Text>
+        <Text style={styles.companyName}>Getfixx Systems</Text>
         <Text style={styles.companyDetails}>104 ซอยติวานนท์ 38 (18/5) ต.ท่าทราย อ.เมือง จ.นนทบุรี 11000</Text>
         <Text style={styles.companyDetails}>Tax ID: 3102001480460</Text>
       </View>
@@ -338,12 +352,22 @@ const ReceiptTable = ({ data }: { data: ReceiptData }) => {
 
 const ReceiptSummary = ({ amount }: { amount: number }) => {
   const formattedAmount = `THB ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  
+  // 🌟 ใช้ไลบรารีแปลงตัวเลขเป็นตัวอักษรภาษาไทย
+  const amountInWords = `(${bahttext(amount)})`;
+
   return (
     <View>
       <View style={styles.divider} />
       <View style={styles.summaryContainer}>
-        <Text style={styles.summaryLabel}>ยอดรวมสุทธิ (Total)</Text>
-        <Text style={styles.summaryTotal}>{formattedAmount}</Text>
+        {/* 🌟 แสดงคำอ่านภาษาไทยฝั่งซ้าย */}
+        <Text style={styles.summaryBahtText}>{amountInWords}</Text>
+        
+        {/* แสดงสรุปยอดฝั่งขวา */}
+        <View style={styles.summaryTotalGroup}>
+          <Text style={styles.summaryLabel}>จำนวนเงินทั้งสิ้น (Total)</Text>
+          <Text style={styles.summaryTotal}>{formattedAmount}</Text>
+        </View>
       </View>
     </View>
   );
@@ -351,8 +375,8 @@ const ReceiptSummary = ({ amount }: { amount: number }) => {
 
 const ReceiptFooter = () => (
   <View style={styles.footerContainer}>
-    <Text style={styles.footerTextTH}>เอกสารฉบับนี้จัดทำขึ้นโดยระบบอัตโนมัติ เพื่อเป็นหลักฐานการชำระค่าบริการ</Text>
-    <Text style={styles.footerTextEN}>(This document is automatically generated as proof of payment and is not a tax invoice)</Text>
+    <Text style={styles.footerTextTH}>ใบเสร็จฉบับนี้จัดทำขึ้นโดยระบบอัตโนมัติ ไม่ใช่ใบกำกับภาษี</Text>
+    <Text style={styles.footerTextEN}>(This receipt is automatically generated as proof of payment and is not a tax invoice)</Text>
   </View>
 );
 
@@ -372,10 +396,7 @@ const ReceiptDocument = ({ data }: { data: ReceiptData }) => (
 // --- Main Export Function ---
 
 export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array> {
-  // สร้าง PDF Blob โดยใช้ @react-pdf/renderer
   const blob = await pdf(<ReceiptDocument data={data} />).toBlob();
-  
-  // แปลง Blob เป็น Uint8Array ตาม Requirement
   const arrayBuffer = await blob.arrayBuffer();
   return new Uint8Array(arrayBuffer);
 }
