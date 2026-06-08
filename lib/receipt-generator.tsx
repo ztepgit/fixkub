@@ -61,20 +61,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
+  // 🌟 เพิ่ม/แก้ไข Style สำหรับ WrenchIcon ตาม Requirement
   logoWrapper: {
-    position: 'relative',
-    width: 20,
-    height: 20,
-  },
-  logoShadow: {
-    position: 'absolute',
-    top: 2,
-    left: 2,
-  },
-  logoMain: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
+    width: 32,
+    height: 32,
+    backgroundColor: '#059669', // emerald-600
+    borderRadius: 8,            // Tailwind rounded-lg ใกล้เคียงสุด
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   companyName: {
     fontSize: 24,
@@ -215,7 +209,6 @@ const styles = StyleSheet.create({
   summaryBahtText: {
     fontSize: 11,
     color: '#666666', // ใช้สีเทากลางเพื่อให้ไม่แย่งซีนตัวเลขหลัก
-    fontStyle: 'italic',
     flex: 1,
     paddingRight: 10,
   },
@@ -260,20 +253,13 @@ const styles = StyleSheet.create({
 const WrenchIcon = () => {
   const svgPath = "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z";
   return (
-    <View
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#ECFDF5',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
+    // 🌟 แก้ไข: ใช้ style.logoWrapper ที่กำหนด borderRadius=8 (มุมมนคล้าย Tailwind rounded-lg) 
+    // และ backgroundColor สี #059669 (emerald-600)
+    <View style={styles.logoWrapper}>
       <Svg viewBox="0 0 24 24" width={18} height={18}>
         <Path
           d={svgPath}
-          stroke="#059669"
+          stroke="#FFFFFF" // 🌟 แก้ไข: เปลี่ยนสีเส้น SVG Wrench ให้เป็นสีขาว (#FFFFFF)
           strokeWidth={2}
           fill="none"
           strokeLinecap="round"
@@ -355,6 +341,8 @@ const ReceiptSummary = ({ amount }: { amount: number }) => {
   
   // 🌟 ใช้ไลบรารีแปลงตัวเลขเป็นตัวอักษรภาษาไทย
   const amountInWords = `(${bahttext(amount)})`;
+  console.log('amount =', amount);
+  console.log('bahttext =', bahttext(amount));
 
   return (
     <View>
