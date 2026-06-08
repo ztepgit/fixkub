@@ -370,7 +370,7 @@ function CheckoutForm() {
                   </h3>
 
                   <div className="grid gap-2 pt-2">
-                    <Label>อัปโหลดสลิปโอนเงิน <span className="text-red-500">*</span></Label>
+                    <Label>อัปโหลดสลิปโอนเงิน <span className="text-red-500">*</span><span className="text-red-500"> หลีกเลี่ยงธนาคารกรุงเทพ เพราะรูป QR ในสลิป บังเลขทำรายการ</span></Label>
 
                     {!slipFile ? (
                       <Label htmlFor="slip" className="border-2 border-dashed border-emerald-200 bg-emerald-50/50 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-emerald-50 transition-colors cursor-pointer group">
