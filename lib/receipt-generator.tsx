@@ -61,7 +61,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
-  // 🌟 เพิ่ม/แก้ไข Style สำหรับ WrenchIcon ตาม Requirement
   logoWrapper: {
     width: 32,
     height: 32,
@@ -202,13 +201,13 @@ const styles = StyleSheet.create({
   // --- Summary Section ---
   summaryContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between', // 🌟 ปรับให้ข้อความอยู่สองฝั่ง
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 30, // ลด spacing ลงนิดหน่อยเผื่อที่ให้ Receiver
   },
   summaryBahtText: {
     fontSize: 11,
-    color: '#666666', // ใช้สีเทากลางเพื่อให้ไม่แย่งซีนตัวเลขหลัก
+    color: '#666666',
     flex: 1,
     paddingRight: 10,
   },
@@ -226,6 +225,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#059669',
+  },
+  // --- 🌟 Receiver Section (เพิ่มใหม่) ---
+  receiverContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E6E6E6',
+    marginBottom: 50,
+  },
+  receiverLabel: {
+    fontSize: 10,
+    color: '#8C8C8C',
+    marginRight: 10,
+  },
+  receiverValue: {
+    fontSize: 12,
+    color: '#8C8C8C',
   },
   // --- Footer ---
   footerContainer: {
@@ -253,13 +271,11 @@ const styles = StyleSheet.create({
 const WrenchIcon = () => {
   const svgPath = "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z";
   return (
-    // 🌟 แก้ไข: ใช้ style.logoWrapper ที่กำหนด borderRadius=8 (มุมมนคล้าย Tailwind rounded-lg) 
-    // และ backgroundColor สี #059669 (emerald-600)
     <View style={styles.logoWrapper}>
       <Svg viewBox="0 0 24 24" width={18} height={18}>
         <Path
           d={svgPath}
-          stroke="#FFFFFF" // 🌟 แก้ไข: เปลี่ยนสีเส้น SVG Wrench ให้เป็นสีขาว (#FFFFFF)
+          stroke="#FFFFFF"
           strokeWidth={2}
           fill="none"
           strokeLinecap="round"
@@ -289,7 +305,7 @@ const ReceiptHeader = () => (
 
 const ReceiptInfoSection = ({ data }: { data: ReceiptData }) => {
   const formattedDate = data.issuedAt ? new Date(data.issuedAt).toLocaleDateString("th-TH") : "-";
-  
+
   return (
     <View style={styles.infoContainer}>
       <View style={styles.customerGroup}>
@@ -316,7 +332,7 @@ const ReceiptInfoSection = ({ data }: { data: ReceiptData }) => {
 
 const ReceiptTable = ({ data }: { data: ReceiptData }) => {
   const formattedAmount = `THB ${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-  
+
   return (
     <View>
       <View style={styles.tableHeader}>
@@ -338,20 +354,13 @@ const ReceiptTable = ({ data }: { data: ReceiptData }) => {
 
 const ReceiptSummary = ({ amount }: { amount: number }) => {
   const formattedAmount = `THB ${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-  
-  // 🌟 ใช้ไลบรารีแปลงตัวเลขเป็นตัวอักษรภาษาไทย
   const amountInWords = `(${bahttext(amount)})`;
-  console.log('amount =', amount);
-  console.log('bahttext =', bahttext(amount));
 
   return (
     <View>
       <View style={styles.divider} />
       <View style={styles.summaryContainer}>
-        {/* 🌟 แสดงคำอ่านภาษาไทยฝั่งซ้าย */}
         <Text style={styles.summaryBahtText}>{amountInWords}</Text>
-        
-        {/* แสดงสรุปยอดฝั่งขวา */}
         <View style={styles.summaryTotalGroup}>
           <Text style={styles.summaryLabel}>จำนวนเงินทั้งสิ้น (Total)</Text>
           <Text style={styles.summaryTotal}>{formattedAmount}</Text>
@@ -361,9 +370,19 @@ const ReceiptSummary = ({ amount }: { amount: number }) => {
   );
 };
 
+// 🌟 3. สร้าง Component ใหม่สำหรับแสดงผู้รับเงินพร้อมเส้นคั่น
+const ReceiptReceiver = () => {
+  return (
+    <View style={styles.receiverContainer}>
+      <Text style={styles.receiverLabel}>ผู้รับเงิน (Received By):</Text>
+      <Text style={styles.receiverValue}>จตุรชัย รณเกียรติเมธา</Text>
+    </View>
+  );
+};
+
 const ReceiptFooter = () => (
   <View style={styles.footerContainer}>
-    <Text style={styles.footerTextTH}>ใบเสร็จฉบับนี้จัดทำขึ้นโดยระบบอัตโนมัติ ไม่ใช่ใบกำกับภาษี</Text>
+    {/* <Text style={styles.footerTextTH}>ใบเสร็จฉบับนี้สร้างจากระบบอัตโนมัติ ไม่ใช่ใบกำกับภาษี</Text> */}
     <Text style={styles.footerTextEN}>(This receipt is automatically generated as proof of payment and is not a tax invoice)</Text>
   </View>
 );
@@ -376,6 +395,7 @@ const ReceiptDocument = ({ data }: { data: ReceiptData }) => (
       <ReceiptInfoSection data={data} />
       <ReceiptTable data={data} />
       <ReceiptSummary amount={data.amount} />
+      <ReceiptReceiver /> {/* 🌟 นำ Component มาวางตรงนี้ */}
       <ReceiptFooter />
     </Page>
   </Document>
