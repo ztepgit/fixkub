@@ -43,7 +43,12 @@ function CheckoutForm() {
   const [accountName, setAccountName] = useState("")
   const [isLoadingPaymentInfo, setIsLoadingPaymentInfo] = useState(true)
 
-  const [shopInfo, setShopInfo] = useState<{ name: string, url: string } | null>(null)
+  const [shopInfo, setShopInfo] = useState<{
+    name: string
+    url: string
+    slug: string
+  } | null>(null)
+
   const [isLoadingShop, setIsLoadingShop] = useState(true)
 
   const [isExpired, setIsExpired] = useState(false)
@@ -88,7 +93,8 @@ function CheckoutForm() {
           if (shopRes.success && shopRes.data) {
             setShopInfo({
               name: shopRes.data.name,
-              url: `${window.location.origin}/${shopRes.data.slug}`
+              url: `${window.location.origin}/${shopRes.data.slug}`,
+              slug: shopRes.data.slug
             })
           }
 
@@ -107,6 +113,10 @@ function CheckoutForm() {
 
     fetchInitialData()
   }, [shopId])
+
+  const shopUrl = shopInfo?.slug
+  ? `https://${shopInfo.slug}.getfixx.net`
+  : ""
 
   const qrPayload = promptpayId ? generatePayload(promptpayId, { amount: packageDetails.price }) : ""
 
@@ -247,11 +257,11 @@ function CheckoutForm() {
                       <Store className="h-5 w-5 text-emerald-600" />
                       <span className="font-bold text-slate-800 text-base">{shopInfo?.name || "ไม่พบชื่อร้านค้า"}</span>
                     </div>
-                    {shopInfo?.url && (
+                    {shopUrl && (
                       <div className="flex items-center gap-2 text-sm text-blue-600 mt-1 pl-7">
                         <Globe className="h-4 w-4 shrink-0" />
-                        <a href={shopInfo.url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
-                          {shopInfo.url.replace(/^https?:\/\//, '')}
+                        <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
+                          {shopUrl.replace(/^https?:\/\//, '')}
                         </a>
                       </div>
                     )}
