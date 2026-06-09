@@ -115,8 +115,8 @@ function CheckoutForm() {
   }, [shopId])
 
   const shopUrl = shopInfo?.slug
-  ? `https://${shopInfo.slug}.getfixx.net`
-  : ""
+    ? `https://${shopInfo.slug}.getfixx.net`
+    : ""
 
   const qrPayload = promptpayId ? generatePayload(promptpayId, { amount: packageDetails.price }) : ""
 
@@ -300,7 +300,9 @@ function CheckoutForm() {
           </Card>
 
           <div className="text-center text-sm text-slate-500 flex items-center justify-center gap-2">
-            <HelpCircle className="h-4 w-4" /> มีปัญหาการชำระเงิน? <Link href="#" className="text-emerald-600 font-medium hover:underline">ติดต่อแอดมิน</Link>
+            <HelpCircle className="h-4 w-4" /> มีปัญหาการชำระเงิน? <Link href="https://m.me/pik.jaturachai"
+              target="_blank"
+              rel="noopener noreferrer" className="text-emerald-600 font-medium hover:underline">ติดต่อแอดมิน</Link>
           </div>
         </div>
 

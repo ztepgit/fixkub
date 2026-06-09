@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation" 
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { format, addDays } from "date-fns"
-import { th } from "date-fns/locale" 
+import { th } from "date-fns/locale"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,10 +17,10 @@ import { getUserShops } from "@/actions/shop"
 
 export default function PaywallPage() {
   const router = useRouter()
-  
+
   // 🌟 2. เพิ่ม State เก็บ shopId จริงของลูกค้า
   const [shopId, setShopId] = useState<string | null>(null)
-  
+
   const [daysLeft, setDaysLeft] = useState<number | null>(null)
   const [deletionDate, setDeletionDate] = useState<string>("")
 
@@ -47,7 +47,7 @@ export default function PaywallPage() {
         // 🌟 ได้รหัสร้านของจริงมาแล้ว นำไปเช็คสถานะแพ็กเกจต่อ
         const realShopId = shopRes.shops[0].id
         setShopId(realShopId)
-        
+
         const res = await checkAndEnforceShopStatus(realShopId)
 
         // ถ้าร้านยังไม่หมดอายุ (ACTIVE) ไม่ควรอยู่หน้านี้ ให้เตะกลับไปหน้า Dashboard!
@@ -59,19 +59,19 @@ export default function PaywallPage() {
         // 🌟 แก้ไขจุดที่เกิด Error: ตรวจสอบว่าเป็น type number จริงๆ ก่อนใช้ ถ้าไม่ใช่ (เป็น null/undefined) ให้ใช้ 30
         const actualDaysLeft = typeof res.daysLeftToPurge === 'number' ? res.daysLeftToPurge : 30
         const safeDaysLeft = Math.max(0, actualDaysLeft) // ป้องกันค่าติดลบ
-        
+
         setDaysLeft(safeDaysLeft)
 
         // คำนวณหาวันที่จะถูกลบถาวร (วันนี้ + วันที่เหลือ)
         const targetDate = addDays(new Date(), safeDaysLeft)
-        
+
         // แปลงเป็นภาษาไทย + ปี พ.ศ.
         const formattedDate = format(targetDate, "d MMMM yyyy", { locale: th })
         const thaiYearDate = formattedDate.replace(
-          targetDate.getFullYear().toString(), 
+          targetDate.getFullYear().toString(),
           (targetDate.getFullYear() + 543).toString()
         )
-        
+
         setDeletionDate(thaiYearDate)
       } catch (error) {
         console.error("Error fetching paywall data:", error)
@@ -94,7 +94,7 @@ export default function PaywallPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      
+
       {/* Background decoration */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-rose-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
@@ -107,7 +107,7 @@ export default function PaywallPage() {
         </div>
 
         <Card className="border-none shadow-xl bg-white/95 backdrop-blur-sm overflow-hidden animate-in zoom-in-95 duration-300">
-          
+
           {/* แถบแจ้งเตือน Grace Period */}
           <div className="bg-rose-500 text-white text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 shadow-sm">
             <AlertTriangle className="w-4 h-4" />
@@ -120,27 +120,27 @@ export default function PaywallPage() {
               {/* จุดแจ้งเตือนสีแดง */}
               <span className="absolute top-0 right-1 w-5 h-5 bg-rose-500 border-4 border-white rounded-full"></span>
             </div>
-            
+
             <Badge variant="outline" className="mx-auto bg-amber-50 text-amber-700 border-amber-200 mb-2 px-3 py-1">
               <Clock className="w-3 h-3 mr-1" /> สถานะ: หมดอายุการใช้งาน
             </Badge>
-            
+
             <CardTitle className="text-2xl font-bold text-slate-800">แพ็กเกจของคุณหมดอายุแล้ว</CardTitle>
             <CardDescription className="text-slate-600 mt-2 text-base">
-              ระบบได้ทำการระงับการเข้าถึงชั่วคราว<br/>เพื่อการใช้งานที่ต่อเนื่อง กรุณาต่ออายุแพ็กเกจ
+              ระบบได้ทำการระงับการเข้าถึงชั่วคราว<br />เพื่อการใช้งานที่ต่อเนื่อง กรุณาต่ออายุแพ็กเกจ
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-4 pt-4">
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 space-y-3">
               <div className="flex items-start gap-3">
                 <ShieldAlert className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-slate-600 leading-relaxed">
                   <strong className="text-slate-800 block mb-1">ข้อมูลของคุณยังปลอดภัย</strong>
-                  ประวัติงานซ่อม บิลลูกค้า และสถิติรายได้ทั้งหมด ยังถูกเก็บรักษาไว้อย่างปลอดภัยในระบบของเรา 
+                  ประวัติงานซ่อม บิลลูกค้า และสถิติรายได้ทั้งหมด ยังถูกเก็บรักษาไว้อย่างปลอดภัยในระบบของเรา
                 </div>
               </div>
-              
+
               {/* ข้อความแจ้งนโยบายการลบข้อมูล */}
               <div className="bg-rose-50 rounded-lg p-3 border border-rose-100 text-sm text-rose-800">
                 ตามนโยบายการจัดเก็บข้อมูล (Data Retention Policy) ข้อมูลจะถูกเก็บรักษาไว้ 30 วันหลังหมดอายุ หลังจากนั้นระบบจะทำการ <strong>ลบข้อมูลทั้งหมดอย่างถาวรในวันที่ {deletionDate}</strong>
@@ -155,7 +155,7 @@ export default function PaywallPage() {
                 <CreditCard className="mr-2 h-5 w-5" /> ต่ออายุรายปี (คุ้มที่สุด)
               </Button>
             </Link>
-            
+
             <Link href={`/checkout?shopId=${shopId}&plan=monthly`} className="w-full">
               <Button variant="outline" className="w-full h-12 text-slate-600 border-slate-300 hover:bg-slate-50 font-medium">
                 ต่ออายุแบบรายเดือน
@@ -168,7 +168,16 @@ export default function PaywallPage() {
           <p className="text-sm text-slate-500 flex items-center justify-center gap-1.5">
             <HelpCircle className="h-4 w-4" /> หากคุณชำระเงินแล้วแต่ระบบยังไม่เปิดใช้งาน
           </p>
-          <Button variant="link" className="text-emerald-600 font-semibold hover:text-emerald-700">
+          <Button
+            asChild
+            variant="link"
+            className="text-emerald-600 font-semibold hover:text-emerald-700"
+          >
+            <a
+              href="https://m.me/pik.jaturachai"
+              target="_blank"
+              rel="noopener noreferrer"
+            ></a>
             ติดต่อผู้ดูแลระบบ (Support)
           </Button>
         </div>
