@@ -16,7 +16,7 @@ import { generateReceiptPDF } from "@/lib/receipt-generator"
 const PRICE_TABLE: Record<PlanType, number> = {
   PENDING_PAYMENT: 0,
   FREE_TRIAL: 0,
-  BASIC_MONTHLY: 1,
+  BASIC_MONTHLY: 299,
   BASIC_YEARLY: 2290,
   PRO_MONTHLY: 399,
   PRO_YEARLY: 3290,

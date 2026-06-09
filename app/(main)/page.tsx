@@ -28,6 +28,7 @@ import Autoplay from "embla-carousel-autoplay" // 🌟 เพิ่มบรร�
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselDots } from "@/components/ui/carousel"
 import { getCarouselItems } from "@/actions/carousel"
 import { Footer } from "@/components/footer"
+import { HowToTry } from "@/components/how-to-try"
 
 
 export default function LandingPage() {
@@ -284,7 +285,7 @@ export default function LandingPage() {
               จบปัญหาลูกค้าทักแชทถาม "พี่ซ่อมถึงไหนแล้ว?" ด้วยระบบคิวอัจฉริยะ
               รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
             </p>
-            <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full mt-2">
+            <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full">
 
               <Button
                 size="lg"
@@ -380,6 +381,28 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <HowToTry />
+        <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full">
+          <Button
+            size="lg"
+            onClick={handlePlayDemo}
+            disabled={isDemoLoading}
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-lg h-14 px-8 shadow-lg shadow-emerald-200 transition-all"
+          >
+            {isDemoLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <span>กำลังสร้างร้านตัวอย่าง...</span>
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-5 w-5 fill-current" />
+                <span>เล่นร้านตัวอย่าง</span>
+              </>
+            )}
+          </Button>
+        </div>
+
         <section id="features" className="py-20 bg-slate-50">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
@@ -436,7 +459,7 @@ export default function LandingPage() {
                   <p className="text-slate-500 mt-2">เหมาะสำหรับร้านเปิดใหม่</p>
                   <div className="my-6 flex items-baseline gap-2">
                     {/* เทส1บาท */}
-                    <span className="text-4xl font-extrabold text-slate-900">฿1</span>
+                    <span className="text-4xl font-extrabold text-slate-900">฿299</span>
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
                   <ul className="space-y-3 mb-8">
@@ -582,70 +605,70 @@ export default function LandingPage() {
         </DialogContent>
       </Dialog>
 
-     <Dialog
-  open={showPendingPaymentModal}
-  onOpenChange={setShowPendingPaymentModal}
->
-  <DialogContent className="sm:max-w-md">
-    <DialogHeader>
-      <DialogTitle className="text-xl text-center">
-        เข้าสู่กระดานจัดการร้านค้าไม่ได้
-      </DialogTitle>
-      
-      {/* 🌟 A11y: แนะนำให้มี DialogDescription ไว้สำหรับ Screen Reader ควรอ่านสรุปสั้นๆ (ซ่อนไว้ด้วย sr-only ได้ถ้าไม่ต้องการให้แสดงซ้ำ) */}
-      <DialogDescription className="sr-only">
-        คุณจำเป็นต้องเลือกแพ็กเกจหรือเริ่มทดลองใช้ฟรีก่อนเข้าสู่กระดานจัดการร้านค้า
-      </DialogDescription>
-    </DialogHeader>
-
-    {/* 🌟 ย้ายเนื้อหาหลักออกมาอยู่ใน <div> ธรรมดา เพื่อแก้ปัญหาการซ้อนแท็ก <p> ผิดปกติ */}
-    <div className="text-center space-y-3 py-2 text-sm text-slate-600">
-      <p>
-        คุณยังเข้าสู่ <strong>"กระดานจัดการร้านค้า"</strong> ไม่ได้
-      </p>
-
-      <p>
-        โปรดกดปุ่ม <strong>"ทดลองใช้ฟรี 14 วัน"</strong>{" "}
-        หรือเลือกชำระเงินทันที เพื่อรับสิทธิ์
-        <strong> ฟรีเพิ่มอีก 30 วัน </strong>
-        สำหรับลูกค้าใหม่
-      </p>
-
-      {/* 🌟 A11y: ใส่ role="alert" และ aria-live="polite" เพื่อให้ Screen Reader ประกาศเตือนอัตโนมัติ */}
-      <div 
-        role="alert" 
-        aria-live="polite"
-        className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-800"
+      <Dialog
+        open={showPendingPaymentModal}
+        onOpenChange={setShowPendingPaymentModal}
       >
-        <strong>คำเตือน: </strong>
-        หากกดปุ่ม "<strong>ทดลองใช้ฟรี 14 วัน</strong>"
-        จะไม่ได้รับวันแถม 30 วัน
-        คุณสามารถชำระเงินทันที เพื่อรับวันใช้งานฟรี 30 วัน
-      </div>
-    </div>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-center">
+              เข้าสู่กระดานจัดการร้านค้าไม่ได้
+            </DialogTitle>
 
-    <DialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
-      <Button
-        className="w-full bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-500"
-        onClick={() => {
-          setShowPendingPaymentModal(false)
-          setShowShopSelectPopup(false)
-          router.push("/#pricing")
-        }}
-      >
-        ชำระเงินทันที
-      </Button>
+            {/* 🌟 A11y: แนะนำให้มี DialogDescription ไว้สำหรับ Screen Reader ควรอ่านสรุปสั้นๆ (ซ่อนไว้ด้วย sr-only ได้ถ้าไม่ต้องการให้แสดงซ้ำ) */}
+            <DialogDescription className="sr-only">
+              คุณจำเป็นต้องเลือกแพ็กเกจหรือเริ่มทดลองใช้ฟรีก่อนเข้าสู่กระดานจัดการร้านค้า
+            </DialogDescription>
+          </DialogHeader>
 
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => setShowPendingPaymentModal(false)}
-      >
-        ยกเลิก
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+          {/* 🌟 ย้ายเนื้อหาหลักออกมาอยู่ใน <div> ธรรมดา เพื่อแก้ปัญหาการซ้อนแท็ก <p> ผิดปกติ */}
+          <div className="text-center space-y-3 py-2 text-sm text-slate-600">
+            <p>
+              คุณยังเข้าสู่ <strong>"กระดานจัดการร้านค้า"</strong> ไม่ได้
+            </p>
+
+            <p>
+              โปรดกดปุ่ม <strong>"ทดลองใช้ฟรี 14 วัน"</strong>{" "}
+              หรือเลือกชำระเงินทันที เพื่อรับสิทธิ์
+              <strong> ฟรีเพิ่มอีก 30 วัน </strong>
+              สำหรับลูกค้าใหม่
+            </p>
+
+            {/* 🌟 A11y: ใส่ role="alert" และ aria-live="polite" เพื่อให้ Screen Reader ประกาศเตือนอัตโนมัติ */}
+            <div
+              role="alert"
+              aria-live="polite"
+              className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-800"
+            >
+              <strong>คำเตือน: </strong>
+              หากกดปุ่ม "<strong>ทดลองใช้ฟรี 14 วัน</strong>"
+              จะไม่ได้รับวันแถม 30 วัน
+              คุณสามารถชำระเงินทันที เพื่อรับวันใช้งานฟรี 30 วัน
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button
+              className="w-full bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-500"
+              onClick={() => {
+                setShowPendingPaymentModal(false)
+                setShowShopSelectPopup(false)
+                router.push("/#pricing")
+              }}
+            >
+              ชำระเงินทันที
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowPendingPaymentModal(false)}
+            >
+              ยกเลิก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )
