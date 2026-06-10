@@ -26,8 +26,16 @@ export default async function middleware(request: NextRequest) {
   // 🌐 ส่วนที่ 1: ระบบจัดการ Subdomain (Routing)
   // ==========================================
   const isVercel = hostname.includes("vercel.app");
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
-  const subdomain = hostname.replace(`.${rootDomain}`, "");
+  //const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
+  //const subdomain = hostname.replace(`.${rootDomain}`, "");
+
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
+
+  let subdomain = "";
+
+  if (rootDomain) {
+    subdomain = hostname.replace(`.${rootDomain}`, "");
+  }
 
   // เพิ่ม "www" เข้าไปในคำสงวนเพื่อความปลอดภัย
   const reservedSubdomains = ["admin", "app", "api", "dashboard", "super-admin", "support", "www"];
@@ -72,10 +80,10 @@ export default async function middleware(request: NextRequest) {
   // ==========================================
   // 🛡️ ส่วนที่ 3: ระบบป้องกันหน้าเว็บ (Route Protection)
   // ==========================================
-  
+
   // 🌟 เพิ่ม /paywall และ /checkout เข้าไปในหน้าสำคัญที่ต้อง Login ก่อน
-  const isProtectedRoute = 
-    url.pathname.startsWith('/dashboard') || 
+  const isProtectedRoute =
+    url.pathname.startsWith('/dashboard') ||
     url.pathname.startsWith('/super-admin') ||
     url.pathname.startsWith('/paywall') ||
     url.pathname.startsWith('/checkout');
@@ -88,7 +96,7 @@ export default async function middleware(request: NextRequest) {
   // ในไฟล์ middleware.ts (ประมาณบรรทัดที่ 71)
   if (user && url.pathname.startsWith('/login')) {
     // 🌟 แก้ไข: เตะไปหน้า Landing Page ก่อน เพื่อให้หน้า Landing เป็นคนเช็คว่าควรไปไหนต่อ
-    return NextResponse.redirect(new URL('/', request.url)); 
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // คืนค่า Response สุดท้าย
