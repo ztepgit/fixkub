@@ -146,7 +146,6 @@ export default function MainPage() {
         console.log("STATUS RES:", res)
 
         console.timeEnd("checkStatus")
-        console.log("STATUS RES:", res)
 
         // 🌟 เก็บค่าวันหมดอายุไว้เสมอ
         if (res.expiresAt) {

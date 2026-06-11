@@ -6,6 +6,8 @@ import { differenceInDays, isPast } from "date-fns"
 import { verifyShopAccess } from "@/lib/auth-guard"
 
 export async function checkAndEnforceShopStatus(shopId: string) {
+    console.log("STATUS 1")
+
   try {
     // 🌟 ด่านตรวจ: ป้องกันคนอื่นมาแอบเช็ค
     await verifyShopAccess(shopId)
@@ -21,6 +23,7 @@ export async function checkAndEnforceShopStatus(shopId: string) {
         isActive: true
       }
     })
+     console.log("STATUS 2")
 
     if (!shop) return { status: "NOT_FOUND" }
     if (shop.planType === "PENDING_PAYMENT") {
