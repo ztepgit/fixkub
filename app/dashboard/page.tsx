@@ -76,6 +76,23 @@ export default function MainPage() {
         // 🌟 1. ดึง shopId จาก URL Query Parameters (Best Practice)
         const urlParams = new URLSearchParams(window.location.search)
         const shopIdFromQuery = urlParams.get('shopId')
+        console.log("================================")
+        console.log("QUERY SHOP:", shopIdFromQuery)
+
+        console.log(
+          "ZUSTAND SHOP:",
+          useShopStore.getState().shop
+        )
+
+        console.log(
+          "ALL SHOPS:",
+          shopRes.shops.map(s => ({
+            id: s.id,
+            name: s.name,
+            role: s.role,
+          }))
+        )
+
 
         let currentShop;
 
