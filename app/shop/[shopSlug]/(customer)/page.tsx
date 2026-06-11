@@ -1,3 +1,4 @@
+//app/shop/[shopSlug]/(customer)/page.tsx
 import { db } from "@/lib/prisma"
 import { CustomerBookingForm } from "@/components/customer-booking-form"
 import { notFound } from "next/navigation"
