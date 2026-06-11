@@ -47,14 +47,21 @@ export default function MainPage() {
   useEffect(() => {
     const verifyAccess = async () => {
       try {
+        console.time("getUser")
         const { data: { user }, error } = await supabase.auth.getUser()
+        console.timeEnd("getUser")
 
         if (error || !user?.email) {
           router.push('/login')
           return
         }
 
+        console.log("USER:", user.email)
+        console.time("getUserShops")
         const shopRes = await getUserShops(user.email)
+        console.timeEnd("getUserShops")
+
+        console.log("SHOP RES:", shopRes)
 
         if (!shopRes.success || shopRes.shops.length === 0) {
           router.push('/')
@@ -88,8 +95,12 @@ export default function MainPage() {
         const realShopId = currentShop!.id
         setShopId(realShopId)
 
+        console.log("SHOP ID:", realShopId)
         // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
+        console.time("checkStatus")
         const res = await checkAndEnforceShopStatus(realShopId)
+        console.timeEnd("checkStatus")
+        console.log("STATUS RES:", res)
 
         // 🌟 เก็บค่าวันหมดอายุไว้เสมอ
         if (res.expiresAt) {

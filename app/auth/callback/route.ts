@@ -1,3 +1,4 @@
+// app/auth/callback/route.ts
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server' // ตัวจัดการ Cookie ที่เราสร้างไว้ก่อนหน้านี้
 
