@@ -138,7 +138,14 @@ export default function MainPage() {
         setShopId(realShopId)
 
         console.log("SHOP ID:", realShopId)
-        // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
+        console.log("SET SHOP ID DONE")
+        // ===== DEBUG =====
+        setIsChecking(false)
+
+        console.log("SET CHECKING FALSE")
+        console.log("SKIP CHECK STATUS")
+        /* 
+        //🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
         console.time("checkStatus")
         console.log("BEFORE checkStatus")
         const res = await checkAndEnforceShopStatus(realShopId)
@@ -147,18 +154,19 @@ export default function MainPage() {
 
         console.timeEnd("checkStatus")
 
-        // 🌟 เก็บค่าวันหมดอายุไว้เสมอ
+         //🌟 เก็บค่าวันหมดอายุไว้เสมอ
         if (res.expiresAt) {
           setExpiresAt(res.expiresAt)
         }
 
-        // 🌟 ร้านยังไม่ได้เลือกแพ็กเกจ
+         
+        //🌟 ร้านยังไม่ได้เลือกแพ็กเกจ
         if (res.status === "PENDING_PAYMENT") {
           router.push("/paywall?mode=pending-payment")
           return
         }
 
-        // 🌟 หมดอายุ / รอการลบ / เกิดข้อผิดพลาด
+         //🌟 หมดอายุ / รอการลบ / เกิดข้อผิดพลาด
         if (
           res.status === "EXPIRED" ||
           res.status === "PENDING_DELETION" ||
@@ -168,9 +176,11 @@ export default function MainPage() {
           return
         }
 
-        // ถ้าร้านยังเป็น ACTIVE ให้ปิดหน้าโหลด และเข้าสู่ Dashboard ปกติ
+         //ถ้าร้านยังเป็น ACTIVE ให้ปิดหน้าโหลด และเข้าสู่ Dashboard ปกติ
         setIsChecking(false)
         console.log("SET CHECKING FALSE")
+        */
+        console.log("SKIP CHECK STATUS")
 
       } catch (error) {
         console.error("Error checking shop status:", error)

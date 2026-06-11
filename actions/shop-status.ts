@@ -6,11 +6,15 @@ import { differenceInDays, isPast } from "date-fns"
 import { verifyShopAccess } from "@/lib/auth-guard"
 
 export async function checkAndEnforceShopStatus(shopId: string) {
-    console.log("STATUS 1")
+  console.log("STATUS 1", shopId)
 
   try {
+    console.log("STATUS VERIFY START")
+
     // 🌟 ด่านตรวจ: ป้องกันคนอื่นมาแอบเช็ค
     await verifyShopAccess(shopId)
+
+    console.log("STATUS VERIFY END")
 
     const shop = await db.shop.findUnique({
       where: { id: shopId },
@@ -23,7 +27,8 @@ export async function checkAndEnforceShopStatus(shopId: string) {
         isActive: true
       }
     })
-     console.log("STATUS 2")
+    console.log("STATUS 2")
+    console.log("STATUS SHOP FOUND", shop?.id)
 
     if (!shop) return { status: "NOT_FOUND" }
     if (shop.planType === "PENDING_PAYMENT") {
