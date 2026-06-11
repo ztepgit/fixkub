@@ -49,6 +49,7 @@ export default function MainPage() {
       try {
         console.time("getUser")
         const { data: { user }, error } = await supabase.auth.getUser()
+        console.log("USER", user)
         console.timeEnd("getUser")
 
         if (error || !user?.email) {
@@ -58,8 +59,10 @@ export default function MainPage() {
 
         console.log("USER:", user.email)
         console.time("getUserShops")
+        console.log("START getUserShops")
         const shopRes = await getUserShops(user.email)
         console.timeEnd("getUserShops")
+        console.log("END getUserShops", shopRes)
 
         console.log("SHOP RES:", shopRes)
 

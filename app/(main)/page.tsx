@@ -57,6 +57,7 @@ export default function LandingPage() {
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
+      console.log("SESSION", session)
       setIsLoggedIn(!!session)
       if (session?.user?.email) {
         setUserEmail(session.user.email)
