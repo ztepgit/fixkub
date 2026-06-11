@@ -140,7 +140,11 @@ export default function MainPage() {
         console.log("SHOP ID:", realShopId)
         // 🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
         console.time("checkStatus")
+        console.log("BEFORE checkStatus")
         const res = await checkAndEnforceShopStatus(realShopId)
+        console.log("AFTER checkStatus")
+        console.log("STATUS RES:", res)
+
         console.timeEnd("checkStatus")
         console.log("STATUS RES:", res)
 
@@ -167,6 +171,7 @@ export default function MainPage() {
 
         // ถ้าร้านยังเป็น ACTIVE ให้ปิดหน้าโหลด และเข้าสู่ Dashboard ปกติ
         setIsChecking(false)
+        console.log("SET CHECKING FALSE")
 
       } catch (error) {
         console.error("Error checking shop status:", error)
