@@ -100,6 +100,12 @@ export default function MainPage() {
         if (shopIdFromQuery) {
           currentShop = shopRes.shops.find(s => s.id === shopIdFromQuery)
 
+          console.log(
+            "FOUND FROM QUERY:",
+            currentShop
+          )
+
+
           // (Optional) ลบ query param ออกจาก URL เพื่อความสะอาดตา หลังอ่านค่าเสร็จแล้ว
           window.history.replaceState(null, '', '/dashboard')
         }
@@ -112,9 +118,23 @@ export default function MainPage() {
           currentShop = isShopSelectedValid ? freshShopState : shopRes.shops[0];
         }
 
+        console.log(
+          "SELECTED CURRENT SHOP:",
+          currentShop
+        )
         // ทับค่าที่ถูกต้องลง Zustand และ State ของหน้านี้
         setShop(currentShop)
+        console.log(
+          "AFTER SETSHOP:",
+          useShopStore.getState().shop
+        )
         const realShopId = currentShop!.id
+        console.log(
+          "REAL SHOP ID:",
+          realShopId
+        )
+
+        console.log("SHOP ID:", realShopId)
         setShopId(realShopId)
 
         console.log("SHOP ID:", realShopId)
