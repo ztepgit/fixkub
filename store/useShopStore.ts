@@ -1,3 +1,4 @@
+// store/useShopStore.ts
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import { getCache, setCache } from "@/lib/idb"

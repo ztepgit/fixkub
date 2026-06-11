@@ -48,8 +48,10 @@ export default function MainPage() {
     const verifyAccess = async () => {
       try {
         console.time("getUser")
+        console.log("START VERIFY")
         const { data: { user }, error } = await supabase.auth.getUser()
         console.log("USER", user)
+        console.log("COOKIE", document.cookie)
         console.timeEnd("getUser")
 
         if (error || !user?.email) {
