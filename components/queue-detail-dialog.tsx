@@ -1,7 +1,7 @@
 // components/queue-detail-dialog.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react" // 🌟 เพิ่ม useRef
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,10 +41,19 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
   const [isUploading, setIsUploading] = useState(false)
   const [expandedImage, setExpandedImage] = useState<string | null>(null) // 🌟 State สำหรับขยายรูปใหญ่
 
+  // 🌟 Optimistic Version Guard (ป้องกัน Stale Data ทับ UI)
+  const lastUpdateGuard = useRef<number>(0)
+
   // 🌟 2. ดึงค่าเดิมของคิวนี้มาใส่ในช่อง Input อัตโนมัติเวลาเปิดขึ้นมา
   useEffect(() => {
     if (job) {
-      setEstimatedPrice(job.estimatedPrice || "")
+      // 🌟 Version Guard: ถ้า job ที่เข้ามาใหม่ มี timestamp เก่ากว่าที่เราเพิ่งเซฟไป ให้ข้ามการเซ็ตค่าทับ
+      const incomingTime = job.updatedAt ? new Date(job.updatedAt).getTime() : 0;
+      if (lastUpdateGuard.current > 0 && incomingTime < lastUpdateGuard.current) {
+        return;
+      }
+
+      setEstimatedPrice(job.estimatedPrice !== null && job.estimatedPrice !== undefined ? String(job.estimatedPrice) : "")
       setSerialNumber(job.serialNumber || "")
       setImei(job.imei || "")
     }
@@ -54,14 +63,19 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
     if (!job) return
     setIsSaving(true)
     
-    // 🌟 บังคับอัปเดต UI ทันที (Optimistic Update ที่แม่นยำ 100%)
-    // ดันค่าเข้า Cache ผ่าน Store ทำให้การ์ดด้านนอกอัปเดตโชว์ราคาปุ๊บโดยไม่ต้องรอ Database
     const parsedPrice = estimatedPrice ? parseFloat(estimatedPrice) : null;
+    const now = new Date();
+    
+    // 🌟 อัปเดต local guard timestamp ให้เป็นปัจจุบันสุด กันข้อมูล Server ตีกลับมาล้าง UI
+    lastUpdateGuard.current = now.getTime();
+    
+    // 🌟 บังคับอัปเดต UI ทันทีแบบ Patch Update (ไม่ส่ง ...job ไปกวน Reference)
     onUpdateJobInStore({
-      ...job,
+      id: job.id, // บังคับให้ต้องมี id เพื่อให้ Store ไป merge ถูกตัว
       estimatedPrice: parsedPrice,
       serialNumber: serialNumber,
-      imei: imei
+      imei: imei,
+      updatedAt: now.toISOString() // ส่งไปอัปเดต cache ใหม่อัตโนมัติ
     });
     
     // ส่งข้อมูลกลับไปให้ QueueBoard จัดการต่อเพื่อบันทึกลง Database
@@ -117,9 +131,13 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
         // ยิง API เซฟลง DB
         const res = await updateQueueImages(job.shopId, job.id, finalImages);
         if (res.success) {
-          // อัปเดต Object ปัจจุบันให้ UI หน้า Dialog นี้เปลี่ยนตาม
-          const updatedJob = { ...job, images: finalImages };
-          onUpdateJobInStore(updatedJob); 
+          // 🌟 Patch Update สำหรับรูปภาพ
+          lastUpdateGuard.current = Date.now();
+          onUpdateJobInStore({ 
+            id: job.id, 
+            images: finalImages,
+            updatedAt: new Date().toISOString()
+          }); 
           toast({ title: "✅ อัปโหลดรูปสำเร็จ" });
         }
       }
@@ -139,8 +157,13 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
     try {
       const res = await deleteQueueImage(job.shopId, job.id, urlToRemove);
       if (res.success) {
-        const updatedJob = { ...job, images: res.images };
-        onUpdateJobInStore(updatedJob); 
+        // 🌟 Patch Update สำหรับรูปภาพ
+        lastUpdateGuard.current = Date.now();
+        onUpdateJobInStore({ 
+          id: job.id, 
+          images: res.images,
+          updatedAt: new Date().toISOString()
+        }); 
         toast({ title: "🗑️ ลบรูปภาพแล้ว" });
       } else {
         throw new Error(res.error);
@@ -291,7 +314,6 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
               {job?.images && job.images.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
                   {job.images.map((url: string, idx: number) => (
-                    // 🌟 เพิ่ม group สำหรับ Hover Effect
                     <div 
                       key={idx} 
                       className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm group bg-slate-100 dark:bg-slate-900 cursor-pointer"
@@ -307,7 +329,7 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
 
                       <button 
                         type="button" 
-                        onClick={(e) => { e.stopPropagation(); handleDeleteImage(url); }} // 🌟 ดัก Event ด้วย stopPropagation 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteImage(url); }} 
                         disabled={isUploading}
                         className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-rose-500 text-white rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       >
