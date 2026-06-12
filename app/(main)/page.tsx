@@ -245,7 +245,8 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             {!isLoggedIn ? (
               <Link href="/login">
-                <Button variant="outline" className="hidden md:inline-flex border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                {/* 🌟 Removed hidden md:inline-flex to make it always visible */}
+                <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
                   เข้าสู่ระบบ
                 </Button>
               </Link>
@@ -253,14 +254,16 @@ export default function LandingPage() {
               <>
                 <Button
                   onClick={handleGoToDashboard}
-                  className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                  // 🌟 Removed hidden md:inline-flex to make it always visible
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                 >
                   <LayoutDashboard className="w-4 h-4 mr-2" /> หน้าจัดการร้านค้า
                 </Button>
                 <Button
                   onClick={handleLogout}
                   variant="ghost"
-                  className="hidden md:inline-flex text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                  // 🌟 Removed hidden md:inline-flex to make it always visible
+                  className="text-slate-500 hover:text-rose-600 hover:bg-rose-50"
                 >
                   <LogOut className="w-4 h-4 mr-2" /> ออกจากระบบ
                 </Button>
@@ -286,7 +289,7 @@ export default function LandingPage() {
               จบปัญหาลูกค้าทักแชทถาม "พี่ซ่อมถึงไหนแล้ว?" ด้วยระบบคิวอัจฉริยะ
               รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
             </p>
-            <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full">
+            <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
 
               <Button
                 size="lg"
@@ -383,7 +386,8 @@ export default function LandingPage() {
         </section>
 
         <HowToTry />
-        <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full">
+        {/* 🌟 Added px-4 sm:px-0 to add padding on mobile */}
+        <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
           <Button
             size="lg"
             onClick={handlePlayDemo}
