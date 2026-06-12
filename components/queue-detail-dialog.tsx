@@ -1,3 +1,4 @@
+//components/queue-detail-dialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"

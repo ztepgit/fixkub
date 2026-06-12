@@ -1,3 +1,4 @@
+// components/queue-board.tsx
 "use client"
 
 import { useState, useMemo } from "react"
@@ -180,37 +181,54 @@ export function QueueBoard() {
   const jobToDeleteData = useMemo(() => allJobs.find(j => j.id === jobToDelete) || null, [allJobs, jobToDelete]);
   const jobToWarrantyData = useMemo(() => allJobs.find(j => j.id === jobToWarranty) || null, [allJobs, jobToWarranty]);
 
-  // 🌟 5. Robust Optimistic Mutation
+  // 🌟 5. Robust Optimistic Mutation (รวมร่างแล้ว - แก้ UI Flicker)
   const updateJobMutation = useMutation({
     mutationFn: async ({ id, status, data }: { id: string, status: string, data?: any }) => {
       const res = await updateQueueStatus(id, status, data)
       if (!res.success) throw new Error(res.error || "Update failed")
-      return res.data
+      return res.data // ❗ ต้อง return ข้อมูลล่าสุดจาก Backend
     },
     onMutate: async (updatedJob) => {
       const qKey = queryKeys.queues.list(shopId)
+      
+      // 1. Cancel query ที่อาจจะกำลังวิ่งอยู่เพื่อป้องกันข้อมูลเก่ามาทับ
       await queryClient.cancelQueries({ queryKey: qKey })
 
+      // 2. เก็บ Snapshot เผื่อต้อง Rollback
       const previousJobs = queryClient.getQueryData<RepairJob[]>(qKey)
 
+      // 3. Optimistic Update (UX ทำงานทันที)
       queryClient.setQueryData(qKey, (old: RepairJob[]) => {
-        return old?.map((job) =>
-          job.id === updatedJob.id
-            ? { ...job, status: updatedJob.status as any, ...updatedJob.data, updatedAt: new Date().toISOString() }
+        if (!old) return []
+        return old.map((job) => 
+          job.id === updatedJob.id 
+            // Merge ข้อมูลชั่วคราว
+            ? { ...job, status: updatedJob.status as any, ...updatedJob.data, updatedAt: new Date().toISOString() } 
             : job
         )
       })
 
       return { previousJobs, qKey }
     },
+    onSuccess: (serverData, variables, context) => {
+      // 4. Server Reconciliation: เอาข้อมูลจริงจาก DB มา Patch ทับ (แก้ไขปัญหา Realtime Echo ล่วงหน้า)
+      if (context?.qKey && serverData) {
+        queryClient.setQueryData(context?.qKey, (old: RepairJob[]) => {
+          if (!old) return []
+          return old.map((job) => job.id === variables.id ? { ...job, ...serverData } : job)
+        })
+      }
+    },
     onError: (err, variables, context) => {
+      // 5. Rollback หากพัง
       if (context?.previousJobs) {
         queryClient.setQueryData(context.qKey, context.previousJobs)
       }
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ", variant: "destructive" })
     },
     onSettled: (data, error, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: context?.qKey })
+      // ❗ ลบคำสั่ง queryClient.invalidateQueries(คิว) ออกจากตรงนี้
+      // ปล่อยให้ List อยู่รอดด้วย Cache ตัวเอง ส่วน Report ให้ Invalidate ได้เพราะไม่กระทบ UX ทันที
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.stats(shopId) })
     }
   })

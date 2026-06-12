@@ -23,7 +23,6 @@ export function useJobSync(shopId: string) {
       void supabase.removeChannel(existing)
     }
 
-
     const channel = supabase
       .channel(channelName)
       .on(
@@ -90,6 +89,10 @@ export function useJobSync(shopId: string) {
 
     const interval = setInterval(async () => {
       if (document.hidden) return // ไม่โหลดถ้าผู้ใช้ซ่อนแท็บไว้
+
+      // ❗ เพิ่มบรรทัดนี้เพื่อแก้ปัญหา UI Flicker / Bounce-back: 
+      // ห้ามดึงข้อมูลใหม่มาทับ หากผู้ใช้กำลังรอการบันทึกสถานะคิวลงฐานข้อมูลอยู่
+      if (queryClient.isMutating() > 0) return
 
       const res = await getTop50Jobs(shopId)
       if (res.success && res.data) {
