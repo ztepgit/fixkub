@@ -1,4 +1,4 @@
-//components/queue-detail-dialog.tsx
+// components/queue-detail-dialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -54,7 +54,17 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
     if (!job) return
     setIsSaving(true)
     
-    // ส่งข้อมูลกลับไปให้ QueueBoard จัดการต่อ
+    // 🌟 บังคับอัปเดต UI ทันที (Optimistic Update ที่แม่นยำ 100%)
+    // ดันค่าเข้า Cache ผ่าน Store ทำให้การ์ดด้านนอกอัปเดตโชว์ราคาปุ๊บโดยไม่ต้องรอ Database
+    const parsedPrice = estimatedPrice ? parseFloat(estimatedPrice) : null;
+    onUpdateJobInStore({
+      ...job,
+      estimatedPrice: parsedPrice,
+      serialNumber: serialNumber,
+      imei: imei
+    });
+    
+    // ส่งข้อมูลกลับไปให้ QueueBoard จัดการต่อเพื่อบันทึกลง Database
     await onSave(job.id, { estimatedPrice, serialNumber, imei })
     
     setIsSaving(false)
