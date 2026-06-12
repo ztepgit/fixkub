@@ -32,7 +32,7 @@ export default function PaywallPage() {
         const { data: { user }, error } = await supabase.auth.getUser()
 
         if (error || !user?.email) {
-          router.push('/login')
+          router.replace('/login')
           return
         }
 
@@ -40,7 +40,7 @@ export default function PaywallPage() {
         const shopRes = await getUserShops(user.email)
 
         if (!shopRes.success || shopRes.shops.length === 0) {
-          router.push('/')
+          router.replace('/')
           return
         }
 
@@ -52,7 +52,7 @@ export default function PaywallPage() {
 
         // ถ้าร้านยังไม่หมดอายุ (ACTIVE) ไม่ควรอยู่หน้านี้ ให้เตะกลับไปหน้า Dashboard!
         if (res.status === "ACTIVE") {
-          router.push("/dashboard")
+          router.replace("/dashboard")
           return
         }
 
@@ -75,7 +75,7 @@ export default function PaywallPage() {
         setDeletionDate(thaiYearDate)
       } catch (error) {
         console.error("Error fetching paywall data:", error)
-        router.push('/') // ถ้า Error อะไรแปลกๆ เด้งกลับหน้าหลักก่อน
+        router.replace('/') // เปลี่ยนจาก .push เป็น .replace เพื่อความปลอดภัยและลื่นไหลของระบบ
       }
     }
 
