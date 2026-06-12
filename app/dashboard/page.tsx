@@ -157,7 +157,8 @@ export default function MainPage() {
 
         if (
           res.status === "EXPIRED" ||
-          res.status === "PENDING_DELETION"
+          res.status === "PENDING_DELETION" ||
+          res.status === "ERROR"
         ) {
           router.replace(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
           return
