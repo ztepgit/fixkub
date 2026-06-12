@@ -5,16 +5,16 @@ import { db } from "@/lib/prisma"
 import { differenceInDays, isPast } from "date-fns"
 import { verifyShopAccess } from "@/lib/auth-guard"
 
-export async function checkAndEnforceShopStatus(shopId: string) {
+export async function checkShopStatus(shopId: string) {
   console.log("STATUS 1", shopId)
 
   try {
-    console.log("STATUS VERIFY START")
+    console.log("STATUS 2 BEFORE VERIFY")
 
     // 🌟 ด่านตรวจ: ป้องกันคนอื่นมาแอบเช็ค
     await verifyShopAccess(shopId)
 
-    console.log("STATUS VERIFY END")
+    console.log("STATUS 3 AFTER VERIFY")
 
     const shop = await db.shop.findUnique({
       where: { id: shopId },
@@ -27,10 +27,12 @@ export async function checkAndEnforceShopStatus(shopId: string) {
         isActive: true
       }
     })
-    console.log("STATUS 2")
-    console.log("STATUS SHOP FOUND", shop?.id)
+    console.log("STATUS 4 AFTER QUERY", shop)
 
-    if (!shop) return { status: "NOT_FOUND" }
+    if (!shop) {
+      console.log("STATUS 5 NOT FOUND")
+      return { status: "NOT_FOUND" }
+    }
     if (shop.planType === "PENDING_PAYMENT") {
       return {
         status: "PENDING_PAYMENT",
@@ -98,6 +100,9 @@ export async function checkAndEnforceShopStatus(shopId: string) {
 
   } catch (error) {
     console.error("Check Status Error:", error)
-    return { status: "ERROR" }
+    return {
+      status: "ERROR",
+      reason: "unknown_error"
+    }
   }
 }

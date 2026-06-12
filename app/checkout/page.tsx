@@ -21,7 +21,7 @@ import { QRCodeCanvas } from "qrcode.react"
 import { getSystemSettings } from "@/actions/setting"
 import { getShopById } from "@/actions/shop"
 import { processPaymentSuccess } from "@/actions/subscription"
-import { checkAndEnforceShopStatus } from "@/actions/shop-status"
+import { checkShopStatus } from "@/actions/shop-status"
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
@@ -99,7 +99,7 @@ function CheckoutForm() {
             })
           }
 
-          const statusRes = await checkAndEnforceShopStatus(shopId)
+          const statusRes = await checkShopStatus(shopId)
           if (statusRes.status === "EXPIRED" || statusRes.status === "PENDING_DELETION") {
             setIsExpired(true)
           }

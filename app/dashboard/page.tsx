@@ -15,7 +15,7 @@ import { LayoutDashboard, ClipboardList, BarChart3, Settings, Loader2 } from "lu
 
 import { DashboardHeader } from "@/components/dashboard-header"
 import { SubscriptionBanner } from "@/components/subscription-banner"
-import { checkAndEnforceShopStatus } from "@/actions/shop-status"
+import { checkShopStatus } from "@/actions/shop-status"
 
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
@@ -137,18 +137,41 @@ export default function MainPage() {
         console.log("SHOP ID:", realShopId)
         setShopId(realShopId)
 
+        setShopId(realShopId)
+
         console.log("SHOP ID:", realShopId)
         console.log("SET SHOP ID DONE")
-        // ===== DEBUG =====
-        setIsChecking(false)
 
-        console.log("SET CHECKING FALSE")
-        console.log("SKIP CHECK STATUS")
+        // 🔥 FIX BUG: รอ React commit state + auth sync 1 frame
+        await new Promise(requestAnimationFrame)
+
+        const res = await checkShopStatus(realShopId)
+
+        setExpiresAt(res.expiresAt ?? null)
+
+        // 🚨 redirect logic ย้ายมา client
+        if (res.status === "PENDING_PAYMENT") {
+          router.replace("/paywall?mode=pending-payment")
+          return
+        }
+
+        if (
+          res.status === "EXPIRED" ||
+          res.status === "PENDING_DELETION"
+        ) {
+          router.replace(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
+          return
+        }
+
+        // ✅ ACTIVE = เข้า dashboard ต่อ
+        setIsChecking(false)
+        // ===== DEBUG =====
+
         /* 
         //🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
         console.time("checkStatus")
         console.log("BEFORE checkStatus")
-        const res = await checkAndEnforceShopStatus(realShopId)
+        const res = await checkShopStatus(realShopId)
         console.log("AFTER checkStatus")
         console.log("STATUS RES:", res)
 

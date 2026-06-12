@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Clock, ShieldAlert, CreditCard, HelpCircle, Lock, AlertTriangle, Loader2 } from "lucide-react"
 
-import { checkAndEnforceShopStatus } from "@/actions/shop-status"
+import { checkShopStatus } from "@/actions/shop-status"
 // 🌟 1. Import เพิ่มเติมสำหรับการดึงร้านค้าของผู้ใช้
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
@@ -48,7 +48,7 @@ export default function PaywallPage() {
         const realShopId = shopRes.shops[0].id
         setShopId(realShopId)
 
-        const res = await checkAndEnforceShopStatus(realShopId)
+        const res = await checkShopStatus(realShopId)
 
         // ถ้าร้านยังไม่หมดอายุ (ACTIVE) ไม่ควรอยู่หน้านี้ ให้เตะกลับไปหน้า Dashboard!
         if (res.status === "ACTIVE") {

@@ -1,4 +1,4 @@
-//lib/supabase/server.ts
+// lib/supabase/server.ts
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
@@ -15,11 +15,16 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, {
+                ...options,
+                path: '/',
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+              })
+            })
           } catch (error) {
-            // ดัก Error ไว้กรณีเรียกใช้จากฝั่ง Server Component (ซึ่งมัน set cookie ไม่ได้)
+            console.warn('Supabase cookie set failed:', error)
           }
         },
       },
