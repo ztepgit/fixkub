@@ -33,11 +33,11 @@ import {
 } from "lucide-react"
 
 import { updateQueueStatus, getTop50Jobs } from "@/actions/queue"
-import { isSameDay } from "date-fns" 
+import { isSameDay } from "date-fns"
 import { queryKeys } from "@/lib/query-keys"
 
 import { useJobStore } from "@/store/useJobStore" // 🌟 UI State Only
-import { useShopStore } from "@/store/useShopStore" 
+import { useShopStore } from "@/store/useShopStore"
 import { useJobSync } from "@/hooks/useJobSync" // 🌟 Realtime Sync
 import { supabase } from "@/lib/supabase"
 import { getUserShops } from "@/actions/shop"
@@ -46,7 +46,7 @@ import { Queue, QueueStatus, CancelReason } from "@prisma/client"
 // 🌟 สร้าง Type โดยอิงจาก Prisma
 type RepairJob = Queue & {
   timeElapsed?: string;
-  phone?: string; 
+  phone?: string;
 }
 
 const QRCodeCanvas = dynamic(
@@ -94,7 +94,7 @@ export function DashboardOverview() {
       if (!res.success) throw new Error(res.error);
       return res.data as RepairJob[];
     },
-    staleTime: 1000 * 60 * 5, 
+    staleTime: 1000 * 60 * 5,
     enabled: !!shopId,
   })
 
@@ -104,7 +104,7 @@ export function DashboardOverview() {
   const [editPrice, setEditPrice] = useState("")
   const [editSn, setEditSn] = useState("")
   const [editImei, setEditImei] = useState("")
-  
+
   const [isQrHidden, setIsQrHidden] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
 
@@ -134,28 +134,27 @@ export function DashboardOverview() {
   }, [jobToViewData])
 
   const today = new Date()
-  
+
   // 🌟 คำนวณสถิติต่างๆ ผ่าน useMemo ป้องกัน Rerender
   const todayCount = useMemo(() => allJobs.filter(j => isSameDay(new Date(j.createdAt), today)).length, [allJobs])
-  const activeCount = useMemo(() => allJobs.filter(j => ['PENDING', 'WAITING', 'PROCESSING'].includes(j.status)).length, [allJobs])
+  const activeCount = useMemo(() => allJobs.filter(j => ['WAITING', 'PROCESSING'].includes(j.status)).length, [allJobs])
   const readyCount = useMemo(() => allJobs.filter(j => j.repairedAt && isSameDay(new Date(j.repairedAt), today)).length, [allJobs])
-  const repairedCountForProgress = useMemo(() => allJobs.filter(j => j.status === 'REPAIRED').length, [allJobs])
-  
-  const revenueToday = useMemo(() => 
+
+
+  const revenueToday = useMemo(() =>
     allJobs
       .filter(j => j.status === 'COMPLETED' && isSameDay(new Date(j.completedAt || j.updatedAt || j.createdAt), today))
       .reduce((sum, j) => sum + (Number(j.estimatedPrice) || 0), 0),
-  [allJobs])
+    [allJobs])
 
-  const recentUpdates = useMemo(() => 
+  const recentUpdates = useMemo(() =>
     allJobs
       .filter(j => ['PROCESSING', 'REPAIRED', 'PENDING', 'WAITING'].includes(j.status))
       .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
       .slice(0, 5),
-  [allJobs])
+    [allJobs])
 
-  const totalInProgress = activeCount + repairedCountForProgress
-  const completionRate = totalInProgress === 0 ? 0 : Math.round((repairedCountForProgress / totalInProgress) * 100)
+
 
   // 🌟 4. ระบบ Mutation แก้ไขข้อมูลคิวซ่อม
   const updateJobMutation = useMutation({
@@ -168,11 +167,11 @@ export function DashboardOverview() {
       const qKey = queryKeys.queues.list(shopId)
       await queryClient.cancelQueries({ queryKey: qKey })
       const previousJobs = queryClient.getQueryData<RepairJob[]>(qKey)
-      
+
       queryClient.setQueryData(qKey, (old: RepairJob[]) => {
-        return old?.map((job) => 
-          job.id === updatedJob.id 
-            ? { ...job, status: updatedJob.status as any, ...updatedJob.data, updatedAt: new Date().toISOString() } 
+        return old?.map((job) =>
+          job.id === updatedJob.id
+            ? { ...job, status: updatedJob.status as any, ...updatedJob.data, updatedAt: new Date().toISOString() }
             : job
         )
       })
@@ -213,8 +212,8 @@ export function DashboardOverview() {
     if (canvas) {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.href = url; 
-      link.download = `QR-Code-${currentSlug || 'getfixx'}.png`; 
+      link.href = url;
+      link.download = `QR-Code-${currentSlug || 'getfixx'}.png`;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }
@@ -245,7 +244,7 @@ export function DashboardOverview() {
   return (
     <TooltipProvider>
       <div className="space-y-6 relative">
-        
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">ภาพรวมของร้าน (Overview)</h2>
@@ -272,7 +271,7 @@ export function DashboardOverview() {
 
           <Card className="shadow-sm border-amber-100 dark:border-amber-900 dark:bg-slate-900 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">กำลังดำเนินการ</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">คิวที่รับเรื่อง</CardTitle>
               <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-500" />
             </CardHeader>
             <CardContent>
@@ -291,13 +290,7 @@ export function DashboardOverview() {
               <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                 {isHidden ? "***" : readyCount} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">เครื่อง</span>
               </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-[10px] text-slate-500 font-medium">
-                  <span>อัตราส่วน งานรอรับ : งานกำลังซ่อม</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">{completionRate}%</span>
-                </div>
-                <Progress value={completionRate} className="h-1.5 bg-slate-100 dark:bg-slate-800" indicatorClassName="bg-emerald-500" />
-              </div>
+
             </CardContent>
           </Card>
 
@@ -313,7 +306,7 @@ export function DashboardOverview() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          
+
           {/* ส่วนรายการอัปเดตล่าสุด */}
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
             <CardHeader>
@@ -329,15 +322,14 @@ export function DashboardOverview() {
                     recentUpdates.map((job: RepairJob) => (
                       <div key={job.id} className="flex items-start justify-between border-b dark:border-slate-800 pb-4 last:border-0 last:pb-0">
                         <div className="flex items-start gap-3 sm:gap-4">
-                          <div className={`p-2 mt-0.5 rounded-full shrink-0 ${
-                            job.status === 'REPAIRED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' :
-                            job.status === 'PROCESSING' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                            job.status === 'WAITING' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
-                            'bg-slate-100 text-slate-600 dark:bg-slate-800'
-                          }`}>
-                            {job.status === 'REPAIRED' ? <CheckCircle2 className="h-5 w-5" /> : 
-                             job.status === 'PROCESSING' ? <Wrench className="h-5 w-5" /> : 
-                             <Smartphone className="h-5 w-5" />}
+                          <div className={`p-2 mt-0.5 rounded-full shrink-0 ${job.status === 'REPAIRED' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' :
+                              job.status === 'PROCESSING' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
+                                job.status === 'WAITING' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' :
+                                  'bg-slate-100 text-slate-600 dark:bg-slate-800'
+                            }`}>
+                            {job.status === 'REPAIRED' ? <CheckCircle2 className="h-5 w-5" /> :
+                              job.status === 'PROCESSING' ? <Wrench className="h-5 w-5" /> :
+                                <Smartphone className="h-5 w-5" />}
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
@@ -420,7 +412,7 @@ export function DashboardOverview() {
                 <TooltipContent><p>{isQrHidden ? "แสดง QR Code" : "ซ่อน QR Code"}</p></TooltipContent>
               </Tooltip>
             </CardHeader>
-            
+
             <CardContent className="flex flex-col items-center justify-center p-6 flex-1 relative">
               {isQrHidden ? (
                 <div className="flex flex-col items-center justify-center space-y-3 h-[254px] w-full rounded-lg animate-in fade-in duration-300">
