@@ -30,7 +30,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
   console.log("shopId =", shopId)
   const { toast } = useToast();
   const router = useRouter();
-  
+
   const [searchNo, setSearchNo] = useState("");
   const [searchDate, setSearchDate] = useState<Date | undefined>(undefined);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
     queryKey: ["receipt-history-search", shopId, searchNo, searchDate],
     queryFn: async () => {
       if (!shopId) throw new Error("No Shop ID");
-      
+
       let res;
       // ถ้ามีการค้นหา ให้ยิง Query ไปที่ฟังก์ชันค้นหา, ถ้าไม่มีดึงเฉพาะตัวล่าสุด 10 อัน
       if (searchNo || searchDate) {
@@ -48,7 +48,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
       } else {
         res = await getLatestReceiptHistory(shopId);
       }
-      
+
       if (!res.success) throw new Error(res.error || "เกิดข้อผิดพลาดในการดึงข้อมูล");
       return res.data as unknown as ReceiptHistoryItem[];
     },
@@ -64,7 +64,12 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
     try {
       const res = await downloadReceiptPDF(shopId, receiptNo);
       if (res.success && res.url) {
-        window.open(res.url, '_blank');
+        const link = document.createElement("a");
+        link.href = res.url;
+        link.download = `${receiptNo}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       } else {
         toast({ title: "❌ ผิดพลาด", description: res.error, variant: "destructive" });
       }
@@ -97,7 +102,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
         </Button>
         */}
       </CardHeader>
-      
+
       <CardContent className="pt-6 space-y-4">
         {/* 🌟 Search Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -176,8 +181,8 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
                       </div>
                     </div>
                     {item.receipt?.receiptNo && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDownload(item.receipt!.receiptNo)}
                         disabled={downloadingId === item.receipt!.receiptNo}
