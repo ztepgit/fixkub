@@ -1,8 +1,10 @@
 // actions/subscription.ts
+
 "use server"
 
 import { db } from "@/lib/prisma"
-import { addMonths, addYears, isAfter, differenceInDays } from "date-fns"
+// 🌟 เปลี่ยนจาก addMonths, addYears เป็น addDays
+import { addDays, isAfter, differenceInDays } from "date-fns"
 import { PlanType } from "@prisma/client"
 import { z } from "zod"
 import { verifyShopAccess } from "@/lib/auth-guard"
@@ -70,18 +72,22 @@ export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType
     !hasActiveTrial &&
     !effectiveCurrentExpiry;
   if (isNewUserBonusEligible) {
-    baseDate = addMonths(baseDate, 1);
+    // 🌟 เปลี่ยนโบนัสฟรีเป็น 30 วันเต็ม
+    baseDate = addDays(baseDate, 30);
   }
 
   let newExpiresAt = baseDate;
   if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
-    newExpiresAt = addMonths(newExpiresAt, 1);
+    // 🌟 แพ็กเกจรายเดือน = +30 วัน
+    newExpiresAt = addDays(newExpiresAt, 30);
   } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
-    newExpiresAt = addYears(newExpiresAt, 1);
+    // 🌟 แพ็กเกจรายปี = +365 วัน
+    newExpiresAt = addDays(newExpiresAt, 365);
   } else if (planToBuy === "LIFETIME") {
-    newExpiresAt = addYears(newExpiresAt, 99);
+    newExpiresAt = addDays(newExpiresAt, 365 * 99); // 99 ปี
   } else {
-    newExpiresAt = addMonths(newExpiresAt, 1);
+    // 🌟 ค่าเริ่มต้น = +30 วัน
+    newExpiresAt = addDays(newExpiresAt, 30);
   }
 
   const baseAmount = PRICE_TABLE[planToBuy];
@@ -148,18 +154,22 @@ export async function calculateUpgradeExpiryAndProrate(shopId: string, planToBuy
     !hasActiveTrial &&
     !effectiveCurrentExpiry;
   if (isNewUserBonusEligible) {
-    baseDate = addMonths(baseDate, 1);
+    // 🌟 เปลี่ยนโบนัสฟรีเป็น 30 วันเต็ม
+    baseDate = addDays(baseDate, 30);
   }
 
   let newExpiresAt = baseDate;
   if (planToBuy === "BASIC_MONTHLY" || planToBuy === "PRO_MONTHLY") {
-    newExpiresAt = addMonths(newExpiresAt, 1);
+    // 🌟 แพ็กเกจรายเดือน = +30 วัน
+    newExpiresAt = addDays(newExpiresAt, 30);
   } else if (planToBuy === "BASIC_YEARLY" || planToBuy === "PRO_YEARLY") {
-    newExpiresAt = addYears(newExpiresAt, 1);
+    // 🌟 แพ็กเกจรายปี = +365 วัน
+    newExpiresAt = addDays(newExpiresAt, 365);
   } else if (planToBuy === "LIFETIME") {
-    newExpiresAt = addYears(newExpiresAt, 99);
+    newExpiresAt = addDays(newExpiresAt, 365 * 99); // 99 ปี
   } else {
-    newExpiresAt = addMonths(newExpiresAt, 1);
+    // 🌟 ค่าเริ่มต้น = +30 วัน
+    newExpiresAt = addDays(newExpiresAt, 30);
   }
 
   const baseAmount = PRICE_TABLE[planToBuy];
@@ -265,7 +275,6 @@ export async function processPaymentSuccess(
           approvedAt: now,
           isUpgrade: shop.planType !== "FREE_TRIAL" && !isRenewal,
           transRef: transRef,
-          // 🚨 เอาระบบ Nested Create (receipt: { create: ... }) ออก เพราะเราจะใช้ Action ที่กัน Race-condition แทน
         }
       })
     })
