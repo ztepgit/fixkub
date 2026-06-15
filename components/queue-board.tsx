@@ -799,7 +799,8 @@ export function QueueBoard() {
                                     <TooltipTrigger asChild>
                                       <div>
                                         <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                          {/* 🌟 ลบ opacity-0 ในหน้าจอขนาดเล็กออก (แก้ไข `opacity-100` เป็น default และคง hover opacity สำหรับจอที่รองรับ) */}
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-100 group-hover:opacity-100 transition-opacity hover:bg-slate-100 dark:hover:bg-slate-800">
                                             <MoreHorizontal className="h-4 w-4" />
                                           </Button>
                                         </DropdownMenuTrigger>
