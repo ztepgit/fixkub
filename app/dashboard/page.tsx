@@ -47,26 +47,15 @@ export default function MainPage() {
   useEffect(() => {
     const verifyAccess = async () => {
       try {
-        console.time("getUser")
-        console.log("START VERIFY")
+
         const { data: { user }, error } = await supabase.auth.getUser()
-        console.log("USER", user)
-        console.log("COOKIE", document.cookie)
-        console.timeEnd("getUser")
 
         if (error || !user?.email) {
           router.push('/login')
           return
         }
 
-        console.log("USER:", user.email)
-        console.time("getUserShops")
-        console.log("START getUserShops")
         const shopRes = await getUserShops(user.email)
-        console.timeEnd("getUserShops")
-        console.log("END getUserShops", shopRes)
-
-        console.log("SHOP RES:", shopRes)
 
         if (!shopRes.success || shopRes.shops.length === 0) {
           router.push('/')
