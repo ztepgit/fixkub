@@ -265,7 +265,7 @@ export default function LandingPage() {
                   // 🌟 Removed hidden md:inline-flex to make it always visible
                   className="text-slate-500 hover:text-rose-600 hover:bg-rose-50"
                 >
-                  <LogOut className="w-4 h-4 mr-2" /> ออกจากระบบ
+                  <LogOut className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">ออกจากระบบ</span>
                 </Button>
               </>
             )}
