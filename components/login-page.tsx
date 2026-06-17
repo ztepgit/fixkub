@@ -74,9 +74,12 @@ export function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     })
 
