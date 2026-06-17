@@ -288,7 +288,7 @@ export default function LandingPage() {
             <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl">
               จบปัญหาลูกค้าถาม "พี่ซ่อมถึงไหนแล้ว?"
               <br />
-              แจ้งซ่อมผ่าน QR เช็คสถานะออนไลน์ เห็นรายได้ผ่านมือถือเครื่องเดียว
+              แจ้งซ่อมผ่านเว็บ เช็คสถานะออนไลน์ เห็นรายได้ผ่านมือถือเครื่องเดียว
             </p>
             <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
 
