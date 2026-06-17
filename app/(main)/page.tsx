@@ -280,14 +280,15 @@ export default function LandingPage() {
               ยินดีต้อนรับ
             </Badge>
             <h1 className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-7xl">
-              บอกลาคิวกระดาษ <br className="hidden sm:block" />
+              ดึงดูดลูกค้าเข้าร้าน <br className="hidden sm:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">
-                มาใช้ระบบออนไลน์100%
+                ด้วยระบบจัดการคิวซ่อมออนไลน์
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl">
-              จบปัญหาลูกค้าทักแชทถาม "พี่ซ่อมถึงไหนแล้ว?" ด้วยระบบคิวอัจฉริยะ
-              รับเครื่องง่าย จัดการคิวเป็นระบบ ดูยอดรายได้ชัดเจนผ่านมือถือเครื่องเดียว
+              จบปัญหาลูกค้าถาม "พี่ซ่อมถึงไหนแล้ว?"
+              <br />
+              แจ้งซ่อมผ่านเว็บ เช็คสถานะออนไลน์ เห็นรายได้ผ่านมือถือเครื่องเดียว
             </p>
             <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
 
