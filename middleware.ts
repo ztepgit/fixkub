@@ -1,4 +1,4 @@
-//middleware.ts
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
@@ -27,27 +27,28 @@ export default async function middleware(request: NextRequest) {
   // 🌐 ส่วนที่ 1: ระบบจัดการ Subdomain (Routing)
   // ==========================================
   const isVercel = hostname.includes("vercel.app");
-  //const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
-  //const subdomain = hostname.replace(`.${rootDomain}`, "");
-
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
-
+  
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN!;
   let subdomain = "";
 
-  if (rootDomain) {
+  // เช็คว่าเป็นโดเมนหลักหรือไม่
+  const isRootDomain =
+    hostname === rootDomain ||
+    hostname === `www.${rootDomain}`;
+
+  // ถ้าไม่ใช่โดเมนหลัก และลงท้ายด้วย .getfixx.net (หรือโดเมนที่ตั้งไว้)
+  if (!isRootDomain && hostname.endsWith(`.${rootDomain}`)) {
     subdomain = hostname.replace(`.${rootDomain}`, "");
   }
 
   // เพิ่ม "www" เข้าไปในคำสงวนเพื่อความปลอดภัย
   const reservedSubdomains = ["admin", "app", "api", "dashboard", "super-admin", "support", "www"];
 
-  if (!isVercel && subdomain && subdomain !== hostname && subdomain !== rootDomain) {
-    if (subdomain === "www") {
-      // SEO Best Practice: Redirect www กลับไปหาโดเมนหลักเปล่าๆ
-      response = NextResponse.redirect(new URL(`https://${rootDomain}${url.pathname}`, request.url));
-    } else if (!reservedSubdomains.includes(subdomain)) {
-      // 🪄 ปลายทาง: Rewrite เข้าไปในโฟลเดอร์ app/shop/[shopSlug]/page.tsx
-      response = NextResponse.rewrite(new URL(`/shop/${subdomain}${url.pathname}`, request.url));
+  if (!isVercel && subdomain) {
+    if (!reservedSubdomains.includes(subdomain)) {
+      return NextResponse.rewrite(
+        new URL(`/shop/${subdomain}${url.pathname}`, request.url)
+      );
     }
   }
 
