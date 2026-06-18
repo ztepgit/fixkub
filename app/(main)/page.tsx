@@ -413,7 +413,7 @@ export default function LandingPage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">ทำไมร้านซ่อมมือถือยุคใหม่ ถึงเลือกเรา?</h2>
-              <p className="mt-4 text-lg text-slate-600">ออกแบบมาเพื่อ Workflow ของช่างซ่อมโดยเฉพาะ ไม่ซับซ้อน ใช้งานง่าย</p>
+              <p className="mt-4 text-lg text-slate-600">ออกแบบมาเพื่อ Workflow ของช่างโดยเฉพาะ ไม่ซับซ้อน ใช้งานง่าย</p>
             </div>
 
             <div className="grid gap-8 md:grid-cols-3">
