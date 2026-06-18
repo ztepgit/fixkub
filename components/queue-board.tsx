@@ -78,6 +78,8 @@ type RepairJob = {
   warrantyArchivedAt?: Date | string | null
   warrantyUntil?: Date | string | null
   images?: string[]
+  // 🌟 เพิ่ม Flag สำหรับ Optimistic UI
+  _isOptimistic?: boolean
 }
 
 const COLUMNS = [
@@ -181,29 +183,34 @@ export function QueueBoard() {
   const jobToDeleteData = useMemo(() => allJobs.find(j => j.id === jobToDelete) || null, [allJobs, jobToDelete]);
   const jobToWarrantyData = useMemo(() => allJobs.find(j => j.id === jobToWarranty) || null, [allJobs, jobToWarranty]);
 
-  // 🌟 5. Robust Optimistic Mutation (รวมร่างแล้ว - แก้ UI Flicker)
+  // 🌟 5. Robust Optimistic Mutation (แก้ UI Flicker และ เด้งกลับ)
   const updateJobMutation = useMutation({
     mutationFn: async ({ id, status, data }: { id: string, status: string, data?: any }) => {
       const res = await updateQueueStatus(id, status, data)
       if (!res.success) throw new Error(res.error || "Update failed")
-      return res.data // ❗ ต้อง return ข้อมูลล่าสุดจาก Backend
+      return res.data 
     },
     onMutate: async (updatedJob) => {
       const qKey = queryKeys.queues.list(shopId)
       
-      // 1. Cancel query ที่อาจจะกำลังวิ่งอยู่เพื่อป้องกันข้อมูลเก่ามาทับ
+      // Cancel query เพื่อไม่ให้ข้อมูลที่วิ่งอยู่มากวน
       await queryClient.cancelQueries({ queryKey: qKey })
 
-      // 2. เก็บ Snapshot เผื่อต้อง Rollback
+      // เก็บของเก่าไว้ Rollback
       const previousJobs = queryClient.getQueryData<RepairJob[]>(qKey)
 
-      // 3. Optimistic Update (UX ทำงานทันที)
+      // 🌟 ย้ายข้ามบอร์ดทันที และแปะป้าย _isOptimistic = true เพื่อให้ UI ทำสีซีด (Loading state)
       queryClient.setQueryData(qKey, (old: RepairJob[]) => {
         if (!old) return []
         return old.map((job) => 
           job.id === updatedJob.id 
-            // Merge ข้อมูลชั่วคราว
-            ? { ...job, status: updatedJob.status as any, ...updatedJob.data, updatedAt: new Date().toISOString() } 
+            ? { 
+                ...job, 
+                status: updatedJob.status as any, 
+                ...updatedJob.data, 
+                updatedAt: new Date().toISOString(),
+                _isOptimistic: true // 👈 แปะป้ายว่ากำลังโหลด
+              } 
             : job
         )
       })
@@ -211,24 +218,22 @@ export function QueueBoard() {
       return { previousJobs, qKey }
     },
     onSuccess: (serverData, variables, context) => {
-      // 4. Server Reconciliation: เอาข้อมูลจริงจาก DB มา Patch ทับ (แก้ไขปัญหา Realtime Echo ล่วงหน้า)
+      // 🌟 เมื่อ Server ตอบกลับมาสำเร็จ เอาของจริงทับและเอาป้าย _isOptimistic ออก (สีกลับมาเข้มปกติ)
       if (context?.qKey && serverData) {
         queryClient.setQueryData(context?.qKey, (old: RepairJob[]) => {
           if (!old) return []
-          return old.map((job) => job.id === variables.id ? { ...job, ...serverData } : job)
+          return old.map((job) => job.id === variables.id ? { ...job, ...serverData, _isOptimistic: undefined } : job)
         })
       }
     },
     onError: (err, variables, context) => {
-      // 5. Rollback หากพัง
       if (context?.previousJobs) {
         queryClient.setQueryData(context.qKey, context.previousJobs)
       }
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ", variant: "destructive" })
     },
     onSettled: (data, error, variables, context) => {
-      // ❗ ลบคำสั่ง queryClient.invalidateQueries(คิว) ออกจากตรงนี้
-      // ปล่อยให้ List อยู่รอดด้วย Cache ตัวเอง ส่วน Report ให้ Invalidate ได้เพราะไม่กระทบ UX ทันที
+      // อัปเดตสถิติเงียบๆ โดยไม่กวนหน้าบอร์ด
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.stats(shopId) })
     }
   })
@@ -767,7 +772,15 @@ export function QueueBoard() {
                           </div>
                         ) : (
                           columnJobs.map((job: RepairJob) => (
-                            <Card key={job.id} className="shadow-sm border-slate-200 dark:border-slate-700 dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700/50 transition-colors cursor-default relative group">
+                            // 🌟 ปรับ Card ให้สีซีด (opacity-50 และมี pointer-events-none กันกดรัวๆ) เมื่อสถานะคือ _isOptimistic
+                            <Card key={job.id} className={`shadow-sm border-slate-200 dark:border-slate-700 dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700/50 transition-all duration-300 cursor-default relative group ${job._isOptimistic ? "opacity-50 pointer-events-none scale-[0.98]" : ""}`}>
+                              {/* 🌟 ไอคอนแสดงสถานะกำลังโหลดตอน Optimistic Update */}
+                              {job._isOptimistic && (
+                                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                                  <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+                                </div>
+                              )}
+                              
                               <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between space-y-0">
                                 <div>
                                   <div className="flex items-center gap-2 mb-1">
@@ -799,8 +812,7 @@ export function QueueBoard() {
                                     <TooltipTrigger asChild>
                                       <div>
                                         <DropdownMenuTrigger asChild>
-                                          {/* 🌟 ลบ opacity-0 ในหน้าจอขนาดเล็กออก (แก้ไข `opacity-100` เป็น default และคง hover opacity สำหรับจอที่รองรับ) */}
-                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-100 group-hover:opacity-100 transition-opacity hover:bg-slate-100 dark:hover:bg-slate-800">
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800">
                                             <MoreHorizontal className="h-4 w-4" />
                                           </Button>
                                         </DropdownMenuTrigger>
@@ -871,7 +883,7 @@ export function QueueBoard() {
                                       moveJob(job.id, job.status)
                                     }
                                   }}
-                                  disabled={updateJobMutation.isPending}
+                                  disabled={updateJobMutation.isPending || job._isOptimistic} // 🌟 ถ้ากำลังโหลดอยู่ ห้ามกดซ้ำ
                                   className="w-full text-xs h-8 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-700/50"
                                 >
                                   {job.status === "PENDING" && "รับเครื่องเข้าคิว"}
