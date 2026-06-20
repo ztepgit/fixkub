@@ -12,11 +12,11 @@ export function Footer() {
   return (
     <footer className="border-t border-white/5 bg-slate-900">
       <div className="container mx-auto flex flex-col items-center px-4 py-10 text-center md:px-6">
-        
+
         {/* Logo */}
         <div className="mb-4 flex items-center gap-2">
           <Wrench className="h-5 w-5 text-emerald-500" />
-          
+
           <span className="text-xl font-semibold tracking-tight text-white">
             getfixx <span className="text-emerald-500">Repair</span>
           </span>
@@ -24,15 +24,6 @@ export function Footer() {
 
         {/* Navigation */}
         <div className="mb-5 flex items-center gap-3 text-sm text-slate-400">
-          <Link
-            href="/privacy-policy"
-            className="transition-colors hover:text-white hover:underline underline-offset-4"
-          >
-            นโยบายความเป็นส่วนตัว
-          </Link>
-
-          <span className="h-1 w-1 rounded-full bg-slate-600" />
-
           <button
             type="button"
             onClick={openSettings}
@@ -40,6 +31,27 @@ export function Footer() {
           >
             ตั้งค่าคุกกี้
           </button>
+          <span className="h-1 w-1 rounded-full bg-slate-600" />
+          <Link
+            href="/privacy-policy"
+            className="transition-colors hover:text-white hover:underline underline-offset-4"
+          >
+            นโยบายความเป็นส่วนตัว
+          </Link>
+          <span className="h-1 w-1 rounded-full bg-slate-600" />
+          <Link
+            href="/refund-policy"
+            className="transition-colors hover:text-white hover:underline underline-offset-4"
+          >
+            นโยบายการคืนเงิน
+          </Link>
+          <span className="h-1 w-1 rounded-full bg-slate-600" />
+          <Link
+            href="/terms-of-service"
+            className="transition-colors hover:text-white hover:underline underline-offset-4"
+          >
+            เงื่อนไขการใช้บริการ
+          </Link>
         </div>
 
         {/* Copyright */}
