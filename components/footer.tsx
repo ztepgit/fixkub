@@ -52,6 +52,14 @@ export function Footer() {
           >
             เงื่อนไขการใช้บริการ
           </Link>
+          <span className="h-1 w-1 rounded-full bg-slate-600" />
+
+          <Link
+            href="/contact-us"
+            className="transition-colors hover:text-white hover:underline underline-offset-4"
+          >
+            ติดต่อเรา
+          </Link>
         </div>
 
         {/* Copyright */}
