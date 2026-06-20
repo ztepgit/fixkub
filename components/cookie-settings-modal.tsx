@@ -68,7 +68,7 @@ export function CookieSettingsModal() {
                         <div className="flex-1">
                             <h4 className="font-semibold text-sm">คุกกี้เพื่อการวิเคราะห์ (Analytics)</h4>
                             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                ช่วยให้เราเข้าใจการใช้งานเว็บไซต์ เช่น สถิติการเช็คสถานะคิวของลูกค้า เพื่อนำไปพัฒนา ESYQ ให้ดียิ่งขึ้น
+                                ช่วยให้เราเข้าใจการใช้งานเว็บไซต์ เช่น สถิติการเช็คสถานะคิวของลูกค้า เพื่อนำไปพัฒนา Getfixx ให้ดียิ่งขึ้น
                             </p>
                         </div>
                         <Switch
