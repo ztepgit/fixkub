@@ -109,6 +109,7 @@ export default function TermsOfServicePage() {
                         <p>หากท่านมีข้อสงสัยเกี่ยวกับข้อตกลงและเงื่อนไขฉบับนี้ สามารถติดต่อเราได้ที่:</p>
                         <ul className="list-disc pl-6 space-y-1">
                             <li>อีเมล: getfixxth@gmail.com</li>
+                            <li>โทรศัพท์: +66 641897530</li>
                         </ul>
                     </section>
                 </div>
