@@ -18,7 +18,7 @@ import { generateReceiptPDF } from "@/lib/receipt-generator"
 const PRICE_TABLE: Record<PlanType, number> = {
   PENDING_PAYMENT: 0,
   FREE_TRIAL: 0,
-  BASIC_MONTHLY: 299,
+  BASIC_MONTHLY: 1,
   BASIC_YEARLY: 2290,
   PRO_MONTHLY: 399,
   PRO_YEARLY: 3290,
@@ -32,6 +32,24 @@ const paymentSchema = z.object({
   amount: z.number().min(0, "ยอดเงินไม่ถูกต้อง"),
   transRef: z.string().trim().min(1, "ไม่พบรหัสอ้างอิงการโอนเงิน (Transaction Ref)")
 })
+
+// 🌟 Add this helper function so other payment providers (like Stripe) can get the final amount
+// without duplicating pricing logic.
+export async function calculateCheckoutAmount(shopId: string, planToBuy: PlanType) {
+  const shop = await db.shop.findUnique({
+    where: { id: shopId }
+  })
+
+  if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
+
+  const isRenewal = shop.planType === planToBuy && shop.planType !== "FREE_TRIAL"
+
+  if (isRenewal) {
+    return await calculateRenewalExpiry(shopId, planToBuy)
+  } else {
+    return await calculateUpgradeExpiryAndProrate(shopId, planToBuy)
+  }
+}
 
 // ==========================================
 // 🌟 1. ฟังก์ชันคำนวณวันหมดอายุสำหรับการ "ต่ออายุ" (Renewal)
@@ -100,6 +118,8 @@ export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType
     finalAmountToPay
   };
 }
+
+
 
 // ==========================================
 // 🌟 2. ฟังก์ชันคำนวณวันหมดอายุและเครดิตสำหรับการ "อัปเกรด/ดาวน์เกรด" (Credit-Based Proration)
