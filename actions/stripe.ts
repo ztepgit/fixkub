@@ -50,8 +50,9 @@ export async function createStripeCheckoutSession(shopId: string, plan: PlanType
             success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${baseUrl}/checkout?shopId=${shopId}&plan=${planEnum}&cancel=true`,
             metadata: {
-                shopId: shopId,
+                shopId,
                 plan: planEnum,
+                expectedAmount: finalAmountToPay.toString(),
             },
         })
 

@@ -291,7 +291,7 @@ const ReceiptHeader = () => (
     <View style={styles.logoCompanyGroup}>
       <WrenchIcon />
       <View>
-        <Text style={styles.companyName}>Getfixx Systems</Text>
+        <Text style={styles.companyName}>Getfixx</Text>
         <Text style={styles.companyDetails}>104 ซอยติวานนท์ 38 (18/5) ต.ท่าทราย อ.เมือง จ.นนทบุรี 11000</Text>
         <Text style={styles.companyDetails}>Tax ID: 3102001480460</Text>
       </View>
