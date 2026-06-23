@@ -9,10 +9,12 @@ import { PlanType } from "@prisma/client"
 import { z } from "zod"
 import { verifyShopAccess } from "@/lib/auth-guard"
 import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 
 // 🌟 เปลี่ยนจากการดึง generateUniqueReceiptNo เป็น generateAndCreateReceipt 
 import { generateAndCreateReceipt } from "@/actions/receipt"
 import { generateReceiptPDF } from "@/lib/receipt-generator"
+
 
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง) เทส1บาท
 const PRICE_TABLE: Record<PlanType, number> = {
@@ -301,14 +303,17 @@ export async function processPaymentSuccess(
 
     // 🌟 2️⃣ สร้างใบเสร็จด้วยระบบป้องกัน Race-condition (มี Retry ในตัว)
     const receipt = await generateAndCreateReceipt({
+
       paymentTransactionId: paymentTx.id,
       shopId: shopId,
       amount: amount,
       issuedAt: now
     });
+    console.log("🔥 RECEIPT CREATED", receipt)
 
     // 🌟 3️⃣ สร้าง PDF และอัปโหลดลง Supabase
     try {
+      console.log("🔥 BEFORE PDF GENERATION")
       const pdfBytes = await generateReceiptPDF({
         receiptNo: receipt.receiptNo,
         issuedAt: now,
@@ -318,11 +323,14 @@ export async function processPaymentSuccess(
         subscriptionStartsAt: !isRenewal ? now : shop.subscriptionStartsAt,
         expiresAt: newExpiresAt
       });
+      console.log("🔥 PDF GENERATED", pdfBytes?.length)
 
-      const supabase = await createClient();
+      const supabase = supabaseAdmin
       const { error: uploadError } = await supabase.storage
         .from("receipts")
         .upload(receipt.pdfPath, pdfBytes, { contentType: "application/pdf" });
+
+      console.log("🔥 UPLOAD ERROR", uploadError)
 
       if (uploadError) {
         console.error("Supabase Upload Error:", uploadError.message);
