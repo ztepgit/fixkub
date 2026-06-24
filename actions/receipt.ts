@@ -99,6 +99,8 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
       where: { receiptNo }
     });
 
+    console.log("🔥 DOWNLOAD RECEIPT", receipt)
+
     if (!receipt || receipt.shopId !== shopId) {
       return { success: false, error: "ไม่มีสิทธิ์เข้าถึงเอกสารนี้ หรือไม่พบเอกสาร" };
     }
@@ -107,6 +109,9 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
     const { data, error } = await supabase.storage
       .from('receipts')
       .createSignedUrl(receipt.pdfPath, 60);
+    console.log("RECEIPT PATH =", receipt.pdfPath)
+    console.log("SIGNED URL DATA =", data)
+    console.log("SIGNED URL ERROR =", error)
 
     if (error || !data) {
       return { success: false, error: "ระบบเอกสารขัดข้อง กรุณาลองใหม่" };
@@ -114,6 +119,7 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
 
     return { success: true, url: data.signedUrl };
   } catch (error) {
+    console.error("🔥 DOWNLOAD RECEIPT ERROR", error)
     return { success: false, error: "เกิดข้อผิดพลาดในการดึงเอกสาร" };
   }
 }

@@ -465,7 +465,7 @@ export default function LandingPage() {
                   <p className="text-slate-500 mt-2">เหมาะสำหรับร้านเปิดใหม่</p>
                   <div className="my-6 flex items-baseline gap-2">
                     {/* เทส1บาท */}
-                    <span className="text-4xl font-extrabold text-slate-900">฿299</span>
+                    <span className="text-4xl font-extrabold text-slate-900">฿10</span>
                     <span className="text-slate-500">/ เดือน</span>
                   </div>
                   <ul className="space-y-3 mb-8">

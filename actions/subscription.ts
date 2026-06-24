@@ -9,16 +9,18 @@ import { PlanType } from "@prisma/client"
 import { z } from "zod"
 import { verifyShopAccess } from "@/lib/auth-guard"
 import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 
 // 🌟 เปลี่ยนจากการดึง generateUniqueReceiptNo เป็น generateAndCreateReceipt 
 import { generateAndCreateReceipt } from "@/actions/receipt"
 import { generateReceiptPDF } from "@/lib/receipt-generator"
 
+
 // 🌟 ราคามาตรฐานสำหรับคำนวณ Prorate (อ้างอิงจากราคาขายจริง) เทส1บาท
 const PRICE_TABLE: Record<PlanType, number> = {
   PENDING_PAYMENT: 0,
   FREE_TRIAL: 0,
-  BASIC_MONTHLY: 299,
+  BASIC_MONTHLY: 10,
   BASIC_YEARLY: 2290,
   PRO_MONTHLY: 399,
   PRO_YEARLY: 3290,
@@ -32,6 +34,24 @@ const paymentSchema = z.object({
   amount: z.number().min(0, "ยอดเงินไม่ถูกต้อง"),
   transRef: z.string().trim().min(1, "ไม่พบรหัสอ้างอิงการโอนเงิน (Transaction Ref)")
 })
+
+// 🌟 Add this helper function so other payment providers (like Stripe) can get the final amount
+// without duplicating pricing logic.
+export async function calculateCheckoutAmount(shopId: string, planToBuy: PlanType) {
+  const shop = await db.shop.findUnique({
+    where: { id: shopId }
+  })
+
+  if (!shop) throw new Error("ไม่พบข้อมูลร้านค้า")
+
+  const isRenewal = shop.planType === planToBuy && shop.planType !== "FREE_TRIAL"
+
+  if (isRenewal) {
+    return await calculateRenewalExpiry(shopId, planToBuy)
+  } else {
+    return await calculateUpgradeExpiryAndProrate(shopId, planToBuy)
+  }
+}
 
 // ==========================================
 // 🌟 1. ฟังก์ชันคำนวณวันหมดอายุสำหรับการ "ต่ออายุ" (Renewal)
@@ -100,6 +120,8 @@ export async function calculateRenewalExpiry(shopId: string, planToBuy: PlanType
     finalAmountToPay
   };
 }
+
+
 
 // ==========================================
 // 🌟 2. ฟังก์ชันคำนวณวันหมดอายุและเครดิตสำหรับการ "อัปเกรด/ดาวน์เกรด" (Credit-Based Proration)
@@ -281,14 +303,17 @@ export async function processPaymentSuccess(
 
     // 🌟 2️⃣ สร้างใบเสร็จด้วยระบบป้องกัน Race-condition (มี Retry ในตัว)
     const receipt = await generateAndCreateReceipt({
+
       paymentTransactionId: paymentTx.id,
       shopId: shopId,
       amount: amount,
       issuedAt: now
     });
+    console.log("🔥 RECEIPT CREATED", receipt)
 
     // 🌟 3️⃣ สร้าง PDF และอัปโหลดลง Supabase
     try {
+      console.log("🔥 BEFORE PDF GENERATION")
       const pdfBytes = await generateReceiptPDF({
         receiptNo: receipt.receiptNo,
         issuedAt: now,
@@ -298,11 +323,14 @@ export async function processPaymentSuccess(
         subscriptionStartsAt: !isRenewal ? now : shop.subscriptionStartsAt,
         expiresAt: newExpiresAt
       });
+      console.log("🔥 PDF GENERATED", pdfBytes?.length)
 
-      const supabase = await createClient();
+      const supabase = supabaseAdmin
       const { error: uploadError } = await supabase.storage
         .from("receipts")
         .upload(receipt.pdfPath, pdfBytes, { contentType: "application/pdf" });
+
+      console.log("🔥 UPLOAD ERROR", uploadError)
 
       if (uploadError) {
         console.error("Supabase Upload Error:", uploadError.message);

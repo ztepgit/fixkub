@@ -1,3 +1,4 @@
+//components/footer.tsx
 "use client";
 
 import Link from "next/link";
@@ -22,8 +23,8 @@ export function Footer() {
           </span>
         </div>
 
-        {/* Navigation */}
-        <div className="mb-5 flex items-center gap-3 text-sm text-slate-400">
+      {/* ค่าเริ่มต้น flex-col (มือถือเป็นแนวตั้ง) และ md:flex-row (จอคอม/แท็บเล็ตเป็นแนวนอน) */}
+        <div className="mb-5 flex flex-col md:flex-row items-center gap-3 text-sm text-slate-400">
           <button
             type="button"
             onClick={openSettings}
@@ -31,29 +32,28 @@ export function Footer() {
           >
             ตั้งค่าคุกกี้
           </button>
-          <span className="h-1 w-1 rounded-full bg-slate-600" />
+          <span className="hidden md:block h-1 w-1 rounded-full bg-slate-600" />
           <Link
             href="/privacy-policy"
             className="transition-colors hover:text-white hover:underline underline-offset-4"
           >
             นโยบายความเป็นส่วนตัว
           </Link>
-          <span className="h-1 w-1 rounded-full bg-slate-600" />
+          <span className="hidden md:block h-1 w-1 rounded-full bg-slate-600" />
           <Link
             href="/refund-policy"
             className="transition-colors hover:text-white hover:underline underline-offset-4"
           >
             นโยบายการคืนเงิน
           </Link>
-          <span className="h-1 w-1 rounded-full bg-slate-600" />
+          <span className="hidden md:block h-1 w-1 rounded-full bg-slate-600" />
           <Link
             href="/terms-of-service"
             className="transition-colors hover:text-white hover:underline underline-offset-4"
           >
             เงื่อนไขการใช้บริการ
           </Link>
-          <span className="h-1 w-1 rounded-full bg-slate-600" />
-
+          <span className="hidden md:block h-1 w-1 rounded-full bg-slate-600" />
           <Link
             href="/contact-us"
             className="transition-colors hover:text-white hover:underline underline-offset-4"
