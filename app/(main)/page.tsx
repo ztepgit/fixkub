@@ -230,23 +230,42 @@ export default function LandingPage() {
     <div className="min-h-screen bg-slate-50 font-sans">
 
       <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
+        <div className="container mx-auto relative flex h-16 items-center px-4 md:px-6">
+
+          {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
               <Wrench className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">getfixx <span className="text-emerald-600">Repair</span></span>
+            <span className="text-xl font-bold tracking-tight text-slate-900">
+              getfixx <span className="text-emerald-600">Repair</span>
+            </span>
           </div>
-          <nav className="hidden md:flex gap-6">
-            <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ฟีเจอร์เด่น</Link>
-            <Link href="#pricing" className="text-sm font-medium text-slate-600 hover:text-emerald-600">ราคา</Link>
+
+          {/* Center Navigation */}
+          <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-6">
+            <Link
+              href="#features"
+              className="text-sm font-medium text-slate-600 hover:text-emerald-600"
+            >
+              ฟีเจอร์เด่น
+            </Link>
+            <Link
+              href="#pricing"
+              className="text-sm font-medium text-slate-600 hover:text-emerald-600"
+            >
+              ราคา
+            </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          {/* Right Side */}
+          <div className="ml-auto flex items-center gap-3">
             {!isLoggedIn ? (
               <Link href="/login">
-                {/* 🌟 Removed hidden md:inline-flex to make it always visible */}
-                <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                <Button
+                  variant="outline"
+                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                >
                   เข้าสู่ระบบ
                 </Button>
               </Link>
@@ -254,18 +273,19 @@ export default function LandingPage() {
               <>
                 <Button
                   onClick={handleGoToDashboard}
-                  // 🌟 Removed hidden md:inline-flex to make it always visible
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                 >
-                  <LayoutDashboard className="w-4 h-4 mr-2" /> หน้าจัดการร้านค้า
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  หน้าจัดการร้านค้า
                 </Button>
+
                 <Button
                   onClick={handleLogout}
                   variant="ghost"
-                  // 🌟 Removed hidden md:inline-flex to make it always visible
                   className="text-slate-500 hover:text-rose-600 hover:bg-rose-50"
                 >
-                  <LogOut className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">ออกจากระบบ</span>
+                  <LogOut className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">ออกจากระบบ</span>
                 </Button>
               </>
             )}
