@@ -179,12 +179,12 @@ export function CustomerBookingForm({
           <CardContent className="space-y-6 pt-6 px-5 sm:px-6">
             <div className="space-y-3">
               <Label htmlFor="serviceName" className="text-base font-semibold flex items-center gap-2">
-                <PenLine className="h-4 w-4 text-emerald-600" /> 1. บริการที่ต้องการ <span className="text-red-500">*</span>
+                <PenLine className="h-4 w-4 text-emerald-600" /> 1. ประเภทบริการ <span className="text-red-500">*</span>
               </Label>
               {/* 🌟 ดักการพิมพ์ Manual ถ้าพิมพ์เองให้ลบ Category ทิ้ง (เซ็ตเป็นค่าว่าง) */}
               <Input
                 id="serviceName"
-                placeholder="พิมพ์บริการ หรือ อาการหลัก..."
+                placeholder="กรอกข้อความ หรือกดปุ่มลัด"
                 value={serviceName}
                 onChange={(e) => {
                   setServiceName(e.target.value);
@@ -218,8 +218,8 @@ export function CustomerBookingForm({
 
             <div className="space-y-4">
               <Label className="text-base font-semibold flex items-center gap-2"><User className="h-4 w-4 text-emerald-600" /> 3. ข้อมูลติดต่อ</Label>
-              <div className="space-y-2"><Label className="text-sm">ชื่อลูกค้า <span className="text-red-500">*</span></Label><Input placeholder="ชื่อ หรือ ชื่อเล่น" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="bg-slate-50 focus-visible:bg-white" /></div>
-              <div className="space-y-2"><Label className="text-sm">เบอร์โทรศัพท์ <span className="text-red-500">*</span></Label><Input type="tel" placeholder="08x-xxx-xxxx (ใช้เช็คสถานะ)" value={phone} onChange={(e) => setPhone(e.target.value)} className="bg-slate-50 focus-visible:bg-white" /></div>
+              <div className="space-y-2"><Label className="text-sm">ชื่อลูกค้า <span className="text-red-500">*</span></Label><Input placeholder="ชื่อเล่น" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="bg-slate-50 focus-visible:bg-white" /></div>
+              <div className="space-y-2"><Label className="text-sm">เบอร์โทรศัพท์ <span className="text-red-500">*</span></Label><Input type="tel" placeholder="เช่น 0812345678 (ใช้เช็คสถานะ)" value={phone} onChange={(e) => setPhone(e.target.value)} className="bg-slate-50 focus-visible:bg-white" /></div>
             </div>
           </CardContent>
           <CardFooter className="bg-white border-t border-slate-50 rounded-b-[1.5rem] pt-4 pb-6 px-5 sm:px-6">
