@@ -40,7 +40,7 @@ export default function ContactUsPage() {
                         <h2 className="text-xl font-semibold text-foreground">ติดต่อเรา</h2>
 
                         <ul className="list-disc pl-6 space-y-1">
-                            <li>ติดต่อเราผ่านทางอีเมล: getfixxth@gmail.com</li>
+                            <li>ติดต่อเราผ่านทางอีเมล: support@getfixx.net</li>
                             <li>ติดต่อเราผ่านทางโทรศัพท์: +66 641897530</li>
 
                         </ul>

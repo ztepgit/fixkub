@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
 
                     <section className="space-y-3">
                         <h2 className="text-xl font-semibold text-foreground">6. การติดต่อเรา</h2>
-                        <p>หากคุณมีข้อสงสัยเกี่ยวกับนโยบายความเป็นส่วนตัวฉบับนี้ หรือต้องการใช้สิทธิขอลบข้อมูลบัญชีผู้ใช้งาน (Delete Account) สามารถติดต่อเราได้ที่: getfixxth@gmail.com และโทรศัพท์: +66 641897530</p>
+                        <p>หากคุณมีข้อสงสัยเกี่ยวกับนโยบายความเป็นส่วนตัวฉบับนี้ หรือต้องการใช้สิทธิขอลบข้อมูลบัญชีผู้ใช้งาน (Delete Account) สามารถติดต่อเราได้ที่: support@getfixx.net และโทรศัพท์: +66 641897530</p>
 
                         {/*  commented out this part temporarily to avoid spam
             <div className="bg-muted p-4 rounded-lg mt-2 inline-block">

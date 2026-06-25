@@ -108,7 +108,7 @@ export default function TermsOfServicePage() {
                         <h2 className="text-xl font-semibold text-foreground">9. การติดต่อเรา (Contact Us)</h2>
                         <p>หากท่านมีข้อสงสัยเกี่ยวกับข้อตกลงและเงื่อนไขฉบับนี้ สามารถติดต่อเราได้ที่:</p>
                         <ul className="list-disc pl-6 space-y-1">
-                            <li>อีเมล: getfixxth@gmail.com</li>
+                            <li>อีเมล: support@getfixx.net</li>
                             <li>โทรศัพท์: +66 641897530</li>
                         </ul>
                     </section>
