@@ -121,11 +121,11 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
       
       <div className="bg-slate-50 border-b border-slate-100 p-6 text-center shrink-0">
         <h2 className="text-xl font-bold text-slate-800 mb-1">เช็คสถานะงานซ่อม</h2>
-        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์ หรือ ชื่อ เพื่อติดตามสถานะ</p>
+        <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์, รหัสคิว, หรือชื่อ เพื่อเช็คสถานะ</p>
         
         <form onSubmit={handleSearch} className="flex gap-2 mt-4">
           <Input 
-            placeholder="เช่น 0812345678, Q-XXXX หรือ ชื่อ" 
+            placeholder="เช่น 0812345678, Q-XXXX, ชื่อเล่น"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-white h-12"
