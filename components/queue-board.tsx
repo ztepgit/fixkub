@@ -183,7 +183,7 @@ export function QueueBoard() {
   const jobToDeleteData = useMemo(() => allJobs.find(j => j.id === jobToDelete) || null, [allJobs, jobToDelete]);
   const jobToWarrantyData = useMemo(() => allJobs.find(j => j.id === jobToWarranty) || null, [allJobs, jobToWarranty]);
 
-  // 🌟 5. Robust Optimistic Mutation (แก้ UI Flicker และ เด้งกลับ)
+  // 🌟 5. Server-first UI Update
   const updateJobMutation = useMutation({
     mutationFn: async ({ id, status, data }: { id: string, status: string, data?: any }) => {
       const res = await updateQueueStatus(id, status, data)
@@ -199,17 +199,16 @@ export function QueueBoard() {
       // เก็บของเก่าไว้ Rollback
       const previousJobs = queryClient.getQueryData<RepairJob[]>(qKey)
 
-      // 🌟 ย้ายข้ามบอร์ดทันที และแปะป้าย _isOptimistic = true เพื่อให้ UI ทำสีซีด (Loading state)
+      // 🌟 Optimistic Loading State Only: ห้ามแก้ status ห้ามย้าย Card ให้ใส่แค่ flag _isOptimistic
       queryClient.setQueryData(qKey, (old: RepairJob[]) => {
         if (!old) return []
         return old.map((job) => 
           job.id === updatedJob.id 
             ? { 
                 ...job, 
-                status: updatedJob.status as any, 
-                ...updatedJob.data, 
-                updatedAt: new Date().toISOString(),
-                _isOptimistic: true // 👈 แปะป้ายว่ากำลังโหลด
+                // status: updatedJob.status as any,  <-- 🛑 เอาออก ไม่ต้องแก้ status
+                // ...updatedJob.data,                <-- 🛑 เอาออก ไม่ต้องแก้ data
+                _isOptimistic: true // 👈 ใส่แค่ป้ายว่ากำลังโหลด
               } 
             : job
         )
@@ -218,13 +217,8 @@ export function QueueBoard() {
       return { previousJobs, qKey }
     },
     onSuccess: (serverData, variables, context) => {
-      // 🌟 เมื่อ Server ตอบกลับมาสำเร็จ เอาของจริงทับและเอาป้าย _isOptimistic ออก (สีกลับมาเข้มปกติ)
-      if (context?.qKey && serverData) {
-        queryClient.setQueryData(context?.qKey, (old: RepairJob[]) => {
-          if (!old) return []
-          return old.map((job) => job.id === variables.id ? { ...job, ...serverData, _isOptimistic: undefined } : job)
-        })
-      }
+      // 🌟 ปล่อยให้ Realtime / Invalidated Query เป็นตัวจัดการย้าย Card เองตามธรรมชาติ
+      // แต่เราต้องเคลียร์ flag _isOptimistic ออกเพื่อความชัวร์ (หรือจะปล่อยให้ Invalidate ทับไปเลยก็ได้)
     },
     onError: (err, variables, context) => {
       if (context?.previousJobs) {
@@ -233,7 +227,9 @@ export function QueueBoard() {
       toast({ title: "❌ เกิดข้อผิดพลาด", description: "บันทึกข้อมูลไม่สำเร็จ", variant: "destructive" })
     },
     onSettled: (data, error, variables, context) => {
-      // อัปเดตสถิติเงียบๆ โดยไม่กวนหน้าบอร์ด
+      // ให้ TanStack Query ดึงข้อมูลใหม่จาก Server เพื่อเป็น Source of Truth สำหรับย้าย Card
+      queryClient.invalidateQueries({ queryKey: queryKeys.queues.list(shopId) })
+      // อัปเดตสถิติด้วย
       queryClient.invalidateQueries({ queryKey: queryKeys.reports.stats(shopId) })
     }
   })
@@ -812,7 +808,8 @@ export function QueueBoard() {
                                     <TooltipTrigger asChild>
                                       <div>
                                         <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                          {/* 🌟 ลบ opacity-0 ในหน้าจอขนาดเล็กออก (แก้ไข `opacity-100` เป็น default และคง hover opacity สำหรับจอที่รองรับ) */}
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-100 group-hover:opacity-100 transition-opacity hover:bg-slate-100 dark:hover:bg-slate-800">
                                             <MoreHorizontal className="h-4 w-4" />
                                           </Button>
                                         </DropdownMenuTrigger>
