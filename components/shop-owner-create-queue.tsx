@@ -198,7 +198,7 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         </div>
 
         <div className="flex flex-col gap-3">
-          <Label htmlFor="serviceName" className="font-semibold text-slate-700">บริการที่ต้องการ</Label>
+          <Label htmlFor="serviceName" className="font-semibold text-slate-700">บริการที่ต้องการ <span className="text-red-500">*</span></Label>
           <Input
             id="serviceName"
             placeholder="เช่น เปลี่ยนจอ, เปลี่ยนแบต"
