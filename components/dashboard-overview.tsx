@@ -400,7 +400,7 @@ export function DashboardOverview() {
               <div className="space-y-1">
                 <CardTitle className={`text-lg flex items-center gap-2 ${isQrHidden ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
                   <QrCode className={`h-5 w-5 ${isQrHidden ? 'text-slate-400 dark:text-slate-500' : 'text-blue-600 dark:text-blue-500'}`} />
-                  {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'ให้ลูกค้าสแกนรับคิว'}
+                  {isQrHidden ? 'ซ่อนรหัส QR แล้ว' : 'แจ้งซ่อมออนไลน์'}
                 </CardTitle>
               </div>
               <Tooltip>
