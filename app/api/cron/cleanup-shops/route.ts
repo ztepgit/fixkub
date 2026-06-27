@@ -43,7 +43,7 @@ export async function GET(req: Request) {
       },
     })
 
-    console.log(`[CRON] Deleted abandoned shops: ${deleteResult.count}`)
+    
 
     return NextResponse.json({
       success: true,

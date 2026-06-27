@@ -26,7 +26,7 @@ export const useShopStore = create<ShopStore>()(
 
     // 🌟 นำข้อมูลจาก DB มาทับ (ข้อมูลที่มี slug จะถูกเซฟลง Cache อัตโนมัติด้วย)
     setShop: (data) => set((state) => {
-      console.log("SET SHOP CALLED:", data)
+     
       state.shop = data
       setCache(`shop_${data.id}`, data)
     }),

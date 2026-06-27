@@ -11,7 +11,7 @@ const stripe = new Stripe(
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
 export async function POST(req: Request) {
-    console.log("🔥 STRIPE WEBHOOK HIT")
+   
     try {
         const body = await req.text()
         const signature = req.headers.get("stripe-signature")
@@ -24,14 +24,14 @@ export async function POST(req: Request) {
 
         try {
             event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-            console.log("🔥 EVENT TYPE:", event.type)
+          
         } catch (err: any) {
             console.error(`Webhook signature verification failed: ${err.message}`)
             return NextResponse.json({ error: "Webhook Error" }, { status: 400 })
         }
 
         if (event.type === "checkout.session.completed") {
-            console.log("🔥 CHECKOUT COMPLETED")
+     
             const session = event.data.object as Stripe.Checkout.Session
 
             const shopId = session.metadata?.shopId
@@ -39,12 +39,7 @@ export async function POST(req: Request) {
             const expectedAmountStr = session.metadata?.expectedAmount
             const amountTotalSatang = session.amount_total
             const sessionId = session.id
-            console.log({
-                shopId,
-                planEnum,
-                amountTotalSatang,
-                sessionId
-            })
+          
 
             if (!shopId || !planEnum || amountTotalSatang === null) {
                 console.error("Missing metadata or amount in session:", session.id)
@@ -69,12 +64,12 @@ export async function POST(req: Request) {
             })
 
             if (existingTransaction && existingTransaction.status === "APPROVED") {
-                console.log(`Transaction ${sessionId} already processed.`)
+               
                 return NextResponse.json({ received: true, message: "Already processed" })
             }
 
             // Route to existing billing engine (isWebhook = true)
-            console.log("🔥 BEFORE processPaymentSuccess")
+        
             const result = await processPaymentSuccess(
                 shopId,
                 planEnum,
@@ -82,7 +77,7 @@ export async function POST(req: Request) {
                 sessionId,
                 true
             )
-            console.log("🔥 AFTER processPaymentSuccess", result)
+ 
 
             if (!result.success) {
                 console.error("Failed to process payment success:", result.error)

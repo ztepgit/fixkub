@@ -80,7 +80,7 @@ export async function getShopPaymentHistory(shopId: string) {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log("history length =", history.length)
+    
 
     return { success: true, data: history };
   } catch (error) {
@@ -99,7 +99,7 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
       where: { receiptNo }
     });
 
-    console.log("🔥 DOWNLOAD RECEIPT", receipt)
+    
 
     if (!receipt || receipt.shopId !== shopId) {
       return { success: false, error: "ไม่มีสิทธิ์เข้าถึงเอกสารนี้ หรือไม่พบเอกสาร" };
@@ -109,9 +109,7 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
     const { data, error } = await supabase.storage
       .from('receipts')
       .createSignedUrl(receipt.pdfPath, 60);
-    console.log("RECEIPT PATH =", receipt.pdfPath)
-    console.log("SIGNED URL DATA =", data)
-    console.log("SIGNED URL ERROR =", error)
+  
 
     if (error || !data) {
       return { success: false, error: "ระบบเอกสารขัดข้อง กรุณาลองใหม่" };
@@ -128,7 +126,7 @@ export async function downloadReceiptPDF(shopId: string, receiptNo: string) {
 // 🌟 4. ดึงข้อมูลประวัติใบเสร็จล่าสุด 10 รายการ (สำหรับ Widget)
 // ==========================================
 export async function getLatestReceiptHistory(shopId: string) {
-  console.log("getLatestReceiptHistory", shopId)
+
   try {
     await verifyShopAccess(shopId);
 
@@ -142,8 +140,7 @@ export async function getLatestReceiptHistory(shopId: string) {
       orderBy: { approvedAt: 'desc' },
       take: 10
     });
-    console.log("history =", history)
-    console.log("history length =", history.length)
+
 
     return { success: true, data: history };
   } catch (error) {
@@ -196,7 +193,7 @@ export async function searchReceiptHistory({
       take: 10
     });
 
-    console.log("history length =", history.length)
+    
 
     return { success: true, data: history };
   } catch (error) {
