@@ -516,7 +516,7 @@ export function QueueBoard() {
                       คลังประกัน (Warranty Archive)
                     </SheetTitle>
                     <SheetDescription className="text-slate-600 dark:text-slate-400">
-                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม หากต้องการซ่อมใหม่ โปรดสร้างงานใหม่ (ระบบจะลบอัตโนมัติเมื่อหมดอายุ)
+                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม หากต้องการซ่อมใหม่ โปรดสร้างงานใหม่
                     </SheetDescription>
                   </SheetHeader>
 
