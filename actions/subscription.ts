@@ -309,11 +309,11 @@ export async function processPaymentSuccess(
       amount: amount,
       issuedAt: now
     });
-    console.log("🔥 RECEIPT CREATED", receipt)
+  
 
     // 🌟 3️⃣ สร้าง PDF และอัปโหลดลง Supabase
     try {
-      console.log("🔥 BEFORE PDF GENERATION")
+     
       const pdfBytes = await generateReceiptPDF({
         receiptNo: receipt.receiptNo,
         issuedAt: now,
@@ -323,14 +323,14 @@ export async function processPaymentSuccess(
         subscriptionStartsAt: !isRenewal ? now : shop.subscriptionStartsAt,
         expiresAt: newExpiresAt
       });
-      console.log("🔥 PDF GENERATED", pdfBytes?.length)
+    
 
       const supabase = supabaseAdmin
       const { error: uploadError } = await supabase.storage
         .from("receipts")
         .upload(receipt.pdfPath, pdfBytes, { contentType: "application/pdf" });
 
-      console.log("🔥 UPLOAD ERROR", uploadError)
+      
 
       if (uploadError) {
         console.error("Supabase Upload Error:", uploadError.message);

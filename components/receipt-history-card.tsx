@@ -26,8 +26,7 @@ type ReceiptHistoryItem = PaymentTransaction & {
 
 // 🌟 Component สำหรับแสดงประวัติใบเสร็จขนาดกะทัดรัด
 export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
-  console.log("ReceiptHistoryCard render")
-  console.log("shopId =", shopId)
+
   const { toast } = useToast();
   const router = useRouter();
 
@@ -55,8 +54,7 @@ export function ReceiptHistoryCard({ shopId }: { shopId?: string }) {
     enabled: !!shopId,
     staleTime: 5 * 60 * 1000,
   });
-  console.log("displayData =", displayData)
-  console.log("displayData length =", displayData.length)
+ 
 
   const handleDownload = async (receiptNo: string) => {
     if (!shopId) return;

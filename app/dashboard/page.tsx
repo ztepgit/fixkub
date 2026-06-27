@@ -65,22 +65,6 @@ export default function MainPage() {
         // 🌟 1. ดึง shopId จาก URL Query Parameters (Best Practice)
         const urlParams = new URLSearchParams(window.location.search)
         const shopIdFromQuery = urlParams.get('shopId')
-        console.log("================================")
-        console.log("QUERY SHOP:", shopIdFromQuery)
-
-        console.log(
-          "ZUSTAND SHOP:",
-          useShopStore.getState().shop
-        )
-
-        console.log(
-          "ALL SHOPS:",
-          shopRes.shops.map(s => ({
-            id: s.id,
-            name: s.name,
-            role: s.role,
-          }))
-        )
 
 
         let currentShop;
@@ -89,10 +73,7 @@ export default function MainPage() {
         if (shopIdFromQuery) {
           currentShop = shopRes.shops.find(s => s.id === shopIdFromQuery)
 
-          console.log(
-            "FOUND FROM QUERY:",
-            currentShop
-          )
+          
 
 
           // (Optional) ลบ query param ออกจาก URL เพื่อความสะอาดตา หลังอ่านค่าเสร็จแล้ว
@@ -107,29 +88,18 @@ export default function MainPage() {
           currentShop = isShopSelectedValid ? freshShopState : shopRes.shops[0];
         }
 
-        console.log(
-          "SELECTED CURRENT SHOP:",
-          currentShop
-        )
+       
         // ทับค่าที่ถูกต้องลง Zustand และ State ของหน้านี้
         setShop(currentShop)
-        console.log(
-          "AFTER SETSHOP:",
-          useShopStore.getState().shop
-        )
+    
         const realShopId = currentShop!.id
-        console.log(
-          "REAL SHOP ID:",
-          realShopId
-        )
+     
 
-        console.log("SHOP ID:", realShopId)
+        
         setShopId(realShopId)
 
         setShopId(realShopId)
 
-        console.log("SHOP ID:", realShopId)
-        console.log("SET SHOP ID DONE")
 
         // 🔥 FIX BUG: รอ React commit state + auth sync 1 frame
         await new Promise(requestAnimationFrame)
@@ -155,45 +125,7 @@ export default function MainPage() {
 
         // ✅ ACTIVE = เข้า dashboard ต่อ
         setIsChecking(false)
-        // ===== DEBUG =====
-
-        /* 
-        //🌟 เรียกใช้ฟังก์ชันเช็คสถานะร้าน (Real-time) ต่อไป...
-        console.time("checkStatus")
-        console.log("BEFORE checkStatus")
-        const res = await checkShopStatus(realShopId)
-        console.log("AFTER checkStatus")
-        console.log("STATUS RES:", res)
-
-        console.timeEnd("checkStatus")
-
-         //🌟 เก็บค่าวันหมดอายุไว้เสมอ
-        if (res.expiresAt) {
-          setExpiresAt(res.expiresAt)
-        }
-
-         
-        //🌟 ร้านยังไม่ได้เลือกแพ็กเกจ
-        if (res.status === "PENDING_PAYMENT") {
-          router.push("/paywall?mode=pending-payment")
-          return
-        }
-
-         //🌟 หมดอายุ / รอการลบ / เกิดข้อผิดพลาด
-        if (
-          res.status === "EXPIRED" ||
-          res.status === "PENDING_DELETION" ||
-          res.status === "ERROR"
-        ) {
-          router.push(`/paywall?daysLeft=${res.daysLeftToPurge || 0}`)
-          return
-        }
-
-         //ถ้าร้านยังเป็น ACTIVE ให้ปิดหน้าโหลด และเข้าสู่ Dashboard ปกติ
-        setIsChecking(false)
-        console.log("SET CHECKING FALSE")
-        */
-        console.log("SKIP CHECK STATUS")
+        
 
       } catch (error) {
         console.error("Error checking shop status:", error)

@@ -70,7 +70,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
     setSlugStatus("idle")
 
     const res = await checkSlugAvailability(currentSlug)
-    console.log("CHECK RESULT =", res)
+   
     
     if (res.success) {
       if (res.available) {

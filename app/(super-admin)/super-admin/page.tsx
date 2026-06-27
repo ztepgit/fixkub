@@ -87,7 +87,7 @@ export default function SuperAdminCreateShopPage() {
     setSlugStatus("idle")
 
     const res = await checkSlugAvailability(currentSlug)
-    console.log("CHECK RESULT =", res)
+   
 
     if (res.success) {
       if (res.available) {

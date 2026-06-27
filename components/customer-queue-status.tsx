@@ -1,3 +1,4 @@
+//components/customer-queue-status.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -7,13 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
-import { 
-  Search, 
-  Loader2, 
-  Smartphone, 
-  Wrench, 
-  PackageCheck, 
-  AlertCircle, 
+import {
+  Search,
+  Loader2,
+  Smartphone,
+  Wrench,
+  PackageCheck,
+  AlertCircle,
   XCircle,
   ClipboardList,
   CheckCircle2,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react"
 
 import { getCustomerQueues } from "@/actions/queue"
+import { normalizeQueueRef } from "@/lib/parse-queue"
 
 type QueueData = {
   id: string
@@ -37,8 +39,8 @@ type QueueData = {
 export function CustomerQueueStatus({ shopId }: { shopId: string }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [jobList, setJobList] = useState<QueueData[] | null>(null) 
-  
+  const [jobList, setJobList] = useState<QueueData[] | null>(null)
+
   const { toast } = useToast()
 
   const handleSearch = async (e?: React.FormEvent) => {
@@ -46,11 +48,14 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
     if (!searchQuery.trim()) return
 
     setIsLoading(true)
-    setJobList(null) 
+    setJobList(null)
 
     try {
-      const res = await getCustomerQueues(shopId, searchQuery.trim())
-      
+      const keyword = normalizeQueueRef(searchQuery)
+
+      const res = await getCustomerQueues(shopId, keyword)
+      //const res = await getCustomerQueues(shopId, searchQuery.trim())
+
       if (res.success && res.data && res.data.length > 0) {
         setJobList(res.data as QueueData[])
         toast({
@@ -85,20 +90,20 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
       .channel('queue_status_multiple')
       .on(
         'postgres_changes',
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
+        {
+          event: 'UPDATE',
+          schema: 'public',
           table: 'Queue'
         },
         (payload) => {
           const updatedJob = payload.new as QueueData
           if (jobIds.includes(updatedJob.id)) {
-            console.log('🔄 สถานะเปลี่ยน!', updatedJob)
-            
-            setJobList(prev => 
+        
+
+            setJobList(prev =>
               prev ? prev.map(job => job.id === updatedJob.id ? updatedJob : job) : prev
             )
-            
+
             toast({
               title: "🔔 สถานะอัปเดต!",
               description: `เครื่อง ${updatedJob.deviceModel} มีการเปลี่ยนสถานะ`,
@@ -111,20 +116,20 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobList?.map(j => j.id).join(','), toast])
 
   const statusFlow = ["PENDING", "WAITING", "PROCESSING", "REPAIRED", "COMPLETED"]
 
   return (
     <div className="mx-auto w-full max-w-md space-y-0 pb-6 flex flex-col h-full max-h-[85vh]">
-      
+
       <div className="bg-slate-50 border-b border-slate-100 p-6 text-center shrink-0">
         <h2 className="text-xl font-bold text-slate-800 mb-1">เช็คสถานะงานซ่อม</h2>
         <p className="text-sm text-slate-500">กรอกเบอร์โทรศัพท์, รหัสคิว, หรือชื่อ เพื่อเช็คสถานะ</p>
-        
+
         <form onSubmit={handleSearch} className="flex gap-2 mt-4">
-          <Input 
+          <Input
             placeholder="เช่น 0812345678, Q-XXXX, ชื่อเล่น"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -137,20 +142,20 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-6 pb-12 space-y-6">
-        
+
         {jobList?.length === 0 && (
-           <div className="text-center text-slate-400 mt-10">
-              <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>ไม่พบรายการซ่อมของคุณ</p>
-           </div>
+          <div className="text-center text-slate-400 mt-10">
+            <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+            <p>ไม่พบรายการซ่อมของคุณ</p>
+          </div>
         )}
 
         {jobList && jobList.map((job) => {
           const currentStepIndex = statusFlow.indexOf(job.status)
-          
+
           return (
             <Card key={job.id} className="border-slate-200 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-              
+
               <div className="bg-slate-800 p-5 text-white">
                 <div className="flex justify-between items-start mb-2">
                   <Badge variant="outline" className="bg-slate-700/50 text-slate-200 border-slate-600">
@@ -163,7 +168,7 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                     <Badge variant="destructive">ยกเลิกแล้ว</Badge>
                   )}
                 </div>
-                
+
                 <h3 className="text-xl font-bold flex items-center gap-2 mb-1">
                   <Smartphone className="h-5 w-5 text-blue-400 shrink-0" />
                   <span className="truncate">
@@ -175,16 +180,16 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                     )}
                   </span>
                 </h3>
-                
+
                 <p className="text-slate-400 text-sm">บริการ: {job.serviceName || "ตรวจเช็คทั่วไป"}</p>
                 <p className="text-slate-400 text-sm truncate">ลูกค้า: {job.customerName}</p>
 
                 {/* 🌟 3. แสดงวันที่แจ้งซ่อมตรงนี้ */}
                 <div className="mt-3 pt-3 border-t border-slate-700/50 flex items-center text-xs text-slate-400">
                   <CalendarDays className="w-3.5 h-3.5 mr-1.5 opacity-70" />
-                  วันที่แจ้งซ่อม: {new Date(job.createdAt).toLocaleDateString('th-TH', { 
-                    year: 'numeric', 
-                    month: 'short', 
+                  วันที่แจ้งซ่อม: {new Date(job.createdAt).toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'short',
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
@@ -195,7 +200,7 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
               {job.status !== "CANCELLED" && job.status !== "ARCHIVED" && (
                 <CardContent className="p-6">
                   <div className="relative border-l-2 border-slate-100 ml-4 space-y-8">
-                    
+
                     <div className="relative pl-6">
                       <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white flex items-center justify-center ${currentStepIndex >= 0 ? "bg-slate-500" : "bg-slate-200"}`}>
                         <ClipboardList className="h-3.5 w-3.5 text-white" />
@@ -248,7 +253,7 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                   </div>
                   <h3 className="text-lg font-bold text-slate-800">เครื่องอยู่ในคลัง</h3>
                   <p className="text-sm text-slate-600">
-                    เครื่องซ่อมเสร็จและถูกเก็บรักษาไว้<br/>กรุณาติดต่อร้านเพื่อขอรับเครื่อง
+                    เครื่องซ่อมเสร็จและถูกเก็บรักษาไว้<br />กรุณาติดต่อร้านเพื่อขอรับเครื่อง
                   </p>
                 </CardContent>
               )}
@@ -262,11 +267,11 @@ export function CustomerQueueStatus({ shopId }: { shopId: string }) {
                   <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm inline-block">
                     สาเหตุ: {
                       job.cancelReason === "NO_SHOW" ? "ไม่นำเครื่องมาส่งตามนัด" :
-                      job.cancelReason === "UNREPAIRABLE" ? "ซ่อมไม่ได้/ไม่คุ้ม" :
-                      job.cancelReason === "NO_PARTS" ? "ไม่มีอะไหล่" :
-                      job.cancelReason === "CUSTOMER_CANCEL" ? "ลูกค้ายกเลิก" :
-                      job.cancelReason === "UNCONTACTABLE" ? "ติดต่อไม่ได้" :
-                      "ยกเลิกโดยร้าน"
+                        job.cancelReason === "UNREPAIRABLE" ? "ซ่อมไม่ได้/ไม่คุ้ม" :
+                          job.cancelReason === "NO_PARTS" ? "ไม่มีอะไหล่" :
+                            job.cancelReason === "CUSTOMER_CANCEL" ? "ลูกค้ายกเลิก" :
+                              job.cancelReason === "UNCONTACTABLE" ? "ติดต่อไม่ได้" :
+                                "ยกเลิกโดยร้าน"
                     }
                   </div>
                 </CardContent>

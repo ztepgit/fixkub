@@ -51,6 +51,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { useJobStore } from "@/store/useJobStore" // เก็บเฉพาะ UI State
 import { useShopStore } from "@/store/useShopStore" // ดึง shopId
 import { useJobSync } from "@/hooks/useJobSync" // ตัวจัดการ Realtime
+import { normalizeQueueRef } from "@/lib/parse-queue" // ฟังก์ชัน Normalize รหัสคิว
 
 type CancelReason = "NO_SHOW" | "CUSTOMER_CANCEL" | "UNREPAIRABLE" | "NO_PARTS" | "UNCONTACTABLE"
 
@@ -162,19 +163,19 @@ export function QueueBoard() {
 
   const filteredArchivedJobs = useMemo(() => archivedJobs.filter((job) => {
     if (!archiveSearchQuery) return true;
-    const term = archiveSearchQuery.toLowerCase();
+    const term = normalizeQueueRef(archiveSearchQuery).toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(term) || (job.customerName || "").toLowerCase().includes(term) || (job.deviceModel || "").toLowerCase().includes(term) || (job.jobRef || "").toLowerCase().includes(term);
   }), [archivedJobs, archiveSearchQuery]);
 
   const filteredTrashedJobs = useMemo(() => trashedJobs.filter((job) => {
     if (!trashSearchQuery) return true;
-    const term = trashSearchQuery.toLowerCase();
+    const term = normalizeQueueRef(trashSearchQuery).toLowerCase();
     return (job.phoneNumber || job.phone || "").includes(term) || (job.customerName || "").toLowerCase().includes(term) || (job.deviceModel || "").toLowerCase().includes(term) || (job.jobRef || "").toLowerCase().includes(term);
   }), [trashedJobs, trashSearchQuery]);
 
   const filteredWarrantyJobs = useMemo(() => warrantyJobs.filter((job) => {
     if (!warrantySearch) return true;
-    const term = warrantySearch.toLowerCase();
+    const term = normalizeQueueRef(warrantySearch).toLowerCase();
     return (job.customerName || "").toLowerCase().includes(term) || (job.phone || job.phoneNumber || "").toLowerCase().includes(term) || (job.deviceModel || "").toLowerCase().includes(term) || (job.jobRef || "").toLowerCase().includes(term);
   }).sort((a, b) => new Date(b.warrantyArchivedAt || 0).getTime() - new Date(a.warrantyArchivedAt || 0).getTime()), [warrantyJobs, warrantySearch]);
 
