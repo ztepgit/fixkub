@@ -29,6 +29,8 @@ const createQueueSchema = z.object({
   serviceName: z.string().trim().min(1, "กรุณาเลือกบริการ").max(100, "ชื่อบริการยาวเกินไป"),
   serviceCategory: z.string().optional().or(z.literal("")),
 
+  // 🌟 เพิ่ม estimatedPrice ให้ Schema รู้จักและยอมรับ
+  estimatedPrice: z.number().optional().nullable(),
   serialNumber: z.string().trim().max(100, "Serial Number ยาวเกินไป").optional().or(z.literal("")),
   imei: z.string().trim().max(50, "IMEI ยาวเกินไป").optional().or(z.literal("")),
   isManualEntry: z.boolean().optional().default(false)
@@ -98,6 +100,7 @@ export async function createQueue(input: CreateQueueInput) {
         deviceBrand: safeData.deviceBrand || null, 
 
         deviceColor: safeData.deviceColor || null,
+        estimatedPrice: safeData.estimatedPrice || null, // 🌟 บันทึกราคาประเมินลงฐานข้อมูล
         serialNumber: safeData.serialNumber || null,
         imei: safeData.imei || null,
         issue: safeData.issue || null,

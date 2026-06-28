@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createQueue, updateQueueImages } from "@/actions/queue"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, ImagePlus, X } from "lucide-react"
+// 🌟 Import Banknote icon
+import { Loader2, ImagePlus, X, Banknote } from "lucide-react"
 import { useShopStore } from "@/store/useShopStore"
 import { compressImageToWebP } from "@/lib/image-utils"
 import { supabase } from "@/lib/supabase"
@@ -19,12 +20,19 @@ import { queryKeys } from "@/lib/query-keys"
 import { COMMON_SERVICES } from "@/lib/common-services"
 // 🌟 1. นำเข้า Parser สำหรับ Analytics
 import { parseDeviceModel } from "@/lib/device-parser"
+// 🌟 Import shared store
+import { useEstimatedPriceStore } from "@/store/useEstimatedPriceStore"
 
 export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () => void, onCancel: () => void }) {
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
   const shopId = useShopStore((state) => state.shop?.id)
+
+  // 🌟 ใช้ Shared Zustand Store สำหรับ ราคาประเมิน
+  const estimatedPrice = useEstimatedPriceStore((state) => state.estimatedPrice)
+  const setEstimatedPrice = useEstimatedPriceStore((state) => state.setEstimatedPrice)
+  const resetEstimatedPrice = useEstimatedPriceStore((state) => state.resetEstimatedPrice)
 
   // Form States
   const [customerName, setCustomerName] = useState("")
@@ -100,6 +108,9 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         deviceBrand: parsedDevice.brand,           // 🌟 4. แนบ Brand เข้าไปด้วย
 
         deviceColor,
+        estimatedPrice: estimatedPrice
+          ? Number(estimatedPrice)
+          : null,
         serialNumber,
         imei,
         issue,
@@ -144,6 +155,8 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
         description: "เพิ่มรายการซ่อมเข้าสู่ระบบแล้ว"
       })
 
+      // 🌟 เคลียร์ค่าที่ฝากไว้ตอนสำเร็จเท่านั้น
+      resetEstimatedPrice()
       onSuccess()
 
     } catch (error) {
@@ -194,6 +207,24 @@ export function ShopOwnerCreateQueue({ onSuccess, onCancel }: { onSuccess: () =>
           <div className="flex flex-col gap-2.5">
             <Label htmlFor="imei" className="font-semibold text-slate-700">IMEI <span className="text-xs text-slate-400 font-normal">(ไม่บังคับ)</span></Label>
             <Input id="imei" placeholder="กรอกเลข IMEI 15 หลัก" value={imei} onChange={(e) => setImei(e.target.value)} disabled={isSubmitting} />
+          </div>
+        </div>
+
+        {/* 🌟 New Estimated Price section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2.5 md:col-span-2">
+            <Label htmlFor="estimatedPrice" className="font-semibold text-slate-700 flex items-center gap-1">
+              <Banknote className="h-4 w-4" /> ราคาประเมิน (บาท)
+            </Label>
+            <Input
+              id="estimatedPrice"
+              type="number"
+              placeholder="เช่น 1500"
+              value={estimatedPrice}
+              onChange={(e) => setEstimatedPrice(e.target.value)}
+              className="max-w-[200px]"
+              disabled={isSubmitting}
+            />
           </div>
         </div>
 
