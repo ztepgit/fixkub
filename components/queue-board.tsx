@@ -457,8 +457,9 @@ export function QueueBoard() {
                           <p><span className="font-semibold dark:text-slate-400">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                           <p><span className="font-semibold dark:text-slate-400">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
 
+                          {/* 🌟 Add estimatedPrice display here for Archived Jobs */}
                           {job.estimatedPrice && (
-                            <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice}</span></p>
+                            <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice.toLocaleString()}</span></p>
                           )}
 
                           {(job.serialNumber || job.imei) && (
@@ -517,7 +518,7 @@ export function QueueBoard() {
                       คลังประกัน (Warranty Archive)
                     </SheetTitle>
                     <SheetDescription className="text-slate-600 dark:text-slate-400">
-                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม หากต้องการซ่อมใหม่ โปรดสร้างงานใหม่
+                      งานที่ส่งมอบแล้วจะถูกเก็บไว้ที่นี่ 30 วัน เพื่อรองรับการเคลม หากต้องการซ่อมใหม่ โปรดสร้างงานใหม่ (ระบบจะลบอัตโนมัติเมื่อหมดอายุ)
                     </SheetDescription>
                   </SheetHeader>
 
@@ -684,8 +685,9 @@ export function QueueBoard() {
                           <p><span className="font-semibold dark:text-slate-400">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                           <p><span className="font-semibold dark:text-slate-400">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
 
+                          {/* 🌟 Add estimatedPrice display here for Trashed Jobs */}
                           {job.estimatedPrice && (
-                            <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice}</span></p>
+                            <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice.toLocaleString()}</span></p>
                           )}
 
                           {(job.serialNumber || job.imei) && (
@@ -860,8 +862,10 @@ export function QueueBoard() {
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex flex-col gap-1">
                                   <div><span className="font-semibold text-emerald-700 dark:text-emerald-400">[{job.serviceName || "ทั่วไป"}]</span> {job.issue || "-"}</div>
+                                  
+                                  {/* 🌟 Add estimatedPrice display here for Main Board Jobs */}
                                   {job.estimatedPrice && (
-                                    <div className="text-blue-600 dark:text-blue-400 font-medium">ประเมิน: ฿{job.estimatedPrice}</div>
+                                    <div className="text-blue-600 dark:text-blue-400 font-medium">ประเมิน: ฿{job.estimatedPrice.toLocaleString()}</div>
                                   )}
 
                                   {(job.serialNumber || job.imei) && (

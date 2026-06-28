@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast"
 import { compressImageToWebP, extractUploadDateFromUrl } from "@/lib/image-utils" // 🌟 นำเข้า Helper
 import { supabase } from "@/lib/supabase"
 import { updateQueueImages, deleteQueueImage } from "@/actions/queue"
+// 🌟 Import shared store
+import { useEstimatedPriceStore } from "@/store/useEstimatedPriceStore"
 
 // 🌟 1. กำหนด Interface รับค่ามาจาก QueueBoard
 interface QueueDetailDialogProps {
@@ -31,8 +33,11 @@ interface QueueDetailDialogProps {
 export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJobInStore }: QueueDetailDialogProps) {
   const { toast } = useToast()
   
+  // 🌟 ใช้ Shared Zustand Store สำหรับ ราคาประเมิน
+  const estimatedPrice = useEstimatedPriceStore((state) => state.estimatedPrice)
+  const setEstimatedPrice = useEstimatedPriceStore((state) => state.setEstimatedPrice)
+
   // State สำหรับข้อมูลที่ช่างต้องกรอกเพิ่ม
-  const [estimatedPrice, setEstimatedPrice] = useState("")
   const [serialNumber, setSerialNumber] = useState("")
   const [imei, setImei] = useState("")
   const [isSaving, setIsSaving] = useState(false)
@@ -57,7 +62,7 @@ export function QueueDetailDialog({ job, open, onOpenChange, onSave, onUpdateJob
       setSerialNumber(job.serialNumber || "")
       setImei(job.imei || "")
     }
-  }, [job])
+  }, [job, setEstimatedPrice])
 
   const handleSave = async () => {
     if (!job) return
