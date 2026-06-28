@@ -23,8 +23,8 @@ const notoThai = Noto_Sans_Thai({
 })
 
 export const metadata: Metadata = {
-  title: 'getfixx - จัดการคิวซ่อมออนไลน์',
-  description: 'Simple queue management for local shops',
+  title: 'getfixx - คิวซ่อมมือถือออนไลน์',
+  description: 'simple mobile queue management',
   generator: 'v0.app',
   icons: {
     icon: [
