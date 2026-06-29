@@ -309,7 +309,7 @@ export default function SuperAdminCreateShopPage() {
                   <CardContent className="grid gap-4 md:grid-cols-2 pt-6">
                     <FormField control={form.control} name="name" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ชื่อร้าน (Display Name) <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>ชื่อร้านมือถือ (Display Name) <span className="text-red-500">*</span></FormLabel>
                         <FormControl><Input placeholder="เช่น ร้าน A Mobile" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
