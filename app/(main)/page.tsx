@@ -21,7 +21,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Smartphone, Wrench, QrCode, Clock, ArrowRight, CheckCircle2, Zap, LogIn, LayoutDashboard, LogOut, Store, PlusCircle, Loader2, Play } from "lucide-react"
-import { checkUserHasShop, getUserShops } from "@/actions/shop"
+import { checkUserHasShop, getUserShops, checkUserTrialEligibility } from "@/actions/shop"
 import { createDemoShopAction } from "@/actions/demo"
 import { useShopStore } from "@/store/useShopStore"
 import Autoplay from "embla-carousel-autoplay" // 🌟 เพิ่มบรรทัดนี้เพื่อทำ Auto Slide
@@ -29,6 +29,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { getCarouselItems } from "@/actions/carousel"
 import { Footer } from "@/components/footer"
 import { HowToTry } from "@/components/how-to-try"
+
 
 
 export default function LandingPage() {
@@ -53,11 +54,12 @@ export default function LandingPage() {
   const [banners, setBanners] = useState<any[]>([])
   const [showPendingPaymentModal, setShowPendingPaymentModal] = useState(false)
   const [pendingPaymentShopId, setPendingPaymentShopId] = useState<string | null>(null)
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
- 
+
       setIsLoggedIn(!!session)
       if (session?.user?.email) {
         setUserEmail(session.user.email)
@@ -79,50 +81,56 @@ export default function LandingPage() {
 
   // 🌟 ฟังก์ชันการเลือกแพ็กเกจ
   const handleSelectPlan = async (plan: string) => {
-    if (!isLoggedIn) {
-      setSelectedPlan(plan)
-      setShowLoginPopup(true)
-      return
-    }
+    setLoadingPlan(plan)
 
-    setSelectedPlan(plan)
-
-    if (plan === "free" && userEmail) {
-      const res = await checkUserHasShop(userEmail)
-
-      if (res.hasShop) {
-        toast({
-          title: "ไม่สามารถรับสิทธิ์ได้",
-          description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้เปิดร้านครั้งแรกเท่านั้น",
-          variant: "destructive",
-        })
+    try {
+      if (!isLoggedIn) {
+        setSelectedPlan(plan)
+        setShowLoginPopup(true)
         return
       }
 
-      router.push(`/onboarding?plan=${plan}`)
-      return
-    }
+      setSelectedPlan(plan)
 
-    if (userEmail && (plan === "monthly" || plan === "yearly")) {
-      const res = await getUserShops(userEmail)
+      if (plan === "free" && userEmail) {
+        const res = await checkUserTrialEligibility(userEmail)
 
-      if (res.success && res.shops.length > 0) {
-        setShopSelectAction("checkout")
-        setUserShops(res.shops);
-        setSelectedShopId(res.shops[0]?.id || "");
-        setShowShopSelectPopup(true)
-        return
-      } else {
-        toast({
-          title: "🎉 ยินดีด้วย!",
-          description: "เนื่องจากเป็นการเปิดร้านครั้งแรก ระบบจะบวกวันทดลองใช้ฟรี 30 วันให้ท่านโดยอัตโนมัติ",
-        })
+        if (res.success && !res.isEligible) {
+          toast({
+            title: "ไม่สามารถรับสิทธิ์ได้",
+            description: "ขออภัย การทดลองใช้งานสำหรับผู้ใช้เปิดร้านครั้งแรกเท่านั้น",
+            variant: "destructive",
+          })
+          return
+        }
+
         router.push(`/onboarding?plan=${plan}`)
         return
       }
-    }
 
-    router.push(`/onboarding?plan=${plan}`)
+      if (userEmail && (plan === "monthly" || plan === "yearly")) {
+        const res = await getUserShops(userEmail)
+
+        if (res.success && res.shops.length > 0) {
+          setShopSelectAction("checkout")
+          setUserShops(res.shops)
+          setSelectedShopId(res.shops[0]?.id || "")
+          setShowShopSelectPopup(true)
+          return
+        } else {
+          toast({
+            title: "🎉 ยินดีด้วย!",
+            description: "เนื่องจากเป็นการเปิดร้านครั้งแรก ระบบจะบวกวันทดลองใช้ฟรี 30 วันให้ท่านโดยอัตโนมัติ",
+          })
+          router.push(`/onboarding?plan=${plan}`)
+          return
+        }
+      }
+
+      router.push(`/onboarding?plan=${plan}`)
+    } finally {
+      setLoadingPlan(null)
+    }
   }
 
   const handleContinueToLogin = () => {
@@ -335,9 +343,19 @@ export default function LandingPage() {
                 size="lg"
                 variant="outline"
                 onClick={() => handleSelectPlan("free")}
+                disabled={loadingPlan === "free"}
                 className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-lg h-14 px-8 shadow-sm transition-all"
               >
-                ทดลองใช้ฟรี 14วัน <ArrowRight className="ml-2 h-5 w-5" />
+                {loadingPlan === "free" ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <span>กำลังตรวจสอบ...</span>
+                  </>
+                ) : (
+                  <>
+                    ทดลองใช้ฟรี 14วัน <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
               </Button>
 
             </div>
