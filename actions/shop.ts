@@ -435,3 +435,28 @@ export async function removeShopStaff(shopId: string, email: string) {
     return { success: false, error: error.message };
   }
 }
+
+// actions/shop.ts
+
+// ... (Keep existing imports and functions as-is)
+
+// ==========================================
+// 🌟 Check Free Trial Eligibility
+// Business Rule: Only real shops block the free trial. Demo shops are ignored.
+// ==========================================
+export async function checkUserTrialEligibility(email: string) {
+  try {
+    const realShopCount = await db.shopOwner.count({
+      where: {
+        email,
+        shop: { isDemo: false } // Exclude demo shops from the count
+      }
+    });
+
+    return { success: true, isEligible: realShopCount === 0 };
+  } catch (error: any) {
+    console.error("Error checking trial eligibility:", error);
+    // Fail secure: If DB fails, prevent free trial abuse by defaulting to false
+    return { success: false, isEligible: false };
+  }
+}
