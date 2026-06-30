@@ -55,6 +55,7 @@ export default function LandingPage() {
   const [showPendingPaymentModal, setShowPendingPaymentModal] = useState(false)
   const [pendingPaymentShopId, setPendingPaymentShopId] = useState<string | null>(null)
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [showDemoAccountModal, setShowDemoAccountModal] = useState(false)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -87,6 +88,16 @@ export default function LandingPage() {
       if (!isLoggedIn) {
         setSelectedPlan(plan)
         setShowLoginPopup(true)
+        return
+      }
+
+      // Demo account guard
+      if (
+        userEmail &&
+        userEmail.includes("demo_") &&
+        userEmail.endsWith("@getfixx.net")
+      ) {
+        setShowDemoAccountModal(true)
         return
       }
 
@@ -308,15 +319,15 @@ export default function LandingPage() {
               ยินดีต้อนรับ
             </Badge>
             <h1 className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-7xl">
-              ดึงดูดลูกค้าเข้าร้าน <br className="hidden sm:block" />
+              แจ้งซ่อมออนไลน์ <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">
-                ด้วยระบบจัดการคิวซ่อมออนไลน์
+                เพิ่มรายได้ร้านมือถือ
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl">
               จบปัญหาลูกค้าถาม "พี่ซ่อมถึงไหนแล้ว?"
               <br />
-              แจ้งซ่อมผ่านเว็บ เช็คสถานะออนไลน์ เห็นรายได้ผ่านมือถือเครื่องเดียว
+              แจ้งซ่อมออนไลน์ เช็คสถานะง่ายนิดเดียว
             </p>
             <div className="flex flex-col mt-2 sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
 
@@ -460,8 +471,8 @@ export default function LandingPage() {
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                     <QrCode className="h-6 w-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">ลูกค้าสแกน QR แจ้งซ่อมเอง</h3>
-                  <p className="text-slate-600">ลดภาระช่าง ไม่ต้องนั่งจดรายละเอียด ลูกค้ากรอกรุ่นมือถือ สี และอาการเสียผ่านฟอร์มได้เลย</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">ลูกค้าแจ้งซ่อมได้ทุกที่ทุกเวลา</h3>
+                  <p className="text-slate-600">ลดงานช่าง ไม่ต้องนั่งจดรายละเอียด ลูกค้าแจ้งซ่อมผ่านเว็บได้เลย</p>
                 </CardContent>
               </Card>
 
@@ -709,6 +720,25 @@ export default function LandingPage() {
               onClick={() => setShowPendingPaymentModal(false)}
             >
               ยกเลิก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🌟 New Demo Account Modal */}
+      <Dialog open={showDemoAccountModal} onOpenChange={setShowDemoAccountModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">กรุณาออกจากระบบร้านตัวอย่าง</DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              กรุณาออกจากระบบร้านตัวอย่างที่มุมขวาบนของเว็บ
+              แล้วเข้าสู่ระบบด้วย e-mail ของท่าน
+              เพื่อรับสิทธิ์ทดลองใช้ฟรี 14 วัน
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row mt-4">
+            <Button type="button" onClick={() => setShowDemoAccountModal(false)} className="w-full bg-emerald-600 hover:bg-emerald-700">
+              ตกลง
             </Button>
           </DialogFooter>
         </DialogContent>
