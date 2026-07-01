@@ -371,7 +371,7 @@ export default function LandingPage() {
 
             </div>
             <p className="mt-4 text-sm text-slate-500">ใช้งานง่าย • ไม่ต้องผูกบัตร</p>
-            <p className="mt-4 text-sm text-slate-500">🧧 โปรโมชั่น: สมัครวันนี้ (ไม่ทดลองใช้ฟรี 14วัน) แถมฟรี 30วัน (เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline"> ดูเลย!</Link></p>
+            <p className="mt-4 text-sm text-slate-500">🎁 โปรพิเศษ: ข้ามทดลองใช้ฟรี 14วัน แถมฟรี 30วัน(เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline">→เปิดร้าน</Link></p>
             {banners.length > 0 && (
               <div className="w-full max-w-5xl mx-auto mt-16 px-4 relative z-10">
                 <Carousel
@@ -461,7 +461,7 @@ export default function LandingPage() {
         <section id="features" className="py-20 bg-slate-50">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">ทำไมร้านซ่อมมือถือยุคใหม่ ถึงเลือกเรา?</h2>
+              <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">ทำไมร้านมือถือยุคใหม่ถึงเลือกเรา?</h2>
               <p className="mt-4 text-lg text-slate-600">ออกแบบมาเพื่อ Workflow ของช่างโดยเฉพาะ ไม่ซับซ้อน ใช้งานง่าย</p>
             </div>
 
@@ -472,7 +472,7 @@ export default function LandingPage() {
                     <QrCode className="h-6 w-6" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2">ลูกค้าแจ้งซ่อมได้ทุกที่ทุกเวลา</h3>
-                  <p className="text-slate-600">ลดงานช่าง ไม่ต้องนั่งจดรายละเอียด ลูกค้าแจ้งซ่อมผ่านเว็บได้เลย</p>
+                  <p className="text-slate-600">ลดงานช่าง ไม่ต้องนั่งจดรายละเอียด ลูกค้าแจ้งซ่อมผ่านเว็บ และQR Code ได้เลย</p>
                 </CardContent>
               </Card>
 
