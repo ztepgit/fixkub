@@ -370,7 +370,7 @@ export default function LandingPage() {
               </Button>
 
             </div>
-            <p className="mt-4 text-sm text-slate-500">ใช้งานง่าย • ไม่ต้องผูกบัตร</p>
+            <p className="mt-4 text-sm text-slate-500">ระบบเติมเงิน • ไม่ต้องผูกบัตร</p>
             <p className="mt-4 text-sm text-slate-500">🎁 โปรพิเศษ: ข้ามทดลองใช้ฟรี 14วัน แถมฟรี 30วัน(เล่นร้านตัวอย่างได้)<Link href="#pricing" className="text-emerald-600 hover:underline">→เปิดร้าน</Link></p>
             {banners.length > 0 && (
               <div className="w-full max-w-5xl mx-auto mt-16 px-4 relative z-10">
