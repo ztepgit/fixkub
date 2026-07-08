@@ -98,7 +98,7 @@ export function LoginPage() {
         <CardHeader className="space-y-2 text-center pb-6 pt-8">
           <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-800">ยินดีต้อนรับ</CardTitle>
           <CardDescription className="text-slate-500 text-sm">
-            จัดการร้านมือถือของคุณอย่างมืออาชีพ
+            จัดการร้านของคุณอย่างมืออาชีพ
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 px-6 sm:px-8 pb-8">
