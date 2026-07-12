@@ -39,7 +39,7 @@ export async function createStripeCheckoutSession(shopId: string, plan: PlanType
                     price_data: {
                         currency: "thb",
                         product_data: {
-                            name: `Getfixx - ${planEnum.replace("_", " ")}`,
+                            name: `Fixkub - ${planEnum.replace("_", " ")}`,
                         },
                         unit_amount: Math.round(finalAmountToPay * 100), // Convert Baht to Satang
                     },

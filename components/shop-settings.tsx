@@ -166,7 +166,7 @@ export function ShopSettings() {
     if (shop) {
       setShopName(shop.name || "")
       setLogoPreview(shop.logoUrl || null)
-      setShopUrl(shop.slug ? `https://${shop.slug}.getfixx.net` : "")
+      setShopUrl(shop.slug ? `https://${shop.slug}.fixkub.net` : "")
     }
   }, [shop])
 
@@ -516,7 +516,7 @@ export function ShopSettings() {
                       <button
                         type="button"
                         onClick={async () => {
-                          await navigator.clipboard.writeText("support@getfixx.net")
+                          await navigator.clipboard.writeText("support@fixkub.net")
 
                           toast({
                             title: "📋 คัดลอกอีเมลแล้ว",
@@ -525,7 +525,7 @@ export function ShopSettings() {
                         }}
                         className="   hover:text-slate-600 transition-colors"
                       >
-                        support@getfixx.net
+                        support@fixkub.net
                       </button>{" "}
                       เท่านั้น เพื่อป้องกันคนอื่นเปลี่ยนลิงก์ของคุณ
                     </p>

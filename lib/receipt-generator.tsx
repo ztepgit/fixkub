@@ -291,7 +291,7 @@ const ReceiptHeader = () => (
     <View style={styles.logoCompanyGroup}>
       <WrenchIcon />
       <View>
-        <Text style={styles.companyName}>Getfixx</Text>
+        <Text style={styles.companyName}>Fixkub</Text>
         <Text style={styles.companyDetails}>104 ซอยติวานนท์ 38 (18/5) ต.ท่าทราย อ.เมือง จ.นนทบุรี 11000</Text>
         <Text style={styles.companyDetails}>Tax ID: 3102001480460</Text>
       </View>
@@ -343,7 +343,7 @@ const ReceiptTable = ({ data }: { data: ReceiptData }) => {
       <View style={styles.tableRow}>
         <Text style={styles.colNoValue}>1</Text>
         <View style={styles.colDesc}>
-          <Text style={styles.descText}>ค่าบริการระบบคิวซ่อมมือถือ Getfixx</Text>
+          <Text style={styles.descText}>ค่าบริการระบบคิวซ่อมมือถือ Fixkub</Text>
           <Text style={styles.descSubText}>- แพ็กเกจ: {data.plan.replace('_', ' ')}</Text>
         </View>
         <Text style={styles.amountText}>{formattedAmount}</Text>

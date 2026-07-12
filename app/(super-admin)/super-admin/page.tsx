@@ -321,7 +321,7 @@ export default function SuperAdminCreateShopPage() {
                         <FormControl>
                           <div className="flex items-center gap-2">
                             <div className="flex items-center flex-1">
-                              <span className="bg-slate-100 border border-r-0 border-slate-200 text-slate-500 px-3 h-10 rounded-l-md text-sm flex items-center whitespace-nowrap">getfixx.net/shop/</span>
+                              <span className="bg-slate-100 border border-r-0 border-slate-200 text-slate-500 px-3 h-10 rounded-l-md text-sm flex items-center whitespace-nowrap">fixkub.net/shop/</span>
                               <Input className="rounded-l-none focus-visible:ring-blue-500" placeholder="a-mobile" {...field} />
                             </div>
                             <Button

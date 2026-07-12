@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
-    title: "ติดต่อเรา | Getfixx",
-    description: "ข้อมูลการติดต่อและช่องทางการสื่อสารกับทีมงานของเว็บไซต์ Getfixx.net",
+    title: "ติดต่อเรา | Fixkub",
+    description: "ข้อมูลการติดต่อและช่องทางการสื่อสารกับทีมงานของเว็บไซต์ Fixkub.net",
 };
 
 export default function ContactUsPage() {
@@ -34,13 +34,13 @@ export default function ContactUsPage() {
                 {/* เนื้อหานโยบาย */}
                 <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/80 space-y-6">
                     <p>
-                        ขอบคุณที่เลือกใช้บริการ Getfixx (ระบบจัดการคิวซ่อมมือถือ) หากคุณมีข้อสงสัย ข้อเสนอแนะ หรือปัญหาเกี่ยวกับการใช้งาน เรายินดีที่จะช่วยเหลือและให้คำปรึกษา </p>
+                        ขอบคุณที่เลือกใช้บริการ Fixkub (ระบบจัดการคิวซ่อมมือถือ) หากคุณมีข้อสงสัย ข้อเสนอแนะ หรือปัญหาเกี่ยวกับการใช้งาน เรายินดีที่จะช่วยเหลือและให้คำปรึกษา </p>
 
                     <section className="space-y-3">
                         <h2 className="text-xl font-semibold text-foreground">ติดต่อเรา</h2>
 
                         <ul className="list-disc pl-6 space-y-1">
-                            <li>ติดต่อเราผ่านทางอีเมล: support@getfixx.net</li>
+                            <li>ติดต่อเราผ่านทางอีเมล: support@fixkub.net</li>
                             <li>ติดต่อเราผ่านทางโทรศัพท์: +66 641897530</li>
 
                         </ul>

@@ -109,7 +109,7 @@ function CheckoutForm() {
   }, [shopId])
 
   const shopUrl = shopInfo?.slug
-    ? `https://${shopInfo.slug}.getfixx.net`
+    ? `https://${shopInfo.slug}.fixkub.net`
     : ""
 
   // 🌟 Stripe Checkout Handler

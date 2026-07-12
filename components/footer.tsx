@@ -19,7 +19,7 @@ export function Footer() {
           <Wrench className="h-5 w-5 text-emerald-500" />
 
           <span className="text-xl font-semibold tracking-tight text-white">
-            getfixx <span className="text-emerald-500">Repair</span>
+            fixkub <span className="text-emerald-500">Repair</span>
           </span>
         </div>
 
@@ -64,7 +64,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="text-xs leading-relaxed text-slate-500">
-          © {currentYear} getfixx Systems. All rights reserved.
+          © {currentYear} Fixkub Systems. All rights reserved.
         </p>
       </div>
     </footer>
