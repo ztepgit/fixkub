@@ -4,7 +4,7 @@ import { z } from "zod"
 const RESERVED_SLUGS = [
   "www", "admin", "api", "app", "dashboard", "super-admin", 
   "login", "register", "pay", "payment", "support", "shop", 
-  "getfixx", "mail", "cdn", "static", "checkout", "auth"
+  "fixkub", "mail", "cdn", "static", "checkout", "auth"
 ];
 
 export const createShopSchema = z.object({

@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
-    title: "นโยบายความเป็นส่วนตัว | Getfixx",
-    description: "นโยบายความเป็นส่วนตัว (Privacy Policy) ของเว็บไซต์ Getfixx.net",
+    title: "นโยบายความเป็นส่วนตัว | Fixkub",
+    description: "นโยบายความเป็นส่วนตัว (Privacy Policy) ของเว็บไซต์ Fixkub.net",
 };
 
 export default function PrivacyPolicyPage() {
@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
                 {/* เนื้อหานโยบาย */}
                 <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/80 space-y-6">
                     <p>
-                        เว็บไซต์ Getfixx (ต่อไปนี้เรียกว่า "เรา") เคารพในความเป็นส่วนตัวของผู้ใช้งาน เพื่อให้คุณมั่นใจในการใช้บริการของเรา นโยบายความเป็นส่วนตัวฉบับนี้จะอธิบายถึงวิธีการที่เราจัดเก็บ รวบรวม ใช้ และปกป้องข้อมูลส่วนบุคคลของคุณ
+                        เว็บไซต์ Fixkub (ต่อไปนี้เรียกว่า "เรา") เคารพในความเป็นส่วนตัวของผู้ใช้งาน เพื่อให้คุณมั่นใจในการใช้บริการของเรา นโยบายความเป็นส่วนตัวฉบับนี้จะอธิบายถึงวิธีการที่เราจัดเก็บ รวบรวม ใช้ และปกป้องข้อมูลส่วนบุคคลของคุณ
                     </p>
 
                     <section className="space-y-3">
@@ -86,11 +86,11 @@ export default function PrivacyPolicyPage() {
 
                     <section className="space-y-3">
                         <h2 className="text-xl font-semibold text-foreground">6. การติดต่อเรา</h2>
-                        <p>หากคุณมีข้อสงสัยเกี่ยวกับนโยบายความเป็นส่วนตัวฉบับนี้ หรือต้องการใช้สิทธิขอลบข้อมูลบัญชีผู้ใช้งาน (Delete Account) สามารถติดต่อเราได้ที่: support@getfixx.net และโทรศัพท์: +66 641897530</p>
+                        <p>หากคุณมีข้อสงสัยเกี่ยวกับนโยบายความเป็นส่วนตัวฉบับนี้ หรือต้องการใช้สิทธิขอลบข้อมูลบัญชีผู้ใช้งาน (Delete Account) สามารถติดต่อเราได้ที่: support@fixkub.net และโทรศัพท์: +66 641897530</p>
 
                         {/*  commented out this part temporarily to avoid spam
             <div className="bg-muted p-4 rounded-lg mt-2 inline-block">
-              <p className="font-medium text-foreground">อีเมลติดต่อ: [ใส่อีเมลของคุณตรงนี้ เช่น hello@getfixx.net]</p>
+              <p className="font-medium text-foreground">อีเมลติดต่อ: [ใส่อีเมลของคุณตรงนี้ เช่น hello@fixkub.net]</p>
             </div>*/}
                     </section>
                 </div>

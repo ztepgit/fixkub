@@ -95,7 +95,7 @@ export default function LandingPage() {
       if (
         userEmail &&
         userEmail.includes("demo_") &&
-        userEmail.endsWith("@getfixx.net")
+        userEmail.endsWith("@fixkub.net")
       ) {
         setShowDemoAccountModal(true)
         return
@@ -257,7 +257,7 @@ export default function LandingPage() {
               <Wrench className="h-5 w-5" />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900">
-              getfixx <span className="text-emerald-600">Repair</span>
+              fixkub <span className="text-emerald-600">Repair</span>
             </span>
           </div>
 
@@ -620,7 +620,7 @@ export default function LandingPage() {
                       <Store className="h-5 w-5 text-slate-500 mr-3 peer-data-[state=checked]:text-emerald-600" />
                       <div>
                         <p className="font-bold text-slate-900 text-base">{shop.name}</p>
-                        <p className="text-xs text-slate-500">URL: {shop.slug}.getfixx.net</p>
+                        <p className="text-xs text-slate-500">URL: {shop.slug}.fixkub.net</p>
                       </div>
                     </div>
                     <Badge variant="outline" className={shop.role === "OWNER" ? "border-amber-200 text-amber-700 bg-amber-50" : "border-blue-200 text-blue-700 bg-blue-50"}>

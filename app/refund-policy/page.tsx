@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
-    title: "นโยบายการคืนเงิน | Getfixx",
-    description: "นโยบายการคืนเงิน (Refund Policy) ของเว็บไซต์ Getfixx.net",
+    title: "นโยบายการคืนเงิน | Fixkub",
+    description: "นโยบายการคืนเงิน (Refund Policy) ของเว็บไซต์ Fixkub.net",
 };
 
 export default function RefundPolicyPage() {
@@ -34,7 +34,7 @@ export default function RefundPolicyPage() {
                 {/* เนื้อหานโยบาย */}
                 <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/80 space-y-6">
                     <p>
-                        ขอขอบคุณที่เลือกใช้บริการ Getfixx (ระบบจัดการคิวซ่อมมือถือ) นโยบายการคืนเงินฉบับนี้จัดทำขึ้นเพื่อกำหนดเงื่อนไขและข้อตกลงในการขอคืนเงินสำหรับการซื้อแพ็กเกจหรือสิทธิ์การใช้งานล่วงหน้าบนระบบของเรา
+                        ขอขอบคุณที่เลือกใช้บริการ Fixkub (ระบบจัดการคิวซ่อมมือถือ) นโยบายการคืนเงินฉบับนี้จัดทำขึ้นเพื่อกำหนดเงื่อนไขและข้อตกลงในการขอคืนเงินสำหรับการซื้อแพ็กเกจหรือสิทธิ์การใช้งานล่วงหน้าบนระบบของเรา
                     </p>
 
                     <section className="space-y-3">
@@ -49,7 +49,7 @@ export default function RefundPolicyPage() {
                         <p>ทางเราจะพิจารณาการคืนเงิน หรือชดเชยเป็นสิทธิ์การใช้งาน (เครดิต) ให้กับท่าน เฉพาะในกรณีดังต่อไปนี้:</p>
                         <ul className="list-disc pl-6 space-y-1">
                             <li><strong>การชำระเงินซ้ำซ้อน (Duplicate Payment):</strong> เกิดข้อผิดพลาดในระบบรับชำระเงินที่ทำให้ท่านถูกหักเงินซ้ำซ้อนจากรายการสั่งซื้อเดียวกัน</li>
-                            <li><strong>ระบบขัดข้องร้ายแรง (Major Technical Issues):</strong> ระบบ Getfixx ไม่สามารถให้บริการได้ตามปกติ หรือเกิดข้อผิดพลาดทางเทคนิคจากฝั่งเซิร์ฟเวอร์ของเราเป็นระยะเวลานาน จนทำให้ท่านไม่สามารถใช้งานสิทธิ์ที่ซื้อไว้ได้ตามสมควร</li>
+                            <li><strong>ระบบขัดข้องร้ายแรง (Major Technical Issues):</strong> ระบบ Fixkub ไม่สามารถให้บริการได้ตามปกติ หรือเกิดข้อผิดพลาดทางเทคนิคจากฝั่งเซิร์ฟเวอร์ของเราเป็นระยะเวลานาน จนทำให้ท่านไม่สามารถใช้งานสิทธิ์ที่ซื้อไว้ได้ตามสมควร</li>
                         </ul>
                     </section>
 
@@ -68,7 +68,7 @@ export default function RefundPolicyPage() {
                         <h2 className="text-xl font-semibold text-foreground">4. ขั้นตอนการแจ้งปัญหาและขอพิจารณาคืนเงิน</h2>
                         <p>หากท่านพบปัญหาที่เข้าข่ายเงื่อนไขในข้อ 2 ท่านสามารถติดต่อทีมงานเพื่อขอรับการพิจารณาได้ตามขั้นตอนดังนี้:</p>
                         <ul className="list-disc pl-6 space-y-1">
-                            <li>ติดต่อเราผ่านทางอีเมล: support@getfixx.net</li>
+                            <li>ติดต่อเราผ่านทางอีเมล: support@fixkub.net</li>
                             <li>ติดต่อเราผ่านทางโทรศัพท์: +66 641897530</li>
                             <li>โปรดแจ้งเรื่องภายใน 7 วัน นับจากวันที่เกิดปัญหาหรือวันที่ทำรายการ</li>
                             <li>แนบหลักฐานการชำระเงิน (สลิป หรือ ใบเสร็จ) และคำอธิบายปัญหาที่พบอย่างละเอียด</li>

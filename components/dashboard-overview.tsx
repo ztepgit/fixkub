@@ -121,7 +121,7 @@ export function DashboardOverview() {
   })
 
   const currentSlug = slug || fetchedShop?.slug
-  const shopUrl = currentSlug ? `https://${currentSlug}.getfixx.net` : ""
+  const shopUrl = currentSlug ? `https://${currentSlug}.fixkub.net` : ""
 
   const jobToViewData = useMemo(() => allJobs.find(j => j.id === jobToView) || null, [allJobs, jobToView]);
 
@@ -213,7 +213,7 @@ export function DashboardOverview() {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      link.download = `QR-Code-${currentSlug || 'getfixx'}.png`;
+      link.download = `QR-Code-${currentSlug || 'fixkub'}.png`;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast({ title: "📥 ดาวน์โหลดสำเร็จ" })
     }

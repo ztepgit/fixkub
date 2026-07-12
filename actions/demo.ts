@@ -19,7 +19,7 @@ export async function createDemoShopAction() {
     // 🛡️ ด่านป้องกันที่ 1: Check Cookie (Soft Block) อนุญาต 3 ครั้ง
     // ==========================================
     const cookieStore = await cookies()
-    const demoCookie = cookieStore.get("getfixx_demo_created")
+    const demoCookie = cookieStore.get("fixkub_demo_created")
 
     let cookieCount = 0
     if (demoCookie) {
@@ -57,7 +57,7 @@ export async function createDemoShopAction() {
 
     // --- สร้างบัญชีผี ---
     const demoId = crypto.randomUUID().split('-')[0];
-    const dummyEmail = `demo_${demoId}@getfixx.net`;
+    const dummyEmail = `demo_${demoId}@fixkub.net`;
     const dummyPassword = crypto.randomUUID();
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -141,7 +141,7 @@ export async function createDemoShopAction() {
     })
 
     // 🌟 แปะ Cookie เพื่อนับจำนวนครั้ง (บวก 1 จากของเดิม)
-    cookieStore.set("getfixx_demo_created", (cookieCount + 1).toString(), {
+    cookieStore.set("fixkub_demo_created", (cookieCount + 1).toString(), {
       maxAge: 60 * 60 * 24,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production"

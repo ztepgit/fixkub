@@ -36,7 +36,7 @@ export default async function middleware(request: NextRequest) {
     hostname === rootDomain ||
     hostname === `www.${rootDomain}`;
 
-  // ถ้าไม่ใช่โดเมนหลัก และลงท้ายด้วย .getfixx.net (หรือโดเมนที่ตั้งไว้)
+  // ถ้าไม่ใช่โดเมนหลัก และลงท้ายด้วย .fixkub.net (หรือโดเมนที่ตั้งไว้)
   if (!isRootDomain && hostname.endsWith(`.${rootDomain}`)) {
     subdomain = hostname.replace(`.${rootDomain}`, "");
   }
