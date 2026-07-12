@@ -60,8 +60,8 @@ function CheckoutForm() {
   //เทส1บาท
   const packageDetails = plan === "monthly" ? {
     title: "แพ็กเกจรายเดือน",
-    price: 299,
-    priceText: "฿299.00",
+    price: 10,
+    priceText: "฿10.00",
     period: "ต่อเดือน",
     features: ["สร้างคิวซ่อมไม่จำกัด", "กระดานคิวอัจฉริยะ", "รายงานรายได้", "หน้าเช็คสถานะสำหรับลูกค้า"]
   } : {
