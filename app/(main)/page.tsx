@@ -541,7 +541,7 @@ export default function LandingPage() {
                     <h3 className="text-2xl font-bold text-emerald-700">รายปี (แค่เดือนละ 190.8 บาท)</h3>
                     <Zap className="h-6 w-6 text-orange-400 fill-orange-400" />
                   </div>
-                  <p className="text-slate-500 mt-2">ประหยัดกว่า จ่ายครั้งเดียวใช้ยาวๆ</p>
+                  <p className="text-slate-500 mt-2">ประหยัดกว่า จ่ายครั้งเดียวใช้ยาว</p>
                   <div className="my-6 flex items-baseline gap-2">
                     <span className="text-4xl font-extrabold text-slate-900">฿2,290</span>
                     <span className="text-slate-500">/ ปี</span>
