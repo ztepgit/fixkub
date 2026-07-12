@@ -152,7 +152,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
 
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
-                <FormLabel>ชื่อร้านค้า <span className="text-red-500">*</span></FormLabel>
+                <FormLabel>ชื่อร้าน <span className="text-red-500">*</span></FormLabel>
                 <FormControl>
                   <Input placeholder="เช่น DDmobile" {...field} className="h-11 focus-visible:ring-emerald-500" />
                 </FormControl>
