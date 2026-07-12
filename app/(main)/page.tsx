@@ -538,7 +538,7 @@ export default function LandingPage() {
                 </div>
                 <CardContent className="p-8">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold text-emerald-700">รายปี (แค่เดือนละ 190.83 บาท)</h3>
+                    <h3 className="text-2xl font-bold text-emerald-700">รายปี (แค่เดือนละ 190.8 บาท)</h3>
                     <Zap className="h-6 w-6 text-orange-400 fill-orange-400" />
                   </div>
                   <p className="text-slate-500 mt-2">ประหยัดกว่า จ่ายครั้งเดียวใช้ยาวๆ</p>

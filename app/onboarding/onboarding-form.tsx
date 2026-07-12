@@ -152,7 +152,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
 
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
-                <FormLabel>ชื่อร้านค้า <span className="text-red-500">*</span>เปลี่ยนแปลงชื่อร้านได้ตลอดเวลา</FormLabel>
+                <FormLabel>ชื่อร้านค้า <span className="text-red-500">*</span></FormLabel>
                 <FormControl>
                   <Input placeholder="เช่น DDmobile" {...field} className="h-11 focus-visible:ring-emerald-500" />
                 </FormControl>
@@ -162,7 +162,7 @@ export default function OnboardingForm({ email, plan }: { email: string, plan: s
 
             <FormField control={form.control} name="slug" render={({ field }) => (
               <FormItem>
-                <FormLabel>ลิงก์หน้าร้าน (URL) <span className="text-red-500">* ไม่สามารถเปลี่ยนแปลงได้ในภายหลัง กรุณาตรวจสอบให้ถูกต้อง</span></FormLabel>
+                <FormLabel>ลิงก์หน้าร้าน (URL) <span className="text-red-500">*</span></FormLabel>
                 <FormControl>
                   <div className="flex items-center w-full shadow-sm rounded-md">
                     <span className="bg-slate-50 border border-r-0 border-slate-200 text-slate-500 px-3 h-11 rounded-l-md text-sm flex items-center whitespace-nowrap select-none">

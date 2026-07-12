@@ -510,6 +510,25 @@ export function ShopSettings() {
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
+                    <p className="flex items-start gap-1.5 text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
+                      <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      การเปลี่ยน URL ต้องติดต่อผ่าน{" "}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText("support@getfixx.net")
+
+                          toast({
+                            title: "📋 คัดลอกอีเมลแล้ว",
+                            description: "นำไปวางใน Gmail หรือโปรแกรมอีเมลได้เลย",
+                          })
+                        }}
+                        className="   hover:text-slate-600 transition-colors"
+                      >
+                        support@getfixx.net
+                      </button>{" "}
+                      เท่านั้น เพื่อป้องกันคนอื่นเปลี่ยนลิงก์ของคุณ
+                    </p>
                   </div>
 
                   <div className="flex gap-2 w-full pt-1">
