@@ -16,6 +16,22 @@ export default async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const hostname = request.headers.get("host") || "";
 
+  // ==========================================
+  // 🔄 Redirect โดเมนเก่า → โดเมนใหม่
+  // ==========================================
+  if (
+    hostname === "getfixx.net" ||
+    hostname === "www.getfixx.net" ||
+    hostname.endsWith(".getfixx.net")
+  ) {
+    const newHostname = hostname.replace("getfixx.net", "fixkub.net");
+
+    const redirectUrl = new URL(request.url);
+    redirectUrl.hostname = newHostname;
+
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
   // 🛡️ 1. สร้าง Response เริ่มต้นเตรียมไว้ เพื่อให้เรานำไปแนบ Cookie ต่อได้
   let response = NextResponse.next({
     request: {
@@ -27,7 +43,7 @@ export default async function middleware(request: NextRequest) {
   // 🌐 ส่วนที่ 1: ระบบจัดการ Subdomain (Routing)
   // ==========================================
   const isVercel = hostname.includes("vercel.app");
-  
+
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN!;
   let subdomain = "";
 
