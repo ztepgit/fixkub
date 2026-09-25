@@ -38,12 +38,13 @@ import {
   Smartphone, Wrench, Clock, Plus, PackageCheck, MoreHorizontal, ClipboardList,
   XCircle, Trash2, RotateCcw, AlertCircle, Archive, Banknote, Barcode, Hash,
   Loader2, CheckCircle2, UserX, Phone, Search, ShieldCheck, CalendarClock, CreditCard,
-  Image as ImageIcon, X, ZoomIn
+  Image as ImageIcon, X, ZoomIn, CalendarDays // 🌟 เพิ่ม CalendarDays
 } from "lucide-react"
 
 import { ShopOwnerCreateQueue } from "@/components/shop-owner-create-queue"
 import { QueueDetailDialog } from "@/components/queue-detail-dialog"
-import { updateQueueStatus, deleteQueuePermanently, emptyTrash, getTop50Jobs } from "@/actions/queue"
+// 🌟 นำเข้า searchJobHistory เพื่อใช้ค้นหาข้ามกระดาน
+import { updateQueueStatus, deleteQueuePermanently, emptyTrash, getTop50Jobs, searchJobHistory } from "@/actions/queue"
 import { extractUploadDateFromUrl } from "@/lib/image-utils"
 import { queryKeys } from "@/lib/query-keys"
 
@@ -155,11 +156,67 @@ export function QueueBoard() {
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
 
+  // 🌟 State สำหรับการค้นหาในกระดานหลัก
+  const [boardSearchQuery, setBoardSearchQuery] = useState("")
+
+  // 🌟 State สำหรับ Global Search (ดึงจากฐานข้อมูลทั้งหมด)
+  const [isSearchSheetOpen, setIsSearchSheetOpen] = useState(false)
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("")
+  const [isGlobalSearching, setIsGlobalSearching] = useState(false)
+  const [globalSearchResults, setGlobalSearchResults] = useState<RepairJob[] | null>(null)
+
+  // ฟังก์ชันดำเนินการค้นหางานทั้งหมด
+  const handleGlobalSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!globalSearchQuery.trim()) return
+
+    setIsGlobalSearching(true)
+    setGlobalSearchResults(null)
+
+    try {
+      const keyword = normalizeQueueRef(globalSearchQuery)
+      const res = await searchJobHistory(shopId, keyword, 1, 50)
+
+      if (res.success && res.data && res.data.jobs.length > 0) {
+        setGlobalSearchResults(res.data.jobs as RepairJob[])
+        toast({
+          title: "✅ พบข้อมูล",
+          description: `พบประวัติงานซ่อม ${res.data.jobs.length} รายการ`,
+        })
+      } else {
+        setGlobalSearchResults([])
+        toast({
+          title: "❌ ไม่พบข้อมูล",
+          description: "ไม่พบข้อมูลจากคำค้นหานี้",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGlobalSearching(false)
+    }
+  }
+
   // 🌟 4. Memoize Lists เพื่อลดภาระการ Render
   const activeJobs = useMemo(() => allJobs.filter((j) => !["CANCELLED", "COMPLETED", "ARCHIVED"].includes(j.status)), [allJobs])
   const trashedJobs = useMemo(() => allJobs.filter((j) => j.status === "CANCELLED"), [allJobs])
   const archivedJobs = useMemo(() => allJobs.filter((j) => j.status === "ARCHIVED"), [allJobs])
   const warrantyJobs = useMemo(() => allJobs.filter((j) => j.status === "COMPLETED" && j.isInWarranty), [allJobs])
+
+  // 🌟 Filter คิวหลักสำหรับบอร์ดหน้าแรก
+  const filteredActiveJobs = useMemo(() => activeJobs.filter((job) => {
+    if (!boardSearchQuery) return true;
+    const term = normalizeQueueRef(boardSearchQuery).toLowerCase();
+    return (job.phoneNumber || job.phone || "").includes(term) || 
+           (job.customerName || "").toLowerCase().includes(term) || 
+           (job.deviceModel || "").toLowerCase().includes(term) || 
+           (job.jobRef || "").toLowerCase().includes(term);
+  }), [activeJobs, boardSearchQuery]);
 
   const filteredArchivedJobs = useMemo(() => archivedJobs.filter((job) => {
     if (!archiveSearchQuery) return true;
@@ -179,10 +236,20 @@ export function QueueBoard() {
     return (job.customerName || "").toLowerCase().includes(term) || (job.phone || job.phoneNumber || "").toLowerCase().includes(term) || (job.deviceModel || "").toLowerCase().includes(term) || (job.jobRef || "").toLowerCase().includes(term);
   }).sort((a, b) => new Date(b.warrantyArchivedAt || 0).getTime() - new Date(a.warrantyArchivedAt || 0).getTime()), [warrantyJobs, warrantySearch]);
 
-  const jobToViewData = useMemo(() => allJobs.find(j => j.id === jobToView) || null, [allJobs, jobToView]);
-  const jobToCancelData = useMemo(() => allJobs.find(j => j.id === jobToCancel) || null, [allJobs, jobToCancel]);
-  const jobToDeleteData = useMemo(() => allJobs.find(j => j.id === jobToDelete) || null, [allJobs, jobToDelete]);
-  const jobToWarrantyData = useMemo(() => allJobs.find(j => j.id === jobToWarranty) || null, [allJobs, jobToWarranty]);
+  // 🌟 ฟังก์ชันหาข้อมูลข้าม Store ให้เปิดดูรายละเอียดการ์ดที่เจอจาก Global Search ได้
+  const findJobAcrossStores = (id: string | null) => {
+    if (!id) return null;
+    let job = allJobs.find(j => j.id === id);
+    if (!job && globalSearchResults) {
+      job = globalSearchResults.find(j => j.id === id);
+    }
+    return job || null;
+  }
+
+  const jobToViewData = useMemo(() => findJobAcrossStores(jobToView), [allJobs, globalSearchResults, jobToView]);
+  const jobToCancelData = useMemo(() => findJobAcrossStores(jobToCancel), [allJobs, globalSearchResults, jobToCancel]);
+  const jobToDeleteData = useMemo(() => findJobAcrossStores(jobToDelete), [allJobs, globalSearchResults, jobToDelete]);
+  const jobToWarrantyData = useMemo(() => findJobAcrossStores(jobToWarranty), [allJobs, globalSearchResults, jobToWarranty]);
 
   // 🌟 5. Server-first UI Update
   const updateJobMutation = useMutation({
@@ -207,8 +274,6 @@ export function QueueBoard() {
           job.id === updatedJob.id 
             ? { 
                 ...job, 
-                // status: updatedJob.status as any,  <-- 🛑 เอาออก ไม่ต้องแก้ status
-                // ...updatedJob.data,                <-- 🛑 เอาออก ไม่ต้องแก้ data
                 _isOptimistic: true // 👈 ใส่แค่ป้ายว่ากำลังโหลด
               } 
             : job
@@ -219,7 +284,6 @@ export function QueueBoard() {
     },
     onSuccess: (serverData, variables, context) => {
       // 🌟 ปล่อยให้ Realtime / Invalidated Query เป็นตัวจัดการย้าย Card เองตามธรรมชาติ
-      // แต่เราต้องเคลียร์ flag _isOptimistic ออกเพื่อความชัวร์ (หรือจะปล่อยให้ Invalidate ทับไปเลยก็ได้)
     },
     onError: (err, variables, context) => {
       if (context?.previousJobs) {
@@ -268,7 +332,7 @@ export function QueueBoard() {
   }
 
   const restoreJob = (jobId: string) => {
-    const jobToRestore = trashedJobs.find((j) => j.id === jobId)
+    const jobToRestore = trashedJobs.find((j) => j.id === jobId) || globalSearchResults?.find((j) => j.id === jobId)
     if (!jobToRestore) return
 
     const isUncontactable = jobToRestore.cancelReason === "UNCONTACTABLE"
@@ -374,7 +438,200 @@ export function QueueBoard() {
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">กระดานคิว</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">อัปเดตสถานะได้ง่ายๆ</p>
           </div>
+          
+          {/* 🌟 Search Bar สำหรับคิวหลัก */}
+          <div className="w-full sm:max-w-xs md:max-w-sm relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
+            <Input
+              placeholder="ค้นหางานลูกค้าในกระดานหลัก (เบอร์โทร, รหัสคิว, ชื่อลูกค้า)"
+              className="pl-9 h-9 border-slate-200 dark:bg-slate-900 dark:border-slate-800 focus-visible:ring-emerald-500"
+              value={boardSearchQuery}
+              onChange={(e) => setBoardSearchQuery(e.target.value)}
+            />
+          </div>
+
           <div className="flex gap-2 w-full sm:w-auto">
+
+            {/* 🌟 New Global Search Button & Sheet */}
+            <Sheet open={isSearchSheetOpen} onOpenChange={setIsSearchSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="flex-1 sm:flex-none text-blue-600 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-950">
+                  <Search className="mr-2 h-4 w-4" /> ค้นหารวม
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg lg:max-w-xl flex flex-col h-full bg-slate-50 dark:bg-slate-950 dark:border-slate-800 p-0 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-6 text-center shrink-0">
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">ค้นหาประวัติงานซ่อมทั้งหมด</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">กรอกเบอร์โทรศัพท์, รหัสคิว, หรือชื่อลูกค้า</p>
+                  
+                  <form onSubmit={handleGlobalSearch} className="flex gap-2 mt-4">
+                    <Input
+                      placeholder="เช่น 0812345678, Q-XXXX, ชื่อเล่น"
+                      value={globalSearchQuery}
+                      onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                      className="flex-1 bg-white dark:bg-slate-900 h-12"
+                    />
+                    <Button type="submit" disabled={isGlobalSearching || !globalSearchQuery.trim()} className="bg-blue-600 hover:bg-blue-700 h-12 px-6">
+                      {isGlobalSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+                    </Button>
+                  </form>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4 pt-6 pb-12 space-y-6 custom-scrollbar">
+                  {globalSearchResults?.length === 0 && (
+                    <div className="text-center text-slate-400 mt-10">
+                      <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p>ไม่พบรายการซ่อม</p>
+                    </div>
+                  )}
+
+                  {globalSearchResults && globalSearchResults.map((job) => {
+                    const statusFlow = ["PENDING", "WAITING", "PROCESSING", "REPAIRED", "COMPLETED"]
+                    const currentStepIndex = statusFlow.indexOf(job.status)
+
+                    // 🌟 Determine location
+                    let locationText = "อยู่บนกระดานคิวหลัก"
+                    let locationClass = "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 border-none"
+                    
+                    if (job.status === "ARCHIVED") {
+                      locationText = "อยู่ในคลังดอง"
+                      locationClass = "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 border-none"
+                    } else if (job.status === "CANCELLED") {
+                      locationText = "อยู่ในถังขยะ"
+                      locationClass = "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-400 border-none"
+                    } else if (job.status === "COMPLETED" || job.isInWarranty) {
+                      locationText = "อยู่ในคลังประกัน"
+                      locationClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border-none"
+                    }
+
+                    return (
+                      <Card key={job.id} className="border-slate-200 dark:border-slate-800 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="bg-slate-800 p-5 text-white">
+                          <div className="flex justify-between items-start mb-2">
+                            <Badge variant="outline" className="bg-slate-700/50 text-slate-200 border-slate-600">
+                              {job.jobRef || "รอรันเลขบิล"}
+                            </Badge>
+                            
+                            <Badge variant="outline" className={locationClass}>{locationText}</Badge>
+                          </div>
+
+                          <h3 className="text-xl font-bold flex items-center gap-2 mb-1 mt-3">
+                            <Smartphone className="h-5 w-5 text-blue-400 shrink-0" />
+                            <span className="truncate">
+                              {job.deviceModel}
+                              {job.deviceColor && (
+                                <span className="text-blue-200 font-normal text-base ml-1.5">
+                                  (สี{job.deviceColor.replace(/^สี/, '')})
+                                </span>
+                              )}
+                            </span>
+                          </h3>
+
+                          <p className="text-slate-400 text-sm">บริการ: {job.serviceName || "ตรวจเช็คทั่วไป"}</p>
+                          <p className="text-slate-400 text-sm truncate">ลูกค้า: {job.customerName} {job.phoneNumber && `(${formatPhoneNumber(job.phoneNumber)})`}</p>
+
+                          <div className="mt-3 pt-3 border-t border-slate-700/50 flex items-center text-xs text-slate-400">
+                            <CalendarDays className="w-3.5 h-3.5 mr-1.5 opacity-70" />
+                            วันที่แจ้งซ่อม: {formatFullDateTime(job.createdAt)}
+                          </div>
+                        </div>
+
+                        {job.status !== "CANCELLED" && job.status !== "ARCHIVED" && (
+                          <CardContent className="p-6 dark:bg-slate-900">
+                            <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 space-y-8">
+                              <div className="relative pl-6">
+                                <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center ${currentStepIndex >= 0 ? "bg-slate-500" : "bg-slate-200 dark:bg-slate-800"}`}>
+                                  <ClipboardList className="h-3.5 w-3.5 text-white" />
+                                </div>
+                                <div>
+                                  <h4 className={`font-bold flex items-center gap-1.5 ${currentStepIndex >= 0 ? "text-slate-800 dark:text-slate-200" : "text-slate-400"}`}>
+                                    1. รับเรื่อง / รอคิวซ่อม
+                                    {currentStepIndex >= 0 && <CheckCircle2 className="h-4 w-4 text-slate-500" />}
+                                  </h4>
+                                  <p className="text-xs text-slate-500 mt-1">ทางร้านรับเครื่องเข้าระบบแล้ว</p>
+                                </div>
+                              </div>
+
+                              <div className="relative pl-6">
+                                <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center ${currentStepIndex >= 2 ? "bg-blue-500" : "bg-slate-200 dark:bg-slate-800"}`}>
+                                  {currentStepIndex === 2 && <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-50 animate-ping"></span>}
+                                  <Wrench className="h-3.5 w-3.5 text-white relative z-10" />
+                                </div>
+                                <div>
+                                  <h4 className={`font-bold flex items-center gap-1.5 ${currentStepIndex >= 2 ? "text-blue-700 dark:text-blue-400" : "text-slate-400"}`}>
+                                    2. ช่างกำลังดำเนินการซ่อม
+                                    {currentStepIndex >= 2 && <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                                  </h4>
+                                  <p className="text-xs text-slate-500 mt-1">กำลังแกะเครื่องและเปลี่ยนอะไหล่</p>
+                                </div>
+                              </div>
+
+                              <div className="relative pl-6">
+                                <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center ${currentStepIndex >= 3 ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-800"}`}>
+                                  {currentStepIndex === 3 && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50 animate-ping"></span>}
+                                  <PackageCheck className="h-3.5 w-3.5 text-white relative z-10" />
+                                </div>
+                                <div>
+                                  <h4 className={`font-bold flex items-center gap-1.5 ${currentStepIndex >= 3 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
+                                    3. ซ่อมเสร็จเรียบร้อย!
+                                    {currentStepIndex >= 3 && <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+                                  </h4>
+                                  <p className="text-xs text-slate-500 mt-1">เครื่องพร้อมใช้งาน มารับได้เลยครับ</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        )}
+
+                        {job.status === "ARCHIVED" && (
+                          <CardContent className="p-6 text-center space-y-3 dark:bg-slate-900">
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+                              <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">เครื่องอยู่ในคลังดอง</h3>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                              เครื่องซ่อมเสร็จแล้ว แต่ลูกค้ายังไม่มารับ
+                            </p>
+                          </CardContent>
+                        )}
+
+                        {job.status === "CANCELLED" && (
+                          <CardContent className="p-6 text-center space-y-3 border-t-4 border-rose-500 dark:bg-slate-900">
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/50">
+                              <XCircle className="h-8 w-8 text-rose-600 dark:text-rose-400" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">รายการถูกยกเลิก</h3>
+                            <div className="bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 p-3 rounded-lg text-sm inline-block">
+                              สาเหตุ: {
+                                job.cancelReason === "NO_SHOW" ? "ไม่นำเครื่องมาส่งตามนัด" :
+                                job.cancelReason === "UNREPAIRABLE" ? "ซ่อมไม่ได้/ไม่คุ้ม" :
+                                job.cancelReason === "NO_PARTS" ? "ไม่มีอะไหล่" :
+                                job.cancelReason === "CUSTOMER_CANCEL" ? "ลูกค้ายกเลิก" :
+                                job.cancelReason === "UNCONTACTABLE" ? "ติดต่อไม่ได้" :
+                                "ยกเลิกโดยร้าน"
+                              }
+                            </div>
+                          </CardContent>
+                        )}
+                        
+                        <CardFooter className="p-4 bg-slate-50 dark:bg-slate-950 border-t dark:border-slate-800 flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="w-full flex-1"
+                            onClick={() => {
+                              setJobToView(job.id);
+                              setIsSearchSheetOpen(false);
+                            }}
+                          >
+                            <ClipboardList className="w-4 h-4 mr-2" /> ดูข้อมูลและราคาประเมิน
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
 
             <Button
               variant="outline"
@@ -457,7 +714,6 @@ export function QueueBoard() {
                           <p><span className="font-semibold dark:text-slate-400">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                           <p><span className="font-semibold dark:text-slate-400">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
 
-                          {/* 🌟 Add estimatedPrice display here for Archived Jobs */}
                           {job.estimatedPrice && (
                             <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice.toLocaleString()}</span></p>
                           )}
@@ -685,7 +941,6 @@ export function QueueBoard() {
                           <p><span className="font-semibold dark:text-slate-400">ลูกค้า:</span> {job.customerName} {(job.phoneNumber || job.phone) && <span className="text-slate-500 dark:text-slate-400">({formatPhoneNumber(job.phoneNumber || job.phone)})</span>}</p>
                           <p><span className="font-semibold dark:text-slate-400">บริการ:</span> {job.serviceName || "ทั่วไป"}</p>
 
-                          {/* 🌟 Add estimatedPrice display here for Trashed Jobs */}
                           {job.estimatedPrice && (
                             <p><span className="font-semibold dark:text-slate-400">ประเมิน:</span> <span className="text-blue-600 dark:text-blue-400 font-medium">฿{job.estimatedPrice.toLocaleString()}</span></p>
                           )}
@@ -749,7 +1004,8 @@ export function QueueBoard() {
           ) : (
             <div className="flex flex-col md:flex-row gap-4 h-full md:items-start md:justify-center">
               {COLUMNS.map((col) => {
-                const columnJobs = activeJobs.filter((j: RepairJob) => j.status === col.id)
+                // 🌟 เปลี่ยนมาใช้ filteredActiveJobs แทน activeJobs
+                const columnJobs = filteredActiveJobs.filter((j: RepairJob) => j.status === col.id)
                 const Icon = col.icon
                 return (
                   <div key={col.id} className={`w-full md:w-[320px] md:shrink-0 rounded-xl border-2 flex flex-col h-[450px] md:h-full overflow-hidden ${col.color}`}>
@@ -767,7 +1023,7 @@ export function QueueBoard() {
                       <div className="space-y-3 pb-2">
                         {columnJobs.length === 0 ? (
                           <div className="text-center p-4 py-8 text-sm text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700/50 rounded-lg">
-                            ไม่มีงานในสถานะนี้
+                            {boardSearchQuery ? "ไม่พบข้อมูลที่ค้นหา" : "ไม่มีงานในสถานะนี้"}
                           </div>
                         ) : (
                           columnJobs.map((job: RepairJob) => (
@@ -811,7 +1067,6 @@ export function QueueBoard() {
                                     <TooltipTrigger asChild>
                                       <div>
                                         <DropdownMenuTrigger asChild>
-                                          {/* 🌟 ลบ opacity-0 ในหน้าจอขนาดเล็กออก (แก้ไข `opacity-100` เป็น default และคง hover opacity สำหรับจอที่รองรับ) */}
                                           <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 dark:text-slate-500 -mr-2 -mt-2 opacity-100 group-hover:opacity-100 transition-opacity hover:bg-slate-100 dark:hover:bg-slate-800">
                                             <MoreHorizontal className="h-4 w-4" />
                                           </Button>
@@ -885,7 +1140,7 @@ export function QueueBoard() {
                                       moveJob(job.id, job.status)
                                     }
                                   }}
-                                  disabled={updateJobMutation.isPending || job._isOptimistic} // 🌟 ถ้ากำลังโหลดอยู่ ห้ามกดซ้ำ
+                                  disabled={updateJobMutation.isPending || job._isOptimistic}
                                   className="w-full text-xs h-8 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-700/50"
                                 >
                                   {job.status === "PENDING" && "รับเครื่องเข้าคิว"}
