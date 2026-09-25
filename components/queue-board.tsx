@@ -443,7 +443,7 @@ export function QueueBoard() {
           <div className="w-full sm:max-w-xs md:max-w-sm relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
             <Input
-              placeholder="ค้นหางานลูกค้าในกระดานหลัก (เบอร์โทร, รหัสคิว, ชื่อลูกค้า)"
+              placeholder="ค้นหางานในกระดานหลัก (เบอร์โทร, รหัสคิว, ชื่อลูกค้า)"
               className="pl-9 h-9 border-slate-200 dark:bg-slate-900 dark:border-slate-800 focus-visible:ring-emerald-500"
               value={boardSearchQuery}
               onChange={(e) => setBoardSearchQuery(e.target.value)}
