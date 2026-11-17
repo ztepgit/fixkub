@@ -23,7 +23,7 @@ const notoThai = Noto_Sans_Thai({
 })
 
 export const metadata: Metadata = {
-  title: 'fixkub - คิวซ่อมมือถือออนไลน์',
+  title: 'fixkub - แจ้งซ่อมมือถือออนไลน์',
   description: 'simple mobile queue management',
   generator: 'v0.app',
   icons: {
