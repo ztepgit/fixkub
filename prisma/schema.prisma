@@ -324,3 +324,33 @@ model CarouselItem {
   // 🌟 Index เพื่อให้ดึงข้อมูลมาเรียงลำดับที่หน้า Landing ได้เร็วที่สุด
   @@index([isActive, order])
 }
+
+// ==========================================
+// 9. AI Part
+// ==========================================
+
+model AiKnowledgeDocument {
+  id        String             @id @default(cuid())
+  title     String
+  content   String             @db.Text
+  category  String
+  source    String             @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  chunks    AiKnowledgeChunk[]
+}
+
+model AiKnowledgeChunk {
+  id         String                      @id @default(cuid())
+  documentId String
+  chunkIndex Int
+  content    String                      @db.Text
+  embedding  Unsupported("vector(1024)")?
+  createdAt  DateTime                    @default(now())
+
+  document AiKnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+
